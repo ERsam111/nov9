@@ -76,6 +76,7 @@ export function ScenarioComparison({
   const [selectedScenarios, setSelectedScenarios] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [availableScenarios, setAvailableScenarios] = useState<Array<{id: string; name: string}>>([]);
+  const [coverageRadius, setCoverageRadius] = useState<number>(10);
   const { toast } = useToast();
   const { projectId: urlProjectId } = useParams();
   const projectId = propProjectId || urlProjectId;
@@ -148,13 +149,40 @@ export function ScenarioComparison({
       const loadedScenarios: SavedScenario[] = data?.map((output) => {
         const outputData = output.output_data as any;
         const scenario = scenarioMap.get(output.scenario_id);
-        const costBreakdown = outputData.costBreakdown || {};
         
-        // Calculate metrics
+        // Get data from output
         const customers = outputData.customers || [];
         const dcs = outputData.dcs || [];
-        const totalDemand = customers.reduce((sum: number, c: any) => sum + (c.demand * c.conversionFactor || 0), 0);
+        const scenarioSettings = outputData.settings || settings;
         
+        // Calculate total demand
+        const totalDemand = customers.reduce((sum: number, c: any) => sum + (c.demand * (c.conversionFactor || 1)), 0);
+        
+        // Calculate transportation cost
+        let transportationCost = 0;
+        customers.forEach((customer: any) => {
+          const assignedDC = dcs.find((dc: any) =>
+            dc.assignedCustomers?.some((c: any) => c.id === customer.id)
+          );
+          if (assignedDC) {
+            const distance = getDistance(
+              customer.latitude,
+              customer.longitude,
+              assignedDC.latitude,
+              assignedDC.longitude
+            );
+            const customerDemand = customer.demand * (customer.conversionFactor || 1);
+            transportationCost += distance * customerDemand * (scenarioSettings.transportationCostPerMilePerUnit || 0);
+          }
+        });
+        
+        // Calculate facility cost
+        const facilityCost = dcs.length * (scenarioSettings.facilityCost || 0);
+        
+        // Total cost = transportation cost + facility cost
+        const totalCost = transportationCost + facilityCost;
+        
+        // Calculate average distance and demand coverage
         let avgDistance = 0;
         let coveredDemand = 0;
         
@@ -172,8 +200,8 @@ export function ScenarioComparison({
                 assignedDC.longitude
               );
               totalDistance += distance;
-              if (distance <= (outputData.settings?.maxRadius || 0)) {
-                coveredDemand += customer.demand * customer.conversionFactor;
+              if (distance <= (scenarioSettings.maxRadius || 0)) {
+                coveredDemand += customer.demand * (customer.conversionFactor || 1);
               }
             }
           });
@@ -184,16 +212,16 @@ export function ScenarioComparison({
           id: output.scenario_id,
           name: scenario?.name || 'Unnamed Scenario',
           timestamp: scenario?.created_at || new Date().toISOString(),
-          numSites: costBreakdown.numSites || dcs.length || 0,
-          totalCost: costBreakdown.totalCost || 0,
-          transportationCost: costBreakdown.transportationCost || 0,
-          facilityCost: costBreakdown.facilityCost || 0,
+          numSites: dcs.length || 0,
+          totalCost: totalCost,
+          transportationCost: transportationCost,
+          facilityCost: facilityCost,
           avgDistance: avgDistance,
           demandCoverage: totalDemand > 0 ? (coveredDemand / totalDemand) * 100 : 0,
           customers: customers.length,
-          costPerUnit: totalDemand > 0 ? (costBreakdown.totalCost || 0) / totalDemand : 0,
-          costPerCustomer: customers.length > 0 ? (costBreakdown.totalCost || 0) / customers.length : 0,
-          settings: outputData.settings || settings,
+          costPerUnit: totalDemand > 0 ? totalCost / totalDemand : 0,
+          costPerCustomer: customers.length > 0 ? totalCost / customers.length : 0,
+          settings: scenarioSettings,
         };
       }) || [];
 
@@ -213,12 +241,13 @@ export function ScenarioComparison({
   // Calculate metrics
   const calculateMetrics = () => {
     if (customers.length === 0 || dcs.length === 0) {
-      return { avgDistance: 0, demandCoverage: 0 };
+      return { avgDistance: 0, demandCoverage: 0, totalCost: 0, transportationCost: 0, facilityCost: 0 };
     }
 
     let totalDistance = 0;
     let coveredDemand = 0;
     let totalDemand = 0;
+    let transportationCost = 0;
 
     customers.forEach((customer) => {
       totalDemand += customer.demand * customer.conversionFactor;
@@ -233,15 +262,27 @@ export function ScenarioComparison({
           assignedDC.longitude
         );
         totalDistance += distance;
-        if (distance <= settings.maxRadius) {
+        
+        // Check coverage based on user-selected radius
+        if (distance <= coverageRadius) {
           coveredDemand += customer.demand * customer.conversionFactor;
         }
+        
+        // Calculate transportation cost
+        const customerDemand = customer.demand * customer.conversionFactor;
+        transportationCost += distance * customerDemand * settings.transportationCostPerMilePerUnit;
       }
     });
+
+    const facilityCost = dcs.length * settings.facilityCost;
+    const totalCost = transportationCost + facilityCost;
 
     return {
       avgDistance: totalDistance / customers.length,
       demandCoverage: totalDemand > 0 ? (coveredDemand / totalDemand) * 100 : 0,
+      totalCost,
+      transportationCost,
+      facilityCost,
     };
   };
 
@@ -281,16 +322,16 @@ export function ScenarioComparison({
 
   const currentMetrics = calculateMetrics();
   const totalDemand = customers.reduce((sum, c) => sum + c.demand * c.conversionFactor, 0);
-  const currentData = costBreakdown
+  const currentData = costBreakdown || currentMetrics.totalCost > 0
     ? {
-        numSites: costBreakdown.numSites,
-        totalCost: costBreakdown.totalCost,
-        transportationCost: costBreakdown.transportationCost,
-        facilityCost: costBreakdown.facilityCost,
+        numSites: costBreakdown?.numSites || dcs.length,
+        totalCost: costBreakdown?.totalCost || currentMetrics.totalCost,
+        transportationCost: costBreakdown?.transportationCost || currentMetrics.transportationCost,
+        facilityCost: costBreakdown?.facilityCost || currentMetrics.facilityCost,
         avgDistance: currentMetrics.avgDistance,
         demandCoverage: currentMetrics.demandCoverage,
-        costPerUnit: totalDemand > 0 ? costBreakdown.totalCost / totalDemand : 0,
-        costPerCustomer: customers.length > 0 ? costBreakdown.totalCost / customers.length : 0,
+        costPerUnit: totalDemand > 0 ? (costBreakdown?.totalCost || currentMetrics.totalCost) / totalDemand : 0,
+        costPerCustomer: customers.length > 0 ? (costBreakdown?.totalCost || currentMetrics.totalCost) / customers.length : 0,
       }
     : null;
 
@@ -627,7 +668,19 @@ export function ScenarioComparison({
                 )}
                 {kpiFilters.demandCoverage && (
                   <tr className="border-b">
-                    <td className="p-2 font-medium">Demand Coverage</td>
+                    <td className="p-2 font-medium">
+                      <div className="flex items-center gap-2">
+                        <span>Demand Coverage within</span>
+                        <Input
+                          type="number"
+                          value={coverageRadius}
+                          onChange={(e) => setCoverageRadius(Number(e.target.value))}
+                          className="w-20 h-7 text-xs"
+                          min="1"
+                        />
+                        <span>{settings.distanceUnit}</span>
+                      </div>
+                    </td>
                     {currentData && (
                       <td className="text-right p-2 bg-primary/5">
                         {currentData.demandCoverage.toFixed(1)}%
