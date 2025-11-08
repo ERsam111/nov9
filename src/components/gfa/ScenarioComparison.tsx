@@ -250,36 +250,38 @@ export function ScenarioComparison({
   // Calculate metrics
   const calculateMetrics = () => {
     if (customers.length === 0 || dcs.length === 0) {
-      return { avgDistance: 0, demandCoverage: 0, totalCost: 0, transportationCost: 0, facilityCost: 0 };
+      return { avgDistance: 0, demandCoverage: 0, totalCost: 0, transportationCost: 0, facilityCost: 0, costPerUnit: 0, costPerCustomer: 0 };
     }
 
     let totalDistance = 0;
-    let coveredDemand = 0;
-    let totalDemand = 0;
+    let coveredCustomers = 0; // Count customers within radius, not demand
     let transportationCost = 0;
+    let customerCount = 0;
 
-    customers.forEach((customer) => {
-      totalDemand += customer.demand * customer.conversionFactor;
-      const assignedDC = dcs.find((dc) =>
-        dc.assignedCustomers.some((c) => c.id === customer.id)
-      );
-      if (assignedDC) {
-        const distance = getDistance(
-          customer.latitude,
-          customer.longitude,
-          assignedDC.latitude,
-          assignedDC.longitude
-        );
-        totalDistance += distance;
-        
-        // Check coverage based on user-selected radius
-        if (distance <= coverageRadius) {
-          coveredDemand += customer.demand * customer.conversionFactor;
-        }
-        
-        // Calculate transportation cost
-        const customerDemand = customer.demand * customer.conversionFactor;
-        transportationCost += distance * customerDemand * settings.transportationCostPerMilePerUnit;
+    const totalDemand = customers.reduce((sum, c) => sum + c.demand * c.conversionFactor, 0);
+
+    dcs.forEach((dc) => {
+      if (dc.assignedCustomers && dc.assignedCustomers.length > 0) {
+        dc.assignedCustomers.forEach((customer) => {
+          const distance = getDistance(
+            customer.latitude,
+            customer.longitude,
+            dc.latitude,
+            dc.longitude
+          );
+          
+          totalDistance += distance;
+          customerCount++;
+          
+          // Check coverage based on user-selected radius (count customers, not demand)
+          if (distance <= coverageRadius) {
+            coveredCustomers++;
+          }
+          
+          // Calculate transportation cost
+          const customerDemand = customer.demand * customer.conversionFactor;
+          transportationCost += distance * customerDemand * settings.transportationCostPerMilePerUnit;
+        });
       }
     });
 
@@ -287,11 +289,13 @@ export function ScenarioComparison({
     const totalCost = transportationCost + facilityCost;
 
     return {
-      avgDistance: totalDistance / customers.length,
-      demandCoverage: totalDemand > 0 ? (coveredDemand / totalDemand) * 100 : 0,
+      avgDistance: customerCount > 0 ? totalDistance / customerCount : 0,
+      demandCoverage: customers.length > 0 ? (coveredCustomers / customers.length) * 100 : 0,
       totalCost,
       transportationCost,
       facilityCost,
+      costPerUnit: totalDemand > 0 ? totalCost / totalDemand : 0,
+      costPerCustomer: customers.length > 0 ? totalCost / customers.length : 0,
     };
   };
 
@@ -339,8 +343,8 @@ export function ScenarioComparison({
         facilityCost: costBreakdown?.facilityCost || currentMetrics.facilityCost,
         avgDistance: currentMetrics.avgDistance,
         demandCoverage: currentMetrics.demandCoverage,
-        costPerUnit: totalDemand > 0 ? (costBreakdown?.totalCost || currentMetrics.totalCost) / totalDemand : 0,
-        costPerCustomer: customers.length > 0 ? (costBreakdown?.totalCost || currentMetrics.totalCost) / customers.length : 0,
+        costPerUnit: currentMetrics.costPerUnit,
+        costPerCustomer: currentMetrics.costPerCustomer,
       }
     : null;
 
@@ -490,8 +494,19 @@ export function ScenarioComparison({
       </CardHeader>
       <CardContent>
         {loading ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <p>Loading scenarios...</p>
+          <div className="space-y-4">
+            <div className="flex items-center justify-center py-8">
+              <div className="flex items-center gap-3">
+                <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full"></div>
+                <p className="text-muted-foreground">Recalculating scenarios...</p>
+              </div>
+            </div>
+            {/* Show skeleton while loading */}
+            <div className="space-y-2 animate-pulse">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="h-12 bg-muted/50 rounded"></div>
+              ))}
+            </div>
           </div>
         ) : selectedScenarios.size === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
@@ -502,8 +517,11 @@ export function ScenarioComparison({
             )}
           </div>
         ) : scenarios.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <p>Loading selected scenarios...</p>
+          <div className="flex items-center justify-center py-8">
+            <div className="flex items-center gap-3">
+              <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full"></div>
+              <p className="text-muted-foreground">Loading selected scenarios...</p>
+            </div>
           </div>
         ) : (
           <div className="overflow-x-auto">
