@@ -62,6 +62,7 @@ interface ScenarioComparisonProps {
   customers: Customer[];
   settings: OptimizationSettings;
   costBreakdown?: { totalCost: number; transportationCost: number; facilityCost: number; numSites: number };
+  projectId?: string;
 }
 
 export function ScenarioComparison({
@@ -69,13 +70,15 @@ export function ScenarioComparison({
   customers,
   settings,
   costBreakdown,
+  projectId: propProjectId,
 }: ScenarioComparisonProps) {
   const [scenarios, setScenarios] = useState<SavedScenario[]>([]);
   const [selectedScenarios, setSelectedScenarios] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [availableScenarios, setAvailableScenarios] = useState<Array<{id: string; name: string}>>([]);
   const { toast } = useToast();
-  const { projectId, scenarioId } = useParams();
+  const { projectId: urlProjectId } = useParams();
+  const projectId = propProjectId || urlProjectId;
 
   const [kpiFilters, setKpiFilters] = useState<KPIFilter>({
     numSites: true,

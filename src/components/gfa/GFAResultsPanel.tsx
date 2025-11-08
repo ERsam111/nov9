@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { exportReport } from "@/utils/exportReport";
 import { useToast } from "@/hooks/use-toast";
+import { useScenarios } from "@/contexts/ScenarioContext";
 
 interface GFAResultsPanelProps {
   dcs: DistributionCenter[];
@@ -38,6 +39,7 @@ export function GFAResultsPanel({
 }: GFAResultsPanelProps) {
   const [distanceRangeStep, setDistanceRangeStep] = useState<number>(100);
   const { toast } = useToast();
+  const { currentScenario } = useScenarios();
 
   const handleExportAll = () => {
     exportReport({
@@ -254,6 +256,7 @@ export function GFAResultsPanel({
           customers={customers}
           settings={settings}
           costBreakdown={costBreakdown}
+          projectId={currentScenario?.project_id}
         />
       </TabsContent>
     </Tabs>
