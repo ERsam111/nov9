@@ -74,7 +74,7 @@ export const ProjectScenarioNav = ({
       const project = projects.find(p => p.id === currentProjectId);
       if (project) {
         setSelectedProject(project);
-        loadScenariosByProject(project.id);
+        loadScenariosByProject(project.id, moduleType);
       }
     }
   }, [currentProjectId, projects]);
@@ -92,7 +92,7 @@ export const ProjectScenarioNav = ({
     setSelectedProject(project);
     setCurrentProject(project); // Update global context so sidebar highlights
     setCurrentScenario(null);
-    loadScenariosByProject(project.id);
+    loadScenariosByProject(project.id, moduleType);
     onProjectChange?.(project);
   };
 
