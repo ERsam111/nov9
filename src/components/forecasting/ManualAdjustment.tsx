@@ -29,6 +29,8 @@ export function ManualAdjustment({
   onProductChange
 }: ManualAdjustmentProps) {
   const [adjustments, setAdjustments] = useState<Record<string, number>>({});
+  const [adjustmentType, setAdjustmentType] = useState<"percentage" | "absolute">("percentage");
+  const [bulkAdjustmentValue, setBulkAdjustmentValue] = useState<number>(0);
   const [selectedModelId, setSelectedModelId] = useState<string>(
     forecastResults.find(r => r.isRecommended)?.modelId || forecastResults[0]?.modelId || ""
   );
@@ -68,8 +70,27 @@ export function ManualAdjustment({
     toast.success("Manual adjustments applied successfully");
   };
 
+
+  const applyBulkAdjustment = () => {
+    if (!selectedModel) return;
+    
+    const newAdjustments: Record<string, number> = {};
+    selectedModel.predictions.forEach((pred, idx) => {
+      const key = `${selectedModelId}-${idx}`;
+      if (adjustmentType === "percentage") {
+        newAdjustments[key] = pred.predicted * (1 + bulkAdjustmentValue / 100);
+      } else {
+        newAdjustments[key] = pred.predicted + bulkAdjustmentValue;
+      }
+    });
+    
+    setAdjustments(newAdjustments);
+    toast.success(`Applied ${adjustmentType === "percentage" ? bulkAdjustmentValue + "%" : bulkAdjustmentValue} adjustment to all periods`);
+  };
+
   const resetAdjustments = () => {
     setAdjustments({});
+    setBulkAdjustmentValue(0);
     toast.info("All adjustments reset");
   };
 
@@ -131,14 +152,50 @@ export function ManualAdjustment({
             </div>
           </div>
 
+          <div className="p-4 border rounded-lg bg-muted/50">
+            <h4 className="font-medium mb-3">Bulk Adjustment</h4>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Adjustment Type</Label>
+                <Select value={adjustmentType} onValueChange={(v: "percentage" | "absolute") => setAdjustmentType(v)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="percentage">Percentage (%)</SelectItem>
+                    <SelectItem value="absolute">Absolute Value</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>{adjustmentType === "percentage" ? "Percentage Change" : "Absolute Change"}</Label>
+                <Input
+                  type="number"
+                  value={bulkAdjustmentValue}
+                  onChange={(e) => setBulkAdjustmentValue(parseFloat(e.target.value) || 0)}
+                  placeholder={adjustmentType === "percentage" ? "e.g., 10 for +10%" : "e.g., 100"}
+                  step={adjustmentType === "percentage" ? "0.1" : "1"}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>&nbsp;</Label>
+                <Button onClick={applyBulkAdjustment} className="w-full">
+                  Apply to All Periods
+                </Button>
+              </div>
+            </div>
+          </div>
+
           <div className="flex gap-2">
             <Button onClick={applyAdjustments} className="gap-2">
               <Save className="h-4 w-4" />
-              Apply Adjustments
+              Save Adjustments
             </Button>
             <Button onClick={resetAdjustments} variant="outline" className="gap-2">
               <Undo2 className="h-4 w-4" />
-              Reset
+              Reset All
             </Button>
           </div>
         </CardContent>

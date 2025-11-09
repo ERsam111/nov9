@@ -39,6 +39,11 @@ export function PromotionalAdjustment({
   onProductChange
 }: PromotionalAdjustmentProps) {
   const [promotions, setPromotions] = useState<Promotion[]>([]);
+  const [priceDiscount, setPriceDiscount] = useState<number>(10);
+  const [elasticity, setElasticity] = useState<number>(1.5);
+  const [targetSales, setTargetSales] = useState<number>(0);
+  const [targetRevenue, setTargetRevenue] = useState<number>(0);
+  const [recommendedDiscount, setRecommendedDiscount] = useState<number | null>(null);
   const [newPromotion, setNewPromotion] = useState<Partial<Promotion>>({
     name: "",
     startDate: new Date(),
@@ -109,6 +114,43 @@ export function PromotionalAdjustment({
     toast.success(`Applied ${promotions.length} promotion(s) to forecasts`);
   };
 
+  const calculateRecommendedDiscount = () => {
+    if (!selectedProduct || forecastResults.length === 0) {
+      toast.error("Please select a product and generate forecasts first");
+      return;
+    }
+
+    const baselineForecast = forecastResults[0]?.predictions.reduce((sum, p) => sum + p.predicted, 0) || 0;
+    
+    let recommendedDiscountPct = 0;
+    
+    if (targetSales > 0) {
+      // Sales uplift = (Target Sales - Baseline) / Baseline
+      const requiredUplift = ((targetSales - baselineForecast) / baselineForecast) * 100;
+      // Using price elasticity: % change in demand = elasticity × % change in price
+      // Discount needed = Required Uplift / Elasticity
+      recommendedDiscountPct = Math.abs(requiredUplift / elasticity);
+    } else if (targetRevenue > 0 && baselineForecast > 0) {
+      // Simplified revenue optimization: assuming linear relationship
+      // This is a basic calculation - real optimization would need unit price data
+      const impliedUplift = ((targetRevenue / baselineForecast) - 1) * 100;
+      recommendedDiscountPct = Math.abs(impliedUplift / elasticity);
+    } else {
+      // Use the manual discount input
+      recommendedDiscountPct = priceDiscount;
+    }
+
+    setRecommendedDiscount(Math.min(recommendedDiscountPct, 80)); // Cap at 80% discount
+    toast.success(`Recommended discount: ${Math.min(recommendedDiscountPct, 80).toFixed(1)}% based on elasticity of ${elasticity}`);
+  };
+
+  const useRecommendedDiscount = () => {
+    if (recommendedDiscount !== null) {
+      setNewPromotion({ ...newPromotion, uplift: recommendedDiscount });
+      toast.success("Applied recommended discount to promotion");
+    }
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -137,6 +179,68 @@ export function PromotionalAdjustment({
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+          </div>
+
+          <div className="p-4 border rounded-lg bg-muted/50">
+            <h4 className="font-medium mb-3">Discount Optimization (Optional)</h4>
+            <p className="text-sm text-muted-foreground mb-3">
+              Set targets to get AI-recommended discount based on price elasticity
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="space-y-2">
+                <Label>Price Elasticity</Label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  value={elasticity}
+                  onChange={(e) => setElasticity(parseFloat(e.target.value) || 1.5)}
+                  placeholder="e.g., 1.5"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Target Sales (Units)</Label>
+                <Input
+                  type="number"
+                  value={targetSales}
+                  onChange={(e) => setTargetSales(parseFloat(e.target.value) || 0)}
+                  placeholder="Optional"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Target Revenue</Label>
+                <Input
+                  type="number"
+                  value={targetRevenue}
+                  onChange={(e) => setTargetRevenue(parseFloat(e.target.value) || 0)}
+                  placeholder="Optional"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Manual Discount (%)</Label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  value={priceDiscount}
+                  onChange={(e) => setPriceDiscount(parseFloat(e.target.value) || 10)}
+                  placeholder="e.g., 10"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 mt-3">
+              <Button onClick={calculateRecommendedDiscount} variant="secondary">
+                <Sparkles className="h-4 w-4 mr-2" />
+                Calculate Optimal Discount
+              </Button>
+              {recommendedDiscount !== null && (
+                <Button onClick={useRecommendedDiscount} variant="outline">
+                  Use Recommended: {recommendedDiscount.toFixed(1)}%
+                </Button>
+              )}
             </div>
           </div>
 
