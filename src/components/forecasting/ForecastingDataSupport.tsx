@@ -207,7 +207,7 @@ export function ForecastingDataSupport({
     try {
       const context = buildComprehensiveContext();
       
-      const { data, error } = await supabase.functions.invoke('gfa-data-support', {
+      const { data, error } = await supabase.functions.invoke('forecasting-data-support', {
         body: {
           question: userMessage,
           context: { comprehensiveContext: context },
