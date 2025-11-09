@@ -458,12 +458,9 @@ const DemandForecasting = () => {
           {activeTab === "manual" && (
             <ManualAdjustment
               forecastResults={forecastResults}
-              historicalData={historicalData}
               selectedProduct={selectedProduct}
               granularity={granularity}
-              onAdjustmentsChange={setForecastResults}
               uniqueProducts={uniqueProducts}
-              onProductChange={setSelectedProduct}
             />
           )}
 
@@ -473,9 +470,7 @@ const DemandForecasting = () => {
               forecastResults={forecastResults}
               selectedProduct={selectedProduct}
               granularity={granularity}
-              onPromotionalAdjustmentsChange={setForecastResults}
               uniqueProducts={uniqueProducts}
-              onProductChange={setSelectedProduct}
             />
           )}
 

@@ -1,259 +1,165 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ForecastResult, HistoricalDataPoint } from "@/types/forecasting";
-import { Calendar, Save, Undo2 } from "lucide-react";
+import { ForecastResult } from "@/types/forecasting";
+import { Download, TrendingUp, TrendingDown, Activity } from "lucide-react";
 import { toast } from "sonner";
+import { Scenario2Input } from "./Scenario2Input";
+import { Scenario2Results } from "./Scenario2Results";
+import { Scenario2Adjustment, Scenario2AdjustmentWithForecast } from "@/types/scenario2";
+import { saveScenario2Results } from "@/utils/scenarioStorage";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 interface ManualAdjustmentProps {
   forecastResults: ForecastResult[];
-  historicalData: HistoricalDataPoint[];
   selectedProduct: string;
   granularity: "daily" | "weekly" | "monthly";
-  onAdjustmentsChange: (adjustedResults: ForecastResult[]) => void;
   uniqueProducts: string[];
-  onProductChange: (product: string) => void;
 }
 
 export function ManualAdjustment({
   forecastResults,
-  historicalData,
   selectedProduct,
   granularity,
-  onAdjustmentsChange,
   uniqueProducts,
-  onProductChange
 }: ManualAdjustmentProps) {
-  const [adjustments, setAdjustments] = useState<Record<string, number>>({});
-  const [adjustmentType, setAdjustmentType] = useState<"percentage" | "absolute">("percentage");
-  const [bulkAdjustmentValue, setBulkAdjustmentValue] = useState<number>(0);
+  const [adjustments, setAdjustments] = useState<Scenario2Adjustment[]>([]);
+  const [enrichedAdjustments, setEnrichedAdjustments] = useState<Scenario2AdjustmentWithForecast[]>([]);
   const [selectedModelId, setSelectedModelId] = useState<string>(
     forecastResults.find(r => r.isRecommended)?.modelId || forecastResults[0]?.modelId || ""
   );
 
-  const selectedModel = forecastResults.find(r => r.modelId === selectedModelId);
+  // Load saved results on mount
+  useEffect(() => {
+    const saved = JSON.parse(localStorage.getItem('scenario2_results') || 'null');
+    if (saved) {
+      setEnrichedAdjustments(saved.map((s: any) => ({
+        ...s,
+        period: new Date(s.period),
+        fromPeriod: new Date(s.fromPeriod),
+        toPeriod: new Date(s.toPeriod)
+      })));
+    }
+  }, []);
 
-  const handleAdjustment = (index: number, value: string) => {
-    const numValue = parseFloat(value);
-    if (!isNaN(numValue)) {
-      setAdjustments(prev => ({
-        ...prev,
-        [`${selectedModelId}-${index}`]: numValue
-      }));
+  const calculateAdjustedForecast = (baseline: number, type: "units" | "percentage", value: number): number => {
+    if (type === "units") {
+      return baseline + value;
+    } else {
+      return baseline * (1 + value / 100);
     }
   };
 
-  const applyAdjustments = () => {
-    const adjustedResults = forecastResults.map(result => {
-      if (result.modelId !== selectedModelId) return result;
+  const handleAdjustmentsSubmit = (data: Scenario2Adjustment[]) => {
+    setAdjustments(data);
+    
+    // Get selected model data
+    const selectedModel = forecastResults.find((r: any) => r.modelId === selectedModelId);
+    if (!selectedModel) {
+      toast.error("No forecast data. Please generate forecasts first.");
+      return;
+    }
 
-      const adjustedPredictions = result.predictions.map((pred, idx) => {
-        const key = `${selectedModelId}-${idx}`;
-        const adjustedValue = adjustments[key] !== undefined ? adjustments[key] : pred.predicted;
-        return {
-          date: pred.date,
-          predicted: adjustedValue
-        };
+    const enriched: Scenario2AdjustmentWithForecast[] = [];
+    
+    data.forEach(adj => {
+      // Find all predictions within the date range
+      const predictions = selectedModel.predictions.filter((pred: any) => {
+        const predDate = new Date(pred.date);
+        return predDate >= adj.fromPeriod && predDate <= adj.toPeriod;
       });
 
-      return {
-        ...result,
-        predictions: adjustedPredictions
-      };
+      predictions.forEach((pred: any) => {
+        enriched.push({
+          ...adj,
+          period: new Date(pred.date),
+          baselineForecast: pred.predicted,
+          adjustedForecast: calculateAdjustedForecast(pred.predicted, adj.adjustmentType, adj.adjustmentValue)
+        });
+      });
     });
 
-    onAdjustmentsChange(adjustedResults);
-    toast.success("Manual adjustments applied successfully");
-  };
-
-
-  const applyBulkAdjustment = () => {
-    if (!selectedModel) return;
+    setEnrichedAdjustments(enriched);
     
-    const newAdjustments: Record<string, number> = {};
-    selectedModel.predictions.forEach((pred, idx) => {
-      const key = `${selectedModelId}-${idx}`;
-      if (adjustmentType === "percentage") {
-        newAdjustments[key] = pred.predicted * (1 + bulkAdjustmentValue / 100);
-      } else {
-        newAdjustments[key] = pred.predicted + bulkAdjustmentValue;
-      }
-    });
+    // Save enriched results
+    saveScenario2Results(enriched);
     
-    setAdjustments(newAdjustments);
-    toast.success(`Applied ${adjustmentType === "percentage" ? bulkAdjustmentValue + "%" : bulkAdjustmentValue} adjustment to all periods`);
+    toast.success(`Applied ${data.length} adjustments across ${enriched.length} periods. Results saved.`);
   };
 
-  const resetAdjustments = () => {
-    setAdjustments({});
-    setBulkAdjustmentValue(0);
-    toast.info("All adjustments reset");
-  };
+  const selectedModel = forecastResults.find((r: any) => r.modelId === selectedModelId);
+  
+  // Prepare chart data for baseline visualization
+  const scenario1ChartData = selectedModel?.predictions.map((p: any) => ({
+    date: new Date(p.date).toISOString().split('T')[0],
+    baseline: p.predicted
+  })) || [];
 
-  if (!selectedModel) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Manual Adjustment</CardTitle>
-          <CardDescription>No forecast data available. Please run forecasting first.</CardDescription>
-        </CardHeader>
-      </Card>
-    );
-  }
+  // Prepare scenario1Data format expected by components
+  const scenario1Data = forecastResults.length > 0 ? {
+    product: selectedProduct,
+    granularity: granularity,
+    results: forecastResults
+  } : null;
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            Manual Forecast Adjustment
-          </CardTitle>
-          <CardDescription>
-            Manually adjust forecast values for {selectedProduct} based on expert judgment
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+      {/* Baseline Forecast Visualization */}
+      {scenario1Data && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Baseline Forecast</CardTitle>
+            <CardDescription>
+              {scenario1Data.product} - {scenario1Data.granularity} forecast
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label>Product</Label>
-              <Select value={selectedProduct} onValueChange={onProductChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select product" />
-                </SelectTrigger>
-                <SelectContent>
-                  {uniqueProducts.map(product => (
-                    <SelectItem key={product} value={product}>
-                      {product}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Select Forecast Model</Label>
+              <Label className="text-xs">Select Forecast Model</Label>
               <Select value={selectedModelId} onValueChange={setSelectedModelId}>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Choose model" />
                 </SelectTrigger>
                 <SelectContent>
-                  {forecastResults.map(result => (
-                    <SelectItem key={result.modelId} value={result.modelId}>
-                      {result.modelName} {result.isRecommended && "⭐"} - MAPE: {result.mape.toFixed(2)}%
+                  {scenario1Data.results.map((model: any) => (
+                    <SelectItem key={model.modelId} value={model.modelId}>
+                      {model.modelName} {model.isRecommended && "⭐"}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={scenario1ChartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                <YAxis />
+                <Tooltip />
+                <Line type="monotone" dataKey="baseline" stroke="hsl(var(--primary))" strokeWidth={2} />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Scenario 2 Input Form */}
+      <Scenario2Input onAdjustmentsSubmit={handleAdjustmentsSubmit} scenario1Data={scenario1Data} />
+
+      {/* Scenario 2 Results */}
+      {enrichedAdjustments.length > 0 ? (
+        <Scenario2Results adjustments={enrichedAdjustments} scenario1Data={scenario1Data} />
+      ) : (
+        <div className="h-full flex items-center justify-center border-2 border-dashed border-muted rounded-lg p-12">
+          <div className="text-center text-muted-foreground">
+            <p className="text-lg font-medium">No adjustments yet</p>
+            <p className="text-sm mt-2">Apply adjustments above to see results</p>
           </div>
-
-          <div className="p-4 border rounded-lg bg-muted/50">
-            <h4 className="font-medium mb-3">Bulk Adjustment</h4>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label>Adjustment Type</Label>
-                <Select value={adjustmentType} onValueChange={(v: "percentage" | "absolute") => setAdjustmentType(v)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="percentage">Percentage (%)</SelectItem>
-                    <SelectItem value="absolute">Absolute Value</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>{adjustmentType === "percentage" ? "Percentage Change" : "Absolute Change"}</Label>
-                <Input
-                  type="number"
-                  value={bulkAdjustmentValue}
-                  onChange={(e) => setBulkAdjustmentValue(parseFloat(e.target.value) || 0)}
-                  placeholder={adjustmentType === "percentage" ? "e.g., 10 for +10%" : "e.g., 100"}
-                  step={adjustmentType === "percentage" ? "0.1" : "1"}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>&nbsp;</Label>
-                <Button onClick={applyBulkAdjustment} className="w-full">
-                  Apply to All Periods
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex gap-2">
-            <Button onClick={applyAdjustments} className="gap-2">
-              <Save className="h-4 w-4" />
-              Save Adjustments
-            </Button>
-            <Button onClick={resetAdjustments} variant="outline" className="gap-2">
-              <Undo2 className="h-4 w-4" />
-              Reset All
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Forecast Values</CardTitle>
-          <CardDescription>
-            Adjust individual forecast periods (Granularity: {granularity})
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="max-h-[500px] overflow-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Period</TableHead>
-                  <TableHead>Original Forecast</TableHead>
-                  <TableHead>Adjusted Value</TableHead>
-                  <TableHead>Change (%)</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {selectedModel.predictions.map((pred, idx) => {
-                  const key = `${selectedModelId}-${idx}`;
-                  const adjusted = adjustments[key] !== undefined ? adjustments[key] : pred.predicted;
-                  const change = ((adjusted - pred.predicted) / pred.predicted * 100).toFixed(1);
-
-                  return (
-                    <TableRow key={idx}>
-                      <TableCell className="font-medium">
-                        Period {idx + 1}
-                      </TableCell>
-                      <TableCell>{pred.predicted.toFixed(2)}</TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          value={adjustments[key] !== undefined ? adjustments[key] : pred.predicted}
-                          onChange={(e) => handleAdjustment(idx, e.target.value)}
-                          step="0.01"
-                          className="w-full"
-                        />
-                      </TableCell>
-                      <TableCell className={
-                        parseFloat(change) > 0 ? "text-green-600" : 
-                        parseFloat(change) < 0 ? "text-red-600" : ""
-                      }>
-                        {change !== "0.0" && (parseFloat(change) > 0 ? "+" : "")}{change}%
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+      )}
     </div>
   );
 }

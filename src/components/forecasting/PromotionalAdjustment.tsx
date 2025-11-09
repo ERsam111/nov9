@@ -1,393 +1,160 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Download } from "lucide-react";
 import { ForecastResult } from "@/types/forecasting";
-import { Calendar, Plus, Trash2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
-import { format } from "date-fns";
-import { cn } from "@/lib/utils";
-
-interface Promotion {
-  id: string;
-  name: string;
-  startDate: Date;
-  endDate: Date;
-  uplift: number; // percentage
-}
+import { Scenario3InputForm } from "./Scenario3Input";
+import { Scenario3Results } from "./Scenario3Results";
+import { Scenario3Input, Scenario3Output } from "@/types/scenario3";
+import { processScenario3Adjustments } from "@/utils/elasticityCalculator";
+import { getScenario2Results, saveScenario3Results } from "@/utils/scenarioStorage";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 interface PromotionalAdjustmentProps {
   forecastResults: ForecastResult[];
   selectedProduct: string;
   granularity: "daily" | "weekly" | "monthly";
-  onPromotionalAdjustmentsChange: (adjustedResults: ForecastResult[]) => void;
   uniqueProducts: string[];
-  onProductChange: (product: string) => void;
 }
 
 export function PromotionalAdjustment({
   forecastResults,
   selectedProduct,
   granularity,
-  onPromotionalAdjustmentsChange,
   uniqueProducts,
-  onProductChange
 }: PromotionalAdjustmentProps) {
-  const [promotions, setPromotions] = useState<Promotion[]>([]);
-  const [priceDiscount, setPriceDiscount] = useState<number>(10);
-  const [elasticity, setElasticity] = useState<number>(1.5);
-  const [targetSales, setTargetSales] = useState<number>(0);
-  const [targetRevenue, setTargetRevenue] = useState<number>(0);
-  const [recommendedDiscount, setRecommendedDiscount] = useState<number | null>(null);
-  const [newPromotion, setNewPromotion] = useState<Partial<Promotion>>({
-    name: "",
-    startDate: new Date(),
-    endDate: new Date(),
-    uplift: 10
-  });
+  const [results, setResults] = useState<Scenario3Output[]>([]);
+  const [scenario2Data, setScenario2Data] = useState<any>(null);
 
-  const addPromotion = () => {
-    if (!newPromotion.name || !newPromotion.startDate || !newPromotion.endDate) {
-      toast.error("Please fill all promotion fields");
+  useEffect(() => {
+    // Load Scenario 2 results
+    const s2 = getScenario2Results();
+    if (s2) {
+      setScenario2Data(s2);
+    }
+    
+    // Load saved Scenario 3 results
+    const s3 = JSON.parse(localStorage.getItem('scenario3_results') || 'null');
+    if (s3?.results) {
+      setResults(s3.results.map((r: any) => ({
+        ...r,
+        period: new Date(r.period)
+      })));
+    }
+  }, []);
+
+  const handleDataSubmit = (inputs: Scenario3Input[]) => {
+    if (!scenario2Data || scenario2Data.length === 0) {
+      toast.error("No Scenario 2 data. Please complete Manual Adjustments first.");
       return;
     }
 
-    if (newPromotion.startDate! > newPromotion.endDate!) {
-      toast.error("Start date must be before end date");
-      return;
-    }
-
-    const promotion: Promotion = {
-      id: `promo-${Date.now()}`,
-      name: newPromotion.name,
-      startDate: newPromotion.startDate!,
-      endDate: newPromotion.endDate!,
-      uplift: newPromotion.uplift || 10
-    };
-
-    setPromotions([...promotions, promotion]);
-    setNewPromotion({ name: "", startDate: new Date(), endDate: new Date(), uplift: 10 });
-    toast.success(`Promotion "${promotion.name}" added`);
-  };
-
-  const removePromotion = (id: string) => {
-    setPromotions(promotions.filter(p => p.id !== id));
-    toast.success("Promotion removed");
-  };
-
-  const applyPromotions = () => {
-    if (promotions.length === 0) {
-      toast.error("No promotions to apply");
-      return;
-    }
-
-    const adjustedResults = forecastResults.map(result => {
-      const adjustedPredictions = result.predictions.map((pred) => {
-        let adjustedValue = pred.predicted;
-        const predDate = new Date(pred.date);
-        
-        // Apply all promotions that overlap with this date
-        promotions.forEach(promo => {
-          if (predDate >= promo.startDate && predDate <= promo.endDate) {
-            adjustedValue = adjustedValue * (1 + promo.uplift / 100);
-          }
+    try {
+      // Enrich inputs with Scenario 2 data
+      const enrichedInputs = inputs.flatMap(input => {
+        // Filter scenario2 data for matching product and date range
+        const matchingS2Data = scenario2Data.filter((s2: any) => {
+          const s2Date = new Date(s2.period);
+          return s2.product === input.product_name &&
+                 s2Date >= input.fromPeriod &&
+                 s2Date <= input.toPeriod;
         });
 
-        return {
-          date: pred.date,
-          predicted: adjustedValue
-        };
+        // Calculate actual price from base price and discount rate
+        const actualPrice = input.base_price * (1 - input.discount_rate / 100);
+
+        // Create scenario3 inputs for each matching period
+        return matchingS2Data.map((s2: any) => ({
+          product_id: s2.product.substring(0, 10),
+          product_name: s2.product,
+          period: new Date(s2.period),
+          scenario2_forecast: s2.adjustedForecast,
+          base_price: input.base_price,
+          actual_price: actualPrice,
+          promotion_flag: (input.discount_rate > 0 ? 1 : 0) as 0 | 1,
+          discount_rate: input.discount_rate,
+          elasticity: input.elasticity,
+          target_units: input.target_units,
+          target_revenue: input.target_revenue
+        }));
       });
 
-      return {
-        ...result,
-        predictions: adjustedPredictions
-      };
-    });
+      if (enrichedInputs.length === 0) {
+        toast.error("No matching data found for the selected products and date ranges");
+        return;
+      }
 
-    onPromotionalAdjustmentsChange(adjustedResults);
-    toast.success(`Applied ${promotions.length} promotion(s) to forecasts`);
-  };
-
-  const calculateRecommendedDiscount = () => {
-    if (!selectedProduct || forecastResults.length === 0) {
-      toast.error("Please select a product and generate forecasts first");
-      return;
-    }
-
-    const baselineForecast = forecastResults[0]?.predictions.reduce((sum, p) => sum + p.predicted, 0) || 0;
-    
-    let recommendedDiscountPct = 0;
-    
-    if (targetSales > 0) {
-      // Sales uplift = (Target Sales - Baseline) / Baseline
-      const requiredUplift = ((targetSales - baselineForecast) / baselineForecast) * 100;
-      // Using price elasticity: % change in demand = elasticity × % change in price
-      // Discount needed = Required Uplift / Elasticity
-      recommendedDiscountPct = Math.abs(requiredUplift / elasticity);
-    } else if (targetRevenue > 0 && baselineForecast > 0) {
-      // Simplified revenue optimization: assuming linear relationship
-      // This is a basic calculation - real optimization would need unit price data
-      const impliedUplift = ((targetRevenue / baselineForecast) - 1) * 100;
-      recommendedDiscountPct = Math.abs(impliedUplift / elasticity);
-    } else {
-      // Use the manual discount input
-      recommendedDiscountPct = priceDiscount;
-    }
-
-    setRecommendedDiscount(Math.min(recommendedDiscountPct, 80)); // Cap at 80% discount
-    toast.success(`Recommended discount: ${Math.min(recommendedDiscountPct, 80).toFixed(1)}% based on elasticity of ${elasticity}`);
-  };
-
-  const useRecommendedDiscount = () => {
-    if (recommendedDiscount !== null) {
-      setNewPromotion({ ...newPromotion, uplift: recommendedDiscount });
-      toast.success("Applied recommended discount to promotion");
+      const processedResults = processScenario3Adjustments(enrichedInputs);
+      setResults(processedResults);
+      
+      // Save results
+      saveScenario3Results(processedResults);
+      
+      toast.success(`Processed ${processedResults.length} forecasts with elasticity adjustments`);
+    } catch (error) {
+      toast.error("Error processing promotional adjustments");
     }
   };
+
+  // Prepare comparison chart data
+  const comparisonChartData = scenario2Data?.slice(0, 10).map((adj: any) => ({
+    product: adj.product,
+    baseline: adj.baselineForecast,
+    scenario2: adj.adjustedForecast
+  })) || [];
+
+  // Prepare scenario1Data format for results component
+  const scenario1Data = forecastResults.length > 0 ? {
+    product: selectedProduct,
+    granularity: granularity,
+    results: forecastResults
+  } : null;
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5" />
-            Promotional Adjustment
-          </CardTitle>
-          <CardDescription>
-            Factor in promotional events and marketing campaigns for {selectedProduct}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 gap-4">
-            <div className="space-y-2">
-              <Label>Product</Label>
-              <Select value={selectedProduct} onValueChange={onProductChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select product" />
-                </SelectTrigger>
-                <SelectContent>
-                  {uniqueProducts.map(product => (
-                    <SelectItem key={product} value={product}>
-                      {product}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="p-4 border rounded-lg bg-muted/50">
-            <h4 className="font-medium mb-3">Discount Optimization (Optional)</h4>
-            <p className="text-sm text-muted-foreground mb-3">
-              Set targets to get AI-recommended discount based on price elasticity
-            </p>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="space-y-2">
-                <Label>Price Elasticity</Label>
-                <Input
-                  type="number"
-                  step="0.1"
-                  value={elasticity}
-                  onChange={(e) => setElasticity(parseFloat(e.target.value) || 1.5)}
-                  placeholder="e.g., 1.5"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label>Target Sales (Units)</Label>
-                <Input
-                  type="number"
-                  value={targetSales}
-                  onChange={(e) => setTargetSales(parseFloat(e.target.value) || 0)}
-                  placeholder="Optional"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label>Target Revenue</Label>
-                <Input
-                  type="number"
-                  value={targetRevenue}
-                  onChange={(e) => setTargetRevenue(parseFloat(e.target.value) || 0)}
-                  placeholder="Optional"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Manual Discount (%)</Label>
-                <Input
-                  type="number"
-                  step="0.1"
-                  value={priceDiscount}
-                  onChange={(e) => setPriceDiscount(parseFloat(e.target.value) || 10)}
-                  placeholder="e.g., 10"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-2 mt-3">
-              <Button onClick={calculateRecommendedDiscount} variant="secondary">
-                <Sparkles className="h-4 w-4 mr-2" />
-                Calculate Optimal Discount
-              </Button>
-              {recommendedDiscount !== null && (
-                <Button onClick={useRecommendedDiscount} variant="outline">
-                  Use Recommended: {recommendedDiscount.toFixed(1)}%
-                </Button>
-              )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="md:col-span-1">
-              <Label>Promotion Name</Label>
-              <Input
-                value={newPromotion.name}
-                onChange={(e) => setNewPromotion({ ...newPromotion, name: e.target.value })}
-                placeholder="e.g., Summer Sale"
-              />
-            </div>
-            
-            <div>
-              <Label>Start Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !newPromotion.startDate && "text-muted-foreground"
-                    )}
-                  >
-                    <Calendar className="mr-2 h-4 w-4" />
-                    {newPromotion.startDate ? format(newPromotion.startDate, "PPP") : <span>Pick a date</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarComponent
-                    mode="single"
-                    selected={newPromotion.startDate}
-                    onSelect={(date) => setNewPromotion({ ...newPromotion, startDate: date })}
-                    initialFocus
-                    className="pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-            
-            <div>
-              <Label>End Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !newPromotion.endDate && "text-muted-foreground"
-                    )}
-                  >
-                    <Calendar className="mr-2 h-4 w-4" />
-                    {newPromotion.endDate ? format(newPromotion.endDate, "PPP") : <span>Pick a date</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarComponent
-                    mode="single"
-                    selected={newPromotion.endDate}
-                    onSelect={(date) => setNewPromotion({ ...newPromotion, endDate: date })}
-                    initialFocus
-                    className="pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-            
-            <div>
-              <Label>Uplift (%)</Label>
-              <Input
-                type="number"
-                step="0.1"
-                value={newPromotion.uplift}
-                onChange={(e) => setNewPromotion({ ...newPromotion, uplift: parseFloat(e.target.value) })}
-              />
-            </div>
-          </div>
-
-          <div className="flex gap-2">
-            <Button onClick={addPromotion} className="gap-2">
-              <Plus className="h-4 w-4" />
-              Add Promotion
-            </Button>
-            {promotions.length > 0 && (
-              <Button onClick={applyPromotions} variant="default" className="gap-2">
-                <Calendar className="h-4 w-4" />
-                Apply All Promotions
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {promotions.length > 0 && (
+      {/* Previous Scenarios Comparison */}
+      {(scenario1Data || scenario2Data) && (
         <Card>
           <CardHeader>
-            <CardTitle>Active Promotions</CardTitle>
+            <CardTitle>Previous Scenarios</CardTitle>
             <CardDescription>
-              {promotions.length} promotion(s) configured
+              Compare baseline and adjusted forecasts
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Promotion Name</TableHead>
-                  <TableHead>Start Date</TableHead>
-                  <TableHead>End Date</TableHead>
-                  <TableHead>Uplift</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {promotions.map((promo) => (
-                  <TableRow key={promo.id}>
-                    <TableCell className="font-medium">{promo.name}</TableCell>
-                    <TableCell>{format(promo.startDate, "PPP")}</TableCell>
-                    <TableCell>{format(promo.endDate, "PPP")}</TableCell>
-                    <TableCell className="text-green-600 font-semibold">+{promo.uplift}%</TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removePromotion(promo.id)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+          <CardContent className="space-y-4">
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={comparisonChartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="product" tick={{ fontSize: 10 }} />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="baseline" fill="hsl(var(--muted))" name="Scenario 1" />
+                <Bar dataKey="scenario2" fill="hsl(var(--primary))" name="Scenario 2" />
+              </BarChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
       )}
 
-      {promotions.length === 0 && (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <Sparkles className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">No promotions configured yet</p>
-            <p className="text-sm text-muted-foreground mt-1">
-              Add promotional events to adjust your demand forecasts
-            </p>
-          </CardContent>
-        </Card>
+      {/* Scenario 3 Input Form */}
+      <Scenario3InputForm onDataSubmit={handleDataSubmit} scenario2Data={scenario2Data} />
+
+      {/* Scenario 3 Results */}
+      {results.length > 0 ? (
+        <Scenario3Results 
+          results={results} 
+          scenario1Data={scenario1Data}
+          scenario2Data={scenario2Data}
+        />
+      ) : (
+        <div className="h-full flex items-center justify-center border-2 border-dashed border-muted rounded-lg p-12">
+          <div className="text-center text-muted-foreground">
+            <p className="text-lg font-medium">No results yet</p>
+            <p className="text-sm mt-2">Enter data and click "Calculate Scenario 3" to see results</p>
+          </div>
+        </div>
       )}
     </div>
   );
