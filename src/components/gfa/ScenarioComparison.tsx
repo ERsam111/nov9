@@ -2,33 +2,14 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Save, Trash2, GitCompare, Filter } from "lucide-react";
+import { GitCompare, Filter } from "lucide-react";
 import { Customer, DistributionCenter, OptimizationSettings } from "@/types/gfa";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useParams } from "react-router-dom";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface SavedScenario {
   id: string;
@@ -65,6 +46,44 @@ interface ScenarioComparisonProps {
   projectId?: string;
 }
 
+/* --------------------------- helpers (drop-in) --------------------------- */
+
+// Raw Haversine distance in KM (no unit conversion)
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+function countExistingMatches(
+  dcs: Array<{ latitude: number; longitude: number }>,
+  existingSites: Array<{ latitude: number; longitude: number; alreadyOpen?: boolean }> | undefined,
+  existingSitesMode: "always" | "potential" | undefined,
+  thresholdKm = 1,
+) {
+  if (!existingSites || existingSites.length === 0) return 0;
+  let matches = 0;
+  for (const dc of dcs) {
+    const match = existingSites.find(
+      (s) =>
+        haversineKm(Number(dc.latitude), Number(dc.longitude), Number(s.latitude), Number(s.longitude)) <= thresholdKm,
+    );
+    if (!match) continue;
+    // Rule: do NOT charge opening cost for already-open sites (any scenario).
+    // In 'always' mode, included existing sites are treated as already-open.
+    const treatAsOpen = existingSitesMode === "always" || match.alreadyOpen === true;
+    if (treatAsOpen) matches += 1;
+  }
+  return matches;
+}
+
+/* ------------------------------------------------------------------------ */
+
 export function ScenarioComparison({
   dcs,
   customers,
@@ -75,7 +94,7 @@ export function ScenarioComparison({
   const [scenarios, setScenarios] = useState<SavedScenario[]>([]);
   const [selectedScenarios, setSelectedScenarios] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
-  const [availableScenarios, setAvailableScenarios] = useState<Array<{id: string; name: string}>>([]);
+  const [availableScenarios, setAvailableScenarios] = useState<Array<{ id: string; name: string }>>([]);
   const [coverageRadius, setCoverageRadius] = useState<number>(10);
   const { toast } = useToast();
   const { projectId: urlProjectId } = useParams();
@@ -92,7 +111,7 @@ export function ScenarioComparison({
     costPerCustomer: true,
   });
 
-  const [aggregationType, setAggregationType] = useState<'none' | 'min' | 'max' | 'mean' | 'sum'>('none');
+  const [aggregationType, setAggregationType] = useState<"none" | "min" | "max" | "mean" | "sum">("none");
 
   // Load available scenarios and results
   useEffect(() => {
@@ -102,21 +121,21 @@ export function ScenarioComparison({
 
   const loadAvailableScenarios = async () => {
     if (!projectId) return;
-    
+
     try {
       const { data, error } = await (supabase as any)
-        .from('scenarios')
-        .select('id, name, status')
-        .eq('project_id', projectId)
-        .eq('module_type', 'gfa')
-        .eq('status', 'completed')
-        .order('created_at', { ascending: false});
+        .from("scenarios")
+        .select("id, name, status")
+        .eq("project_id", projectId)
+        .eq("module_type", "gfa")
+        .eq("status", "completed")
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
 
       setAvailableScenarios(data?.map((s: any) => ({ id: s.id, name: s.name })) || []);
     } catch (error) {
-      console.error('Error loading available scenarios:', error);
+      console.error("Error loading available scenarios:", error);
     }
   };
 
@@ -126,117 +145,132 @@ export function ScenarioComparison({
       setLoading(false);
       return;
     }
-    
+
     setLoading(true);
     try {
       const scenarioIds = Array.from(selectedScenarios);
-      
+
       // Load scenario outputs for selected scenarios
       const { data: outputsData, error: outputError } = await (supabase as any)
-        .from('scenario_outputs')
-        .select('scenario_id, output_data')
-        .in('scenario_id', scenarioIds);
+        .from("scenario_outputs")
+        .select("scenario_id, output_data")
+        .in("scenario_id", scenarioIds);
 
       if (outputError) throw outputError;
 
       // Load scenario inputs to get customers and settings
       const { data: inputsData, error: inputError } = await (supabase as any)
-        .from('scenario_inputs')
-        .select('scenario_id, input_data')
-        .in('scenario_id', scenarioIds);
+        .from("scenario_inputs")
+        .select("scenario_id, input_data")
+        .in("scenario_id", scenarioIds);
 
       if (inputError) throw inputError;
 
       // Get scenario metadata
       const { data: scenariosData } = await (supabase as any)
-        .from('scenarios')
-        .select('id, name, created_at')
-        .in('id', scenarioIds);
+        .from("scenarios")
+        .select("id, name, created_at")
+        .in("id", scenarioIds);
 
       const scenarioMap = new Map(scenariosData?.map((s: any) => [s.id, s]) || []);
       const inputMap = new Map(inputsData?.map((i: any) => [i.scenario_id, i.input_data]) || []);
       const outputMap = new Map(outputsData?.map((o: any) => [o.scenario_id, o.output_data]) || []);
 
-      const loadedScenarios: SavedScenario[] = scenarioIds.map((id) => {
-        const scenario = scenarioMap.get(id);
-        const inputData = inputMap.get(id) as any;
-        const outputData = outputMap.get(id) as any;
-        
-        if (!scenario || !inputData || !outputData) return null;
-        
-        // Get data from input and output
-        const customersData = inputData.customers || [];
-        const dcs = outputData.dcs || [];
-        const scenarioSettings = inputData.settings || settings;
-        
-        // Calculate total demand
-        const totalDemand = customersData.reduce((sum: number, c: any) => 
-          sum + (c.demand * (c.conversionFactor || 1)), 0
-        );
-        
-        // Calculate transportation cost and average distance
-        let transportationCost = 0;
-        let totalDistance = 0;
-        let customerCount = 0;
-        let coveredCustomers = 0;
-        
-        dcs.forEach((dc: any) => {
-          if (dc.assignedCustomers && dc.assignedCustomers.length > 0) {
-            dc.assignedCustomers.forEach((customer: any) => {
-              const distance = getDistance(
-                customer.latitude,
-                customer.longitude,
-                dc.latitude,
-                dc.longitude
-              );
-              
-              totalDistance += distance;
-              customerCount++;
-              
-              // Calculate transport cost: distance * demand * cost per unit
-              const customerDemand = customer.demand * (customer.conversionFactor || 1);
-              transportationCost += distance * customerDemand * (scenarioSettings.transportationCostPerMilePerUnit || 0);
-              
-              // Check coverage based on radius
-              if (distance <= coverageRadius) {
-                coveredCustomers++;
-              }
-            });
-          }
-        });
-        
-        // Calculate facility cost
-        const facilityCost = dcs.length * (scenarioSettings.facilityCost || 0);
-        
-        // Total cost = transportation cost + facility cost
-        const totalCost = transportationCost + facilityCost;
-        
-        // Calculate average distance
-        const avgDistance = customerCount > 0 ? totalDistance / customerCount : 0;
-        
-        // Calculate demand coverage based on custom radius
-        const demandCoverage = customersData.length > 0 ? (coveredCustomers / customersData.length) * 100 : 0;
+      const loadedScenarios: SavedScenario[] = scenarioIds
+        .map((id) => {
+          const scenario = scenarioMap.get(id);
+          const inputData = inputMap.get(id) as any;
+          const outputData = outputMap.get(id) as any;
 
-        return {
-          id,
-          name: (scenario as any)?.name || 'Unnamed Scenario',
-          timestamp: (scenario as any)?.created_at || new Date().toISOString(),
-          numSites: dcs.length || 0,
-          totalCost,
-          transportationCost,
-          facilityCost,
-          avgDistance,
-          demandCoverage,
-          customers: customersData.length,
-          costPerUnit: totalDemand > 0 ? totalCost / totalDemand : 0,
-          costPerCustomer: customersData.length > 0 ? totalCost / customersData.length : 0,
-          settings: scenarioSettings,
-        };
-      }).filter(Boolean) as SavedScenario[];
+          if (!scenario || !inputData || !outputData) return null;
+
+          // Get data from input and output
+          const customersData = inputData.customers || [];
+          const dcs = outputData.dcs || [];
+          const scenarioSettings = (inputData.settings || settings) as OptimizationSettings;
+
+          // Calculate total demand
+          const totalDemand = customersData.reduce(
+            (sum: number, c: any) => sum + c.demand * (c.conversionFactor || 1),
+            0,
+          );
+
+          // Calculate transportation cost and average distance
+          let transportationCost = 0;
+          let totalDistance = 0;
+          let customerCount = 0;
+          let coveredCustomers = 0;
+
+          dcs.forEach((dc: any) => {
+            if (dc.assignedCustomers && dc.assignedCustomers.length > 0) {
+              dc.assignedCustomers.forEach((customer: any) => {
+                const distance = getDistance(
+                  customer.latitude,
+                  customer.longitude,
+                  dc.latitude,
+                  dc.longitude,
+                  scenarioSettings.distanceUnit === "mile" ? "mile" : "km",
+                );
+
+                totalDistance += distance;
+                customerCount++;
+
+                // Calculate transport cost: distance * demand * cost per unit
+                const customerDemand = customer.demand * (customer.conversionFactor || 1);
+                transportationCost +=
+                  distance * customerDemand * (scenarioSettings.transportationCostPerMilePerUnit || 0);
+
+                // Check coverage based on radius
+                if (distance <= coverageRadius) {
+                  coveredCustomers++;
+                }
+              });
+            }
+          });
+
+          // --- Opening cost ONLY for new sites (exclude already-open existing sites) ---
+          const facilityCostPerSite = Number(scenarioSettings.facilityCost || 0);
+          const existingSites = (inputData.existingSites || []) as Array<{
+            latitude: number;
+            longitude: number;
+            alreadyOpen?: boolean;
+          }>;
+          const existingSitesMode = (scenarioSettings.existingSitesMode || "potential") as "always" | "potential";
+
+          const existingMatchesCount = countExistingMatches(dcs, existingSites, existingSitesMode);
+          const newSitesCount = Math.max(0, (dcs?.length || 0) - existingMatchesCount);
+
+          const facilityCost = newSitesCount * facilityCostPerSite;
+          const totalCost = transportationCost + facilityCost;
+          // ---------------------------------------------------------------------------
+
+          // Calculate average distance
+          const avgDistance = customerCount > 0 ? totalDistance / customerCount : 0;
+
+          // Calculate demand coverage based on custom radius
+          const demandCoverage = customersData.length > 0 ? (coveredCustomers / customersData.length) * 100 : 0;
+
+          return {
+            id,
+            name: (scenario as any)?.name || "Unnamed Scenario",
+            timestamp: (scenario as any)?.created_at || new Date().toISOString(),
+            numSites: dcs.length || 0,
+            totalCost,
+            transportationCost,
+            facilityCost,
+            avgDistance,
+            demandCoverage,
+            customers: customersData.length,
+            costPerUnit: totalDemand > 0 ? totalCost / totalDemand : 0,
+            costPerCustomer: customersData.length > 0 ? totalCost / customersData.length : 0,
+            settings: scenarioSettings,
+          };
+        })
+        .filter(Boolean) as SavedScenario[];
 
       setScenarios(loadedScenarios);
     } catch (error) {
-      console.error('Error loading scenarios:', error);
+      console.error("Error loading scenarios:", error);
       toast({
         title: "Error",
         description: "Failed to load scenario data",
@@ -247,10 +281,18 @@ export function ScenarioComparison({
     }
   };
 
-  // Calculate metrics
+  // Calculate metrics for the CURRENT, in-memory scenario (fallback if no costBreakdown)
   const calculateMetrics = () => {
     if (customers.length === 0 || dcs.length === 0) {
-      return { avgDistance: 0, demandCoverage: 0, totalCost: 0, transportationCost: 0, facilityCost: 0, costPerUnit: 0, costPerCustomer: 0 };
+      return {
+        avgDistance: 0,
+        demandCoverage: 0,
+        totalCost: 0,
+        transportationCost: 0,
+        facilityCost: 0,
+        costPerUnit: 0,
+        costPerCustomer: 0,
+      };
     }
 
     let totalDistance = 0;
@@ -261,31 +303,34 @@ export function ScenarioComparison({
     const totalDemand = customers.reduce((sum, c) => sum + c.demand * c.conversionFactor, 0);
 
     dcs.forEach((dc) => {
-      if (dc.assignedCustomers && dc.assignedCustomers.length > 0) {
-        dc.assignedCustomers.forEach((customer) => {
+      if ((dc as any).assignedCustomers && (dc as any).assignedCustomers.length > 0) {
+        (dc as any).assignedCustomers.forEach((customer: any) => {
           const distance = getDistance(
             customer.latitude,
             customer.longitude,
             dc.latitude,
-            dc.longitude
+            dc.longitude,
+            settings.distanceUnit === "mile" ? "mile" : "km",
           );
-          
+
           totalDistance += distance;
           customerCount++;
-          
+
           // Check coverage based on user-selected radius (count customers, not demand)
           if (distance <= coverageRadius) {
             coveredCustomers++;
           }
-          
+
           // Calculate transportation cost
           const customerDemand = customer.demand * customer.conversionFactor;
-          transportationCost += distance * customerDemand * settings.transportationCostPerMilePerUnit;
+          transportationCost += distance * customerDemand * (settings.transportationCostPerMilePerUnit || 0);
         });
       }
     });
 
-    const facilityCost = dcs.length * settings.facilityCost;
+    // NOTE: For current scenario we prefer costBreakdown (from optimizer) which is already correct.
+    // This fallback uses naive facility cost (all sites), only used if costBreakdown is missing.
+    const facilityCost = dcs.length * (settings.facilityCost || 0);
     const totalCost = transportationCost + facilityCost;
 
     return {
@@ -299,19 +344,16 @@ export function ScenarioComparison({
     };
   };
 
-  const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+  const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number, distanceUnit: "km" | "mile") => {
     const R = 6371;
     const dLat = ((lat2 - lat1) * Math.PI) / 180;
     const dLon = ((lon2 - lon1) * Math.PI) / 180;
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos((lat1 * Math.PI) / 180) *
-        Math.cos((lat2 * Math.PI) / 180) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
+      Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     const distance = R * c;
-    return settings.distanceUnit === 'mile' ? distance * 0.621371 : distance;
+    return distanceUnit === "mile" ? distance * 0.621371 : distance;
   };
 
   // Load scenarios when selection changes or coverage radius changes
@@ -335,35 +377,41 @@ export function ScenarioComparison({
 
   const currentMetrics = calculateMetrics();
   const totalDemand = customers.reduce((sum, c) => sum + c.demand * c.conversionFactor, 0);
-  const currentData = costBreakdown || currentMetrics.totalCost > 0
-    ? {
-        numSites: costBreakdown?.numSites || dcs.length,
-        totalCost: costBreakdown?.totalCost || currentMetrics.totalCost,
-        transportationCost: costBreakdown?.transportationCost || currentMetrics.transportationCost,
-        facilityCost: costBreakdown?.facilityCost || currentMetrics.facilityCost,
-        avgDistance: currentMetrics.avgDistance,
-        demandCoverage: currentMetrics.demandCoverage,
-        costPerUnit: currentMetrics.costPerUnit,
-        costPerCustomer: currentMetrics.costPerCustomer,
-      }
-    : null;
+  const currentData =
+    costBreakdown || currentMetrics.totalCost > 0
+      ? {
+          numSites: costBreakdown?.numSites || dcs.length,
+          totalCost: costBreakdown?.totalCost || currentMetrics.totalCost,
+          transportationCost: costBreakdown?.transportationCost || currentMetrics.transportationCost,
+          facilityCost: costBreakdown?.facilityCost || currentMetrics.facilityCost,
+          avgDistance: currentMetrics.avgDistance,
+          demandCoverage: currentMetrics.demandCoverage,
+          costPerUnit:
+            totalDemand > 0 ? (costBreakdown ? costBreakdown.totalCost / totalDemand : currentMetrics.costPerUnit) : 0,
+          costPerCustomer:
+            customers.length > 0
+              ? costBreakdown
+                ? costBreakdown.totalCost / customers.length
+                : currentMetrics.costPerCustomer
+              : 0,
+        }
+      : null;
 
-  const displayedScenarios = selectedScenarios.size > 0
-    ? scenarios.filter((s) => selectedScenarios.has(s.id))
-    : scenarios;
+  const displayedScenarios =
+    selectedScenarios.size > 0 ? scenarios.filter((s) => selectedScenarios.has(s.id)) : scenarios;
 
   const getAggregatedValue = (key: keyof SavedScenario, scenarios: SavedScenario[]) => {
     if (scenarios.length === 0) return 0;
-    const values = scenarios.map(s => s[key] as number).filter(v => typeof v === 'number');
-    
+    const values = scenarios.map((s) => s[key] as number).filter((v) => typeof v === "number");
+
     switch (aggregationType) {
-      case 'min':
+      case "min":
         return Math.min(...values);
-      case 'max':
+      case "max":
         return Math.max(...values);
-      case 'mean':
+      case "mean":
         return values.reduce((sum, v) => sum + v, 0) / values.length;
-      case 'sum':
+      case "sum":
         return values.reduce((sum, v) => sum + v, 0);
       default:
         return null;
@@ -372,11 +420,16 @@ export function ScenarioComparison({
 
   const formatAggregatedLabel = () => {
     switch (aggregationType) {
-      case 'min': return 'Min';
-      case 'max': return 'Max';
-      case 'mean': return 'Mean';
-      case 'sum': return 'Sum';
-      default: return null;
+      case "min":
+        return "Min";
+      case "max":
+        return "Max";
+      case "mean":
+        return "Mean";
+      case "sum":
+        return "Sum";
+      default:
+        return null;
     }
   };
 
@@ -390,10 +443,10 @@ export function ScenarioComparison({
               Scenario Comparison
             </CardTitle>
             <CardDescription>
-              {availableScenarios.length} completed scenario{availableScenarios.length !== 1 ? 's' : ''} •{' '}
+              {availableScenarios.length} completed scenario{availableScenarios.length !== 1 ? "s" : ""} •{" "}
               {selectedScenarios.size > 0
                 ? `${selectedScenarios.size} selected for comparison`
-                : 'Select scenarios to compare'}
+                : "Select scenarios to compare"}
             </CardDescription>
           </div>
           <div className="flex gap-2">
@@ -437,9 +490,9 @@ export function ScenarioComparison({
                     )}
                   </div>
                   {selectedScenarios.size > 0 && (
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
+                    <Button
+                      variant="outline"
+                      size="sm"
                       className="w-full"
                       onClick={() => setSelectedScenarios(new Set())}
                     >
@@ -482,7 +535,7 @@ export function ScenarioComparison({
                         htmlFor={key}
                         className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                       >
-                        {key.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase())}
+                        {key.replace(/([A-Z])/g, " $1").replace(/^./, (str) => str.toUpperCase())}
                       </label>
                     </div>
                   ))}
@@ -513,7 +566,9 @@ export function ScenarioComparison({
             <GitCompare className="h-12 w-12 mx-auto mb-2 opacity-50" />
             <p>Select scenarios to compare using the "Select Scenarios" button above.</p>
             {availableScenarios.length > 0 && (
-              <p className="mt-2 text-sm">{availableScenarios.length} completed scenario{availableScenarios.length !== 1 ? 's' : ''} available</p>
+              <p className="mt-2 text-sm">
+                {availableScenarios.length} completed scenario{availableScenarios.length !== 1 ? "s" : ""} available
+              </p>
             )}
           </div>
         ) : scenarios.length === 0 ? (
@@ -529,13 +584,9 @@ export function ScenarioComparison({
               <thead>
                 <tr className="border-b">
                   <th className="text-left p-2 font-medium">Metric</th>
-                  {currentData && (
-                    <th className="text-right p-2 font-medium bg-primary/5">Current</th>
-                  )}
-                  {aggregationType !== 'none' && displayedScenarios.length > 0 && (
-                    <th className="text-right p-2 font-medium bg-secondary/20">
-                      {formatAggregatedLabel()}
-                    </th>
+                  {currentData && <th className="text-right p-2 font-medium bg-primary/5">Current</th>}
+                  {aggregationType !== "none" && displayedScenarios.length > 0 && (
+                    <th className="text-right p-2 font-medium bg-secondary/20">{formatAggregatedLabel()}</th>
                   )}
                   {displayedScenarios.map((scenario) => (
                     <th key={scenario.id} className="text-right p-2 font-medium">
@@ -553,12 +604,10 @@ export function ScenarioComparison({
                 {kpiFilters.numSites && (
                   <tr className="border-b">
                     <td className="p-2 font-medium">Number of Sites</td>
-                    {currentData && (
-                      <td className="text-right p-2 bg-primary/5">{currentData.numSites}</td>
-                    )}
-                    {aggregationType !== 'none' && displayedScenarios.length > 0 && (
+                    {currentData && <td className="text-right p-2 bg-primary/5">{currentData.numSites}</td>}
+                    {aggregationType !== "none" && displayedScenarios.length > 0 && (
                       <td className="text-right p-2 bg-secondary/10 font-medium">
-                        {getAggregatedValue('numSites', displayedScenarios)?.toFixed(0)}
+                        {getAggregatedValue("numSites", displayedScenarios)?.toFixed(0)}
                       </td>
                     )}
                     {displayedScenarios.map((scenario, idx) => {
@@ -568,8 +617,11 @@ export function ScenarioComparison({
                         <td key={scenario.id} className="text-right p-2">
                           {scenario.numSites}
                           {diff && (
-                            <div className={`text-xs ${diff.diff < 0 ? 'text-green-600' : diff.diff > 0 ? 'text-red-600' : 'text-muted-foreground'}`}>
-                              ({diff.diff > 0 ? '+' : ''}{diff.percentage.toFixed(1)}%)
+                            <div
+                              className={`text-xs ${diff.diff < 0 ? "text-green-600" : diff.diff > 0 ? "text-red-600" : "text-muted-foreground"}`}
+                            >
+                              ({diff.diff > 0 ? "+" : ""}
+                              {diff.percentage.toFixed(1)}%)
                             </div>
                           )}
                         </td>
@@ -581,13 +633,11 @@ export function ScenarioComparison({
                   <tr className="border-b">
                     <td className="p-2 font-medium">Total Cost</td>
                     {currentData && (
-                      <td className="text-right p-2 bg-primary/5">
-                        ${currentData.totalCost.toLocaleString()}
-                      </td>
+                      <td className="text-right p-2 bg-primary/5">${currentData.totalCost.toLocaleString()}</td>
                     )}
-                    {aggregationType !== 'none' && displayedScenarios.length > 0 && (
+                    {aggregationType !== "none" && displayedScenarios.length > 0 && (
                       <td className="text-right p-2 bg-secondary/10 font-medium">
-                        ${getAggregatedValue('totalCost', displayedScenarios)?.toLocaleString()}
+                        ${getAggregatedValue("totalCost", displayedScenarios)?.toLocaleString()}
                       </td>
                     )}
                     {displayedScenarios.map((scenario, idx) => {
@@ -597,8 +647,11 @@ export function ScenarioComparison({
                         <td key={scenario.id} className="text-right p-2">
                           ${scenario.totalCost.toLocaleString()}
                           {diff && (
-                            <div className={`text-xs ${diff.diff < 0 ? 'text-green-600' : diff.diff > 0 ? 'text-red-600' : 'text-muted-foreground'}`}>
-                              ({diff.diff > 0 ? '+' : ''}{diff.percentage.toFixed(1)}%)
+                            <div
+                              className={`text-xs ${diff.diff < 0 ? "text-green-600" : diff.diff > 0 ? "text-red-600" : "text-muted-foreground"}`}
+                            >
+                              ({diff.diff > 0 ? "+" : ""}
+                              {diff.percentage.toFixed(1)}%)
                             </div>
                           )}
                         </td>
@@ -614,20 +667,25 @@ export function ScenarioComparison({
                         ${currentData.transportationCost.toLocaleString()}
                       </td>
                     )}
-                    {aggregationType !== 'none' && displayedScenarios.length > 0 && (
+                    {aggregationType !== "none" && displayedScenarios.length > 0 && (
                       <td className="text-right p-2 bg-secondary/10 font-medium">
-                        ${getAggregatedValue('transportationCost', displayedScenarios)?.toLocaleString()}
+                        ${getAggregatedValue("transportationCost", displayedScenarios)?.toLocaleString()}
                       </td>
                     )}
                     {displayedScenarios.map((scenario, idx) => {
                       const prevScenario = idx > 0 ? displayedScenarios[idx - 1] : null;
-                      const diff = prevScenario ? getDifference(scenario.transportationCost, prevScenario.transportationCost) : null;
+                      const diff = prevScenario
+                        ? getDifference(scenario.transportationCost, prevScenario.transportationCost)
+                        : null;
                       return (
                         <td key={scenario.id} className="text-right p-2">
                           ${scenario.transportationCost.toLocaleString()}
                           {diff && (
-                            <div className={`text-xs ${diff.diff < 0 ? 'text-green-600' : diff.diff > 0 ? 'text-red-600' : 'text-muted-foreground'}`}>
-                              ({diff.diff > 0 ? '+' : ''}{diff.percentage.toFixed(1)}%)
+                            <div
+                              className={`text-xs ${diff.diff < 0 ? "text-green-600" : diff.diff > 0 ? "text-red-600" : "text-muted-foreground"}`}
+                            >
+                              ({diff.diff > 0 ? "+" : ""}
+                              {diff.percentage.toFixed(1)}%)
                             </div>
                           )}
                         </td>
@@ -639,24 +697,27 @@ export function ScenarioComparison({
                   <tr className="border-b">
                     <td className="p-2 font-medium">Facility Cost</td>
                     {currentData && (
-                      <td className="text-right p-2 bg-primary/5">
-                        ${currentData.facilityCost.toLocaleString()}
-                      </td>
+                      <td className="text-right p-2 bg-primary/5">${currentData.facilityCost.toLocaleString()}</td>
                     )}
-                    {aggregationType !== 'none' && displayedScenarios.length > 0 && (
+                    {aggregationType !== "none" && displayedScenarios.length > 0 && (
                       <td className="text-right p-2 bg-secondary/10 font-medium">
-                        ${getAggregatedValue('facilityCost', displayedScenarios)?.toLocaleString()}
+                        ${getAggregatedValue("facilityCost", displayedScenarios)?.toLocaleString()}
                       </td>
                     )}
                     {displayedScenarios.map((scenario, idx) => {
                       const prevScenario = idx > 0 ? displayedScenarios[idx - 1] : null;
-                      const diff = prevScenario ? getDifference(scenario.facilityCost, prevScenario.facilityCost) : null;
+                      const diff = prevScenario
+                        ? getDifference(scenario.facilityCost, prevScenario.facilityCost)
+                        : null;
                       return (
                         <td key={scenario.id} className="text-right p-2">
                           ${scenario.facilityCost.toLocaleString()}
                           {diff && (
-                            <div className={`text-xs ${diff.diff < 0 ? 'text-green-600' : diff.diff > 0 ? 'text-red-600' : 'text-muted-foreground'}`}>
-                              ({diff.diff > 0 ? '+' : ''}{diff.percentage.toFixed(1)}%)
+                            <div
+                              className={`text-xs ${diff.diff < 0 ? "text-green-600" : diff.diff > 0 ? "text-red-600" : "text-muted-foreground"}`}
+                            >
+                              ({diff.diff > 0 ? "+" : ""}
+                              {diff.percentage.toFixed(1)}%)
                             </div>
                           )}
                         </td>
@@ -672,9 +733,9 @@ export function ScenarioComparison({
                         {currentData.avgDistance.toFixed(1)} {settings.distanceUnit}
                       </td>
                     )}
-                    {aggregationType !== 'none' && displayedScenarios.length > 0 && (
+                    {aggregationType !== "none" && displayedScenarios.length > 0 && (
                       <td className="text-right p-2 bg-secondary/10 font-medium">
-                        {getAggregatedValue('avgDistance', displayedScenarios)?.toFixed(1)} {settings.distanceUnit}
+                        {getAggregatedValue("avgDistance", displayedScenarios)?.toFixed(1)} {settings.distanceUnit}
                       </td>
                     )}
                     {displayedScenarios.map((scenario, idx) => {
@@ -684,8 +745,11 @@ export function ScenarioComparison({
                         <td key={scenario.id} className="text-right p-2">
                           {scenario.avgDistance.toFixed(1)} {scenario.settings.distanceUnit}
                           {diff && (
-                            <div className={`text-xs ${diff.diff < 0 ? 'text-green-600' : diff.diff > 0 ? 'text-red-600' : 'text-muted-foreground'}`}>
-                              ({diff.diff > 0 ? '+' : ''}{diff.percentage.toFixed(1)}%)
+                            <div
+                              className={`text-xs ${diff.diff < 0 ? "text-green-600" : diff.diff > 0 ? "text-red-600" : "text-muted-foreground"}`}
+                            >
+                              ({diff.diff > 0 ? "+" : ""}
+                              {diff.percentage.toFixed(1)}%)
                             </div>
                           )}
                         </td>
@@ -709,24 +773,27 @@ export function ScenarioComparison({
                       </div>
                     </td>
                     {currentData && (
-                      <td className="text-right p-2 bg-primary/5">
-                        {currentData.demandCoverage.toFixed(1)}%
-                      </td>
+                      <td className="text-right p-2 bg-primary/5">{currentData.demandCoverage.toFixed(1)}%</td>
                     )}
-                    {aggregationType !== 'none' && displayedScenarios.length > 0 && (
+                    {aggregationType !== "none" && displayedScenarios.length > 0 && (
                       <td className="text-right p-2 bg-secondary/10 font-medium">
-                        {getAggregatedValue('demandCoverage', displayedScenarios)?.toFixed(1)}%
+                        {getAggregatedValue("demandCoverage", displayedScenarios)?.toFixed(1)}%
                       </td>
                     )}
                     {displayedScenarios.map((scenario, idx) => {
                       const prevScenario = idx > 0 ? displayedScenarios[idx - 1] : null;
-                      const diff = prevScenario ? getDifference(scenario.demandCoverage, prevScenario.demandCoverage) : null;
+                      const diff = prevScenario
+                        ? getDifference(scenario.demandCoverage, prevScenario.demandCoverage)
+                        : null;
                       return (
                         <td key={scenario.id} className="text-right p-2">
                           {scenario.demandCoverage.toFixed(1)}%
                           {diff && (
-                            <div className={`text-xs ${diff.diff > 0 ? 'text-green-600' : diff.diff < 0 ? 'text-red-600' : 'text-muted-foreground'}`}>
-                              ({diff.diff > 0 ? '+' : ''}{diff.diff.toFixed(1)}pp)
+                            <div
+                              className={`text-xs ${diff.diff > 0 ? "text-green-600" : diff.diff < 0 ? "text-red-600" : "text-muted-foreground"}`}
+                            >
+                              ({diff.diff > 0 ? "+" : ""}
+                              {diff.diff.toFixed(1)}pp)
                             </div>
                           )}
                         </td>
@@ -738,13 +805,11 @@ export function ScenarioComparison({
                   <tr className="border-b">
                     <td className="p-2 font-medium">Cost per Unit</td>
                     {currentData && (
-                      <td className="text-right p-2 bg-primary/5">
-                        ${currentData.costPerUnit.toFixed(2)}
-                      </td>
+                      <td className="text-right p-2 bg-primary/5">${currentData.costPerUnit.toFixed(2)}</td>
                     )}
-                    {aggregationType !== 'none' && displayedScenarios.length > 0 && (
+                    {aggregationType !== "none" && displayedScenarios.length > 0 && (
                       <td className="text-right p-2 bg-secondary/10 font-medium">
-                        ${getAggregatedValue('costPerUnit', displayedScenarios)?.toFixed(2)}
+                        ${getAggregatedValue("costPerUnit", displayedScenarios)?.toFixed(2)}
                       </td>
                     )}
                     {displayedScenarios.map((scenario, idx) => {
@@ -754,8 +819,11 @@ export function ScenarioComparison({
                         <td key={scenario.id} className="text-right p-2">
                           ${scenario.costPerUnit.toFixed(2)}
                           {diff && (
-                            <div className={`text-xs ${diff.diff < 0 ? 'text-green-600' : diff.diff > 0 ? 'text-red-600' : 'text-muted-foreground'}`}>
-                              ({diff.diff > 0 ? '+' : ''}{diff.percentage.toFixed(1)}%)
+                            <div
+                              className={`text-xs ${diff.diff < 0 ? "text-green-600" : diff.diff > 0 ? "text-red-600" : "text-muted-foreground"}`}
+                            >
+                              ({diff.diff > 0 ? "+" : ""}
+                              {diff.percentage.toFixed(1)}%)
                             </div>
                           )}
                         </td>
@@ -767,24 +835,27 @@ export function ScenarioComparison({
                   <tr className="border-b">
                     <td className="p-2 font-medium">Cost per Customer</td>
                     {currentData && (
-                      <td className="text-right p-2 bg-primary/5">
-                        ${currentData.costPerCustomer.toFixed(2)}
-                      </td>
+                      <td className="text-right p-2 bg-primary/5">${currentData.costPerCustomer.toFixed(2)}</td>
                     )}
-                    {aggregationType !== 'none' && displayedScenarios.length > 0 && (
+                    {aggregationType !== "none" && displayedScenarios.length > 0 && (
                       <td className="text-right p-2 bg-secondary/10 font-medium">
-                        ${getAggregatedValue('costPerCustomer', displayedScenarios)?.toFixed(2)}
+                        ${getAggregatedValue("costPerCustomer", displayedScenarios)?.toFixed(2)}
                       </td>
                     )}
                     {displayedScenarios.map((scenario, idx) => {
                       const prevScenario = idx > 0 ? displayedScenarios[idx - 1] : null;
-                      const diff = prevScenario ? getDifference(scenario.costPerCustomer, prevScenario.costPerCustomer) : null;
+                      const diff = prevScenario
+                        ? getDifference(scenario.costPerCustomer, prevScenario.costPerCustomer)
+                        : null;
                       return (
                         <td key={scenario.id} className="text-right p-2">
                           ${scenario.costPerCustomer.toFixed(2)}
                           {diff && (
-                            <div className={`text-xs ${diff.diff < 0 ? 'text-green-600' : diff.diff > 0 ? 'text-red-600' : 'text-muted-foreground'}`}>
-                              ({diff.diff > 0 ? '+' : ''}{diff.percentage.toFixed(1)}%)
+                            <div
+                              className={`text-xs ${diff.diff < 0 ? "text-green-600" : diff.diff > 0 ? "text-red-600" : "text-muted-foreground"}`}
+                            >
+                              ({diff.diff > 0 ? "+" : ""}
+                              {diff.percentage.toFixed(1)}%)
                             </div>
                           )}
                         </td>
