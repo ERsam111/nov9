@@ -1,4 +1,4 @@
-import { Product } from '@/types/gfa';
+import { Product, ExistingSite } from '@/types/gfa';
 
 /**
  * Calculate Haversine distance between two geographic points
@@ -294,18 +294,114 @@ export function optimizeWithCost(
   facilityCost: number,
   distanceUnit: 'km' | 'mile',
   costUnit: string,
-  products: Product[]
+  products: Product[],
+  existingSites?: { latitude: number; longitude: number; name: string }[],
+  existingSitesMode?: 'always' | 'potential'
 ): OptimizationResult {
   const warnings: string[] = [];
   let bestDcs: DistributionCenter[] = [];
   let bestTotalCost = Infinity;
   let bestTransportationCost = 0;
   let bestNumSites = 1;
+  let bestNewSites = 1;
+  
+  const numExistingSites = existingSites && existingSitesMode === 'always' ? existingSites.length : 0;
   
   // Try different numbers of sites from 1 to customers.length (capped at 100 for performance)
   const maxSites = Math.min(100, customers.length);
-  for (let numSites = 1; numSites <= maxSites; numSites++) {
-    const dcs = kMeansOptimization(customers, numSites);
+  const startingSites = numExistingSites > 0 ? 0 : 1; // Start from 0 new sites if we have existing sites
+  
+  for (let numNewSites = startingSites; numNewSites <= maxSites; numNewSites++) {
+    const totalSites = numNewSites + numExistingSites;
+    if (totalSites === 0) continue;
+    
+    let dcs: DistributionCenter[];
+    
+    if (numExistingSites > 0 && numNewSites === 0) {
+      // Only use existing sites
+      dcs = existingSites!.map((site, index) => ({
+        id: `existing-${index + 1}`,
+        latitude: Number(site.latitude),
+        longitude: Number(site.longitude),
+        assignedCustomers: [],
+        totalDemand: 0,
+        nearestCity: site.name || 'Existing Site',
+        cityCountry: ''
+      }));
+      
+      // Assign customers to nearest existing site
+      customers.forEach(customer => {
+        let nearestDC = dcs[0];
+        let minDistance = Infinity;
+        
+        dcs.forEach(dc => {
+          const distance = haversineDistance(
+            customer.latitude,
+            customer.longitude,
+            dc.latitude,
+            dc.longitude
+          );
+          if (distance < minDistance) {
+            minDistance = distance;
+            nearestDC = dc;
+          }
+        });
+        
+        nearestDC.assignedCustomers.push(customer);
+        nearestDC.totalDemand += customer.demand * customer.conversionFactor;
+      });
+    } else if (numExistingSites > 0 && numNewSites > 0) {
+      // Combine existing and new sites
+      const newDcs = kMeansOptimization(customers, numNewSites);
+      
+      const existingDcs: DistributionCenter[] = existingSites!.map((site, index) => ({
+        id: `existing-${index + 1}`,
+        latitude: Number(site.latitude),
+        longitude: Number(site.longitude),
+        assignedCustomers: [],
+        totalDemand: 0,
+        nearestCity: site.name || 'Existing Site',
+        cityCountry: ''
+      }));
+      
+      const allDcs = [...existingDcs, ...newDcs.map((dc, idx) => ({ 
+        ...dc, 
+        id: `new-${idx + 1}` 
+      }))];
+      
+      // Reassign all customers to nearest DC
+      allDcs.forEach(dc => {
+        dc.assignedCustomers = [];
+        dc.totalDemand = 0;
+      });
+      
+      customers.forEach(customer => {
+        let nearestDC = allDcs[0];
+        let minDistance = Infinity;
+        
+        allDcs.forEach(dc => {
+          const distance = haversineDistance(
+            customer.latitude,
+            customer.longitude,
+            dc.latitude,
+            dc.longitude
+          );
+          if (distance < minDistance) {
+            minDistance = distance;
+            nearestDC = dc;
+          }
+        });
+        
+        nearestDC.assignedCustomers.push(customer);
+        nearestDC.totalDemand += customer.demand * customer.conversionFactor;
+      });
+      
+      dcs = allDcs;
+    } else {
+      // Only new sites
+      dcs = kMeansOptimization(customers, numNewSites);
+    }
+    
     const transportationCost = calculateTransportationCost(
       dcs, 
       transportationCostPerDistancePerUnit,
@@ -313,14 +409,16 @@ export function optimizeWithCost(
       costUnit,
       products
     );
-    const totalFacilityCost = numSites * facilityCost;
+    // Only charge facility cost for NEW sites, not existing sites
+    const totalFacilityCost = numNewSites * facilityCost;
     const totalCost = transportationCost + totalFacilityCost;
     
     if (totalCost < bestTotalCost) {
       bestTotalCost = totalCost;
       bestDcs = dcs;
       bestTransportationCost = transportationCost;
-      bestNumSites = numSites;
+      bestNumSites = totalSites;
+      bestNewSites = numNewSites;
     }
   }
   
@@ -331,7 +429,7 @@ export function optimizeWithCost(
     costBreakdown: {
       totalCost: bestTotalCost,
       transportationCost: bestTransportationCost,
-      facilityCost: bestNumSites * facilityCost,
+      facilityCost: bestNewSites * facilityCost, // Only charge for new sites
       numSites: bestNumSites,
     },
   };
@@ -373,7 +471,9 @@ export function optimizeWithConstraints(
       costParams.facilityCost,
       costParams.distanceUnit,
       costParams.costUnit,
-      products || []
+      products || [],
+      existingSites,
+      existingSitesMode
     );
   } else if (mode === 'distance') {
     // Distance-based optimization: iteratively add sites until ALL constraints are met
