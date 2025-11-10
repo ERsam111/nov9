@@ -1,4 +1,5 @@
 import { Product, ExistingSite } from '@/types/gfa';
+import { getConversionFactor } from './unitConversions';
 
 /**
  * Calculate Haversine distance between two geographic points
@@ -17,14 +18,14 @@ export function haversineDistance(
   const R = 6371; // Earth's radius in kilometers
   const dLat = toRadians(lat2 - lat1);
   const dLon = toRadians(lon2 - lon1);
-  
+
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(toRadians(lat1)) *
       Math.cos(toRadians(lat2)) *
       Math.sin(dLon / 2) *
       Math.sin(dLon / 2);
-  
+
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 }
@@ -46,7 +47,6 @@ export interface Customer {
   conversionFactor: number;
 }
 
-
 export interface DistributionCenter {
   id: string;
   latitude: number;
@@ -67,7 +67,7 @@ export function calculateCenterOfGravity(customers: Customer[]): {
   }
 
   const totalDemand = customers.reduce((sum, c) => sum + c.demand, 0);
-  
+
   const weightedLat = customers.reduce(
     (sum, c) => sum + c.latitude * c.demand,
     0
@@ -98,16 +98,16 @@ export function kMeansOptimization(
   // Initialize DCs with random customers
   let dcs: DistributionCenter[] = [];
   const usedIndices = new Set<number>();
-  
+
   for (let i = 0; i < Math.min(numDCs, customers.length); i++) {
     let randomIndex: number;
     do {
       randomIndex = Math.floor(Math.random() * customers.length);
     } while (usedIndices.has(randomIndex));
-    
+
     usedIndices.add(randomIndex);
     const customer = customers[randomIndex];
-    
+
     dcs.push({
       id: `site-${i + 1}`,
       latitude: customer.latitude,
@@ -164,11 +164,11 @@ export function kMeansOptimization(
           newCenter.latitude,
           newCenter.longitude
         );
-        
+
         if (movement > 0.1) {
           converged = false;
         }
-        
+
         dc.latitude = newCenter.latitude;
         dc.longitude = newCenter.longitude;
       }
@@ -212,31 +212,53 @@ export function convertDemand(
 ): number {
   const normalizedFrom = fromUnit.toLowerCase().trim();
   const normalizedTo = toUnit.toLowerCase().trim();
-  
+
   // Same units - no conversion needed
   if (normalizedFrom === normalizedTo) {
     return demand;
   }
-  
+
   // Check for custom unit conversions first
   if (product?.unitConversions && typeof product.unitConversions === 'object') {
     // Check if the unit conversion exists directly
     const conversionKey = `to_${normalizedTo}`;
-    if (product.unitConversions[conversionKey]) {
-      return demand * product.unitConversions[conversionKey];
+    if ((product.unitConversions as any)[conversionKey]) {
+      return demand * (product.unitConversions as any)[conversionKey];
     }
-    
+
     // Check reverse conversion
     const reverseKey = `to_${normalizedFrom}`;
-    if (product.unitConversions[reverseKey]) {
-      return demand / product.unitConversions[reverseKey];
+    if ((product.unitConversions as any)[reverseKey]) {
+      return demand / (product.unitConversions as any)[reverseKey];
     }
   }
-  
+
   // Fallback to system defaults
   const fromFactor = getConversionFactor(fromUnit);
   const toFactor = getConversionFactor(toUnit);
   return (demand * fromFactor) / toFactor;
+}
+
+/**
+ * Helper: does a DC coincide with (or sit very near) an existing site?
+ * Used to decide whether the facility opening cost should apply.
+ */
+function matchExistingSite(
+  dc: DistributionCenter,
+  existingSites?: ExistingSite[],
+  thresholdKm: number = 1 // conservative tolerance
+): ExistingSite | undefined {
+  if (!existingSites || existingSites.length === 0) return undefined;
+  for (const s of existingSites) {
+    const d = haversineDistance(
+      dc.latitude,
+      dc.longitude,
+      Number(s.latitude),
+      Number(s.longitude)
+    );
+    if (d <= thresholdKm) return s;
+  }
+  return undefined;
 }
 
 /**
@@ -250,7 +272,7 @@ function calculateTransportationCost(
   products: Product[]
 ): number {
   let totalCost = 0;
-  
+
   dcs.forEach(dc => {
     dc.assignedCustomers.forEach(customer => {
       const distance = haversineDistance(
@@ -259,13 +281,14 @@ function calculateTransportationCost(
         dc.latitude,
         dc.longitude
       );
-      
+
       // Convert distance to selected unit
-      const distanceInSelectedUnit = distanceUnit === 'mile' ? distance * 0.621371 : distance;
-      
+      const distanceInSelectedUnit =
+        distanceUnit === 'mile' ? distance * 0.621371 : distance;
+
       // Find the product for this customer
       const product = products.find(p => p.name === customer.product);
-      
+
       // Convert customer demand to cost unit
       const demandInCostUnit = convertDemand(
         customer.demand,
@@ -273,20 +296,19 @@ function calculateTransportationCost(
         costUnit,
         product
       );
-      
+
       // Cost = distance * demand (in cost units) * cost per distance per unit
-      totalCost += distanceInSelectedUnit * demandInCostUnit * costPerDistancePerUnit;
+      totalCost +=
+        distanceInSelectedUnit * demandInCostUnit * costPerDistancePerUnit;
     });
   });
-  
+
   return totalCost;
 }
 
-// Import conversion function from unitConversions
-import { getConversionFactor } from './unitConversions';
-
 /**
  * Optimize DC placement with cost minimization
+ * Opening cost is charged ONLY for truly new (non-existing, not already-open) sites.
  */
 export function optimizeWithCost(
   customers: Customer[],
@@ -295,7 +317,7 @@ export function optimizeWithCost(
   distanceUnit: 'km' | 'mile',
   costUnit: string,
   products: Product[],
-  existingSites?: { latitude: number; longitude: number; name: string }[],
+  existingSites?: ExistingSite[],
   existingSitesMode?: 'always' | 'potential'
 ): OptimizationResult {
   const warnings: string[] = [];
@@ -303,37 +325,37 @@ export function optimizeWithCost(
   let bestTotalCost = Infinity;
   let bestTransportationCost = 0;
   let bestNumSites = 1;
-  let bestNewSites = 1;
-  
-  const numExistingSites = existingSites && existingSitesMode === 'always' ? existingSites.length : 0;
-  
-  // Try different numbers of sites from 1 to customers.length (capped at 100 for performance)
+  let bestFacilityCost = 0;
+
+  // When 'always', all existingSites are included
+  const numExistingSitesForced =
+    existingSites && existingSitesMode === 'always' ? existingSites.length : 0;
+
+  // Try different numbers of *new* sites; cap for perf
   const maxSites = Math.min(100, customers.length);
-  const startingSites = numExistingSites > 0 ? 0 : 1; // Start from 0 new sites if we have existing sites
-  
-  for (let numNewSites = startingSites; numNewSites <= maxSites; numNewSites++) {
-    const totalSites = numNewSites + numExistingSites;
+  const startingNewSites = numExistingSitesForced > 0 ? 0 : 1;
+
+  for (let numNewSites = startingNewSites; numNewSites <= maxSites; numNewSites++) {
+    const totalSites = numNewSites + numExistingSitesForced;
     if (totalSites === 0) continue;
-    
+
     let dcs: DistributionCenter[];
-    
-    if (numExistingSites > 0 && numNewSites === 0) {
-      // Only use existing sites
+
+    if (numExistingSitesForced > 0 && numNewSites === 0) {
+      // Only use existing (forced) sites
       dcs = existingSites!.map((site, index) => ({
         id: `existing-${index + 1}`,
         latitude: Number(site.latitude),
         longitude: Number(site.longitude),
         assignedCustomers: [],
         totalDemand: 0,
-        nearestCity: site.name || 'Existing Site',
-        cityCountry: ''
       }));
-      
+
       // Assign customers to nearest existing site
       customers.forEach(customer => {
         let nearestDC = dcs[0];
         let minDistance = Infinity;
-        
+
         dcs.forEach(dc => {
           const distance = haversineDistance(
             customer.latitude,
@@ -346,39 +368,37 @@ export function optimizeWithCost(
             nearestDC = dc;
           }
         });
-        
+
         nearestDC.assignedCustomers.push(customer);
         nearestDC.totalDemand += customer.demand * customer.conversionFactor;
       });
-    } else if (numExistingSites > 0 && numNewSites > 0) {
-      // Combine existing and new sites
+    } else if (numExistingSitesForced > 0 && numNewSites > 0) {
+      // Combine existing (forced) and new sites
       const newDcs = kMeansOptimization(customers, numNewSites);
-      
+
       const existingDcs: DistributionCenter[] = existingSites!.map((site, index) => ({
         id: `existing-${index + 1}`,
         latitude: Number(site.latitude),
         longitude: Number(site.longitude),
         assignedCustomers: [],
         totalDemand: 0,
-        nearestCity: site.name || 'Existing Site',
-        cityCountry: ''
       }));
-      
-      const allDcs = [...existingDcs, ...newDcs.map((dc, idx) => ({ 
-        ...dc, 
-        id: `new-${idx + 1}` 
-      }))];
-      
+
+      const allDcs = [
+        ...existingDcs,
+        ...newDcs.map((dc, idx) => ({ ...dc, id: `new-${idx + 1}` })),
+      ];
+
       // Reassign all customers to nearest DC
       allDcs.forEach(dc => {
         dc.assignedCustomers = [];
         dc.totalDemand = 0;
       });
-      
+
       customers.forEach(customer => {
         let nearestDC = allDcs[0];
         let minDistance = Infinity;
-        
+
         allDcs.forEach(dc => {
           const distance = haversineDistance(
             customer.latitude,
@@ -391,37 +411,96 @@ export function optimizeWithCost(
             nearestDC = dc;
           }
         });
-        
+
         nearestDC.assignedCustomers.push(customer);
         nearestDC.totalDemand += customer.demand * customer.conversionFactor;
       });
-      
+
       dcs = allDcs;
     } else {
       // Only new sites
       dcs = kMeansOptimization(customers, numNewSites);
+
+      // In 'potential' mode, snap cluster centers to nearby existing sites (50 km)
+      if (existingSites && existingSites.length > 0 && existingSitesMode === 'potential') {
+        dcs = dcs.map(dc => {
+          let closest: ExistingSite | undefined;
+          let minDist = 50; // km
+          for (const site of existingSites) {
+            const dist = haversineDistance(
+              dc.latitude,
+              dc.longitude,
+              Number(site.latitude),
+              Number(site.longitude)
+            );
+            if (dist < minDist) {
+              minDist = dist;
+              closest = site;
+            }
+          }
+          return closest
+            ? { ...dc, latitude: Number(closest.latitude), longitude: Number(closest.longitude) }
+            : dc;
+        });
+      }
+
+      // Reassign customers after potential snapping
+      dcs.forEach(dc => { dc.assignedCustomers = []; dc.totalDemand = 0; });
+      customers.forEach(customer => {
+        let nearestDC = dcs[0];
+        let minDistance = Infinity;
+
+        dcs.forEach(dc => {
+          const distance = haversineDistance(
+            customer.latitude,
+            customer.longitude,
+            dc.latitude,
+            dc.longitude
+          );
+          if (distance < minDistance) {
+            minDistance = distance;
+            nearestDC = dc;
+          }
+        });
+
+        nearestDC.assignedCustomers.push(customer);
+        nearestDC.totalDemand += customer.demand * customer.conversionFactor;
+      });
     }
-    
+
+    // --- COSTS ---
     const transportationCost = calculateTransportationCost(
-      dcs, 
+      dcs,
       transportationCostPerDistancePerUnit,
       distanceUnit,
       costUnit,
       products
     );
-    // Only charge facility cost for NEW sites, not existing sites
-    const totalFacilityCost = numNewSites * facilityCost;
-    const totalCost = transportationCost + totalFacilityCost;
-    
+
+    // Count DCs that correspond to existing *already-open* sites.
+    // Rule: IN ANY SCENARIO, don't consider opening cost for already-open sites.
+    // In 'always' mode, treat all included existing as already-open.
+    const existingMatchesCount = dcs.filter(dc => {
+      const matched = matchExistingSite(dc, existingSites);
+      if (!matched) return false;
+      return existingSitesMode === 'always' || matched.alreadyOpen === true;
+    }).length;
+
+    // New (greenfield) sites are those not matched to an already-open site
+    const newSitesCount = Math.max(0, dcs.length - existingMatchesCount);
+
+    const facilityOpeningCost = newSitesCount * facilityCost;
+    const totalCost = transportationCost + facilityOpeningCost;
+
     if (totalCost < bestTotalCost) {
       bestTotalCost = totalCost;
       bestDcs = dcs;
       bestTransportationCost = transportationCost;
-      bestNumSites = totalSites;
-      bestNewSites = numNewSites;
+      bestNumSites = dcs.length;
+      bestFacilityCost = facilityOpeningCost;
     }
   }
-  
+
   return {
     dcs: bestDcs,
     feasible: true,
@@ -429,7 +508,7 @@ export function optimizeWithCost(
     costBreakdown: {
       totalCost: bestTotalCost,
       transportationCost: bestTransportationCost,
-      facilityCost: bestNewSites * facilityCost, // Only charge for new sites
+      facilityCost: bestFacilityCost, // ONLY new sites pay opening cost
       numSites: bestNumSites,
     },
   };
@@ -450,14 +529,17 @@ export function optimizeWithConstraints(
     costUnit: string;
   },
   products?: Product[],
-  existingSites?: { latitude: number; longitude: number; name: string }[],
+  existingSites?: ExistingSite[],
   existingSitesMode?: 'potential' | 'always'
 ): OptimizationResult {
   const warnings: string[] = [];
-  let dcs: DistributionCenter[];
+  let dcs: DistributionCenter[] = [];
 
   // Calculate total demand to check feasibility
-  const totalDemand = customers.reduce((sum, c) => sum + (c.demand * c.conversionFactor), 0);
+  const totalDemand = customers.reduce(
+    (sum, c) => sum + c.demand * c.conversionFactor,
+    0
+  );
   const hasCapacityConstraint = constraints.dcCapacity > 0;
 
   if (mode === 'cost') {
@@ -476,7 +558,7 @@ export function optimizeWithConstraints(
       existingSitesMode
     );
   } else if (mode === 'distance') {
-    // Distance-based optimization: iteratively add sites until ALL constraints are met
+    // Distance-based optimization: add sites until ALL constraints are met
     let currentNumSites = 1;
     let constraintViolations = Infinity;
     const maxSites = customers.length; // No limit - add as many sites as needed
@@ -491,9 +573,9 @@ export function optimizeWithConstraints(
       // Check distance constraints based on demand percentage
       dcs.forEach(dc => {
         if (dc.totalDemand === 0) return;
-        
+
         let demandWithinRadius = 0;
-        
+
         dc.assignedCustomers.forEach(customer => {
           const distance = haversineDistance(
             customer.latitude,
@@ -505,9 +587,10 @@ export function optimizeWithConstraints(
             demandWithinRadius += customer.demand * customer.conversionFactor;
           }
         });
-        
-        const percentageWithinRadius = (demandWithinRadius / dc.totalDemand) * 100;
-        
+
+        const percentageWithinRadius =
+          (demandWithinRadius / dc.totalDemand) * 100;
+
         if (percentageWithinRadius < targetDemandPercentage) {
           radiusViolations++;
           constraintViolations++;
@@ -539,29 +622,26 @@ export function optimizeWithConstraints(
     }
   } else {
     // Sites-based optimization: use ONLY the specified number of sites
-    // Handle existing sites if provided
     if (existingSites && existingSites.length > 0 && existingSitesMode === 'always') {
       // Always include existing sites
       const numExistingSites = existingSites.length;
       const numNewSites = Math.max(0, numDCs - numExistingSites);
-      
+
       if (numNewSites === 0) {
-        // Only use existing sites, assign customers to them
+        // Only use existing sites
         dcs = existingSites.map((site, index) => ({
           id: `existing-${index + 1}`,
           latitude: Number(site.latitude),
           longitude: Number(site.longitude),
           assignedCustomers: [],
           totalDemand: 0,
-          nearestCity: site.name || 'Existing Site',
-          cityCountry: ''
         }));
-        
-        // Assign customers to nearest existing site
+
+        // Assign customers
         customers.forEach(customer => {
           let nearestDC = dcs[0];
           let minDistance = Infinity;
-          
+
           dcs.forEach(dc => {
             const distance = haversineDistance(
               customer.latitude,
@@ -574,40 +654,37 @@ export function optimizeWithConstraints(
               nearestDC = dc;
             }
           });
-          
+
           nearestDC.assignedCustomers.push(customer);
           nearestDC.totalDemand += customer.demand * customer.conversionFactor;
         });
       } else {
-        // Optimize for new sites, then combine with existing
+        // Some new sites + existing
         const newDcs = kMeansOptimization(customers, numNewSites);
-        
-        // Combine existing sites with new sites
+
         const existingDcs: DistributionCenter[] = existingSites.map((site, index) => ({
           id: `existing-${index + 1}`,
           latitude: Number(site.latitude),
           longitude: Number(site.longitude),
           assignedCustomers: [],
           totalDemand: 0,
-          nearestCity: site.name || 'Existing Site',
-          cityCountry: ''
         }));
-        
-        const allDcs = [...existingDcs, ...newDcs.map((dc, idx) => ({ 
-          ...dc, 
-          id: `new-${idx + 1}` 
-        }))];
-        
-        // Reassign all customers to nearest DC (existing or new)
+
+        const allDcs = [
+          ...existingDcs,
+          ...newDcs.map((dc, idx) => ({ ...dc, id: `new-${idx + 1}` })),
+        ];
+
+        // Reassign
         allDcs.forEach(dc => {
           dc.assignedCustomers = [];
           dc.totalDemand = 0;
         });
-        
+
         customers.forEach(customer => {
           let nearestDC = allDcs[0];
           let minDistance = Infinity;
-          
+
           allDcs.forEach(dc => {
             const distance = haversineDistance(
               customer.latitude,
@@ -620,63 +697,87 @@ export function optimizeWithConstraints(
               nearestDC = dc;
             }
           });
-          
+
           nearestDC.assignedCustomers.push(customer);
           nearestDC.totalDemand += customer.demand * customer.conversionFactor;
         });
-        
+
         dcs = allDcs;
       }
     } else if (existingSites && existingSites.length > 0 && existingSitesMode === 'potential') {
-      // Treat existing sites as potential locations
-      // Run k-means normally, then check if any cluster centers are close to existing sites
+      // Treat existing sites as potential: run k-means then snap if close
       const tempDcs = kMeansOptimization(customers, numDCs);
-      
-      // For each cluster, check if an existing site is within 50km
+
       dcs = tempDcs.map(dc => {
-        let closestExisting = null;
-        let minDist = 50; // 50km threshold
-        
-        existingSites.forEach(site => {
+        let closest: ExistingSite | undefined;
+        let minDist = 50; // 50 km threshold
+        for (const site of existingSites) {
           const dist = haversineDistance(
-            dc.latitude, 
-            dc.longitude, 
-            Number(site.latitude), 
+            dc.latitude,
+            dc.longitude,
+            Number(site.latitude),
             Number(site.longitude)
           );
           if (dist < minDist) {
             minDist = dist;
-            closestExisting = site;
+            closest = site;
+          }
+        }
+        return closest
+          ? {
+              ...dc,
+              latitude: Number(closest.latitude),
+              longitude: Number(closest.longitude),
+            }
+          : dc;
+      });
+
+      // Reassign customers post-snap
+      dcs.forEach(dc => { dc.assignedCustomers = []; dc.totalDemand = 0; });
+      customers.forEach(customer => {
+        let nearestDC = dcs[0];
+        let minDistance = Infinity;
+
+        dcs.forEach(dc => {
+          const distance = haversineDistance(
+            customer.latitude,
+            customer.longitude,
+            dc.latitude,
+            dc.longitude
+          );
+          if (distance < minDistance) {
+            minDistance = distance;
+            nearestDC = dc;
           }
         });
-        
-        if (closestExisting) {
-          return {
-            ...dc,
-            latitude: Number(closestExisting.latitude),
-            longitude: Number(closestExisting.longitude),
-            nearestCity: closestExisting.name
-          };
-        }
-        return dc;
+
+        nearestDC.assignedCustomers.push(customer);
+        nearestDC.totalDemand += customer.demand * customer.conversionFactor;
       });
     } else {
       // Standard optimization without existing sites
-      // Check if this is even feasible with capacity constraints
       if (hasCapacityConstraint) {
         const maxPossibleCapacity = numDCs * constraints.dcCapacity;
         if (totalDemand > maxPossibleCapacity) {
           warnings.push(
-            `INFEASIBLE: Total demand (${totalDemand.toFixed(2)} ${constraints.capacityUnit || 'm3'}) exceeds maximum capacity with ${numDCs} sites (${maxPossibleCapacity.toFixed(2)} ${constraints.capacityUnit || 'm3'}). You need at least ${Math.ceil(totalDemand / constraints.dcCapacity)} sites, or increase capacity to ${(totalDemand / numDCs).toFixed(2)} ${constraints.capacityUnit || 'm3'} per site.`
+            `INFEASIBLE: Total demand (${totalDemand.toFixed(2)} ${
+              constraints.capacityUnit || 'm3'
+            }) exceeds maximum capacity with ${numDCs} sites (${maxPossibleCapacity.toFixed(
+              2
+            )} ${constraints.capacityUnit || 'm3'}). You need at least ${Math.ceil(
+              totalDemand / constraints.dcCapacity
+            )} sites, or increase capacity to ${(totalDemand / numDCs).toFixed(2)} ${
+              constraints.capacityUnit || 'm3'
+            } per site.`
           );
         }
       }
-      
+
       dcs = kMeansOptimization(customers, numDCs);
     }
   }
 
-  // Final check: Report any capacity violations
+  // Final check: capacity violations
   let capacityViolations = 0;
   if (hasCapacityConstraint) {
     dcs.forEach(dc => {
@@ -685,22 +786,27 @@ export function optimizeWithConstraints(
         const unitLabel = constraints.capacityUnit || 'm3';
         const overage = dc.totalDemand - constraints.dcCapacity;
         warnings.push(
-          `Site ${dc.id} exceeds capacity by ${overage.toFixed(2)} ${unitLabel}: ${dc.totalDemand.toFixed(2)} / ${constraints.dcCapacity} ${unitLabel} (${((dc.totalDemand / constraints.dcCapacity) * 100).toFixed(1)}% utilization)`
+          `Site ${dc.id} exceeds capacity by ${overage.toFixed(2)} ${unitLabel}: ${dc.totalDemand.toFixed(
+            2
+          )} / ${constraints.dcCapacity} ${unitLabel} (${(
+            (dc.totalDemand / constraints.dcCapacity) *
+            100
+          ).toFixed(1)}% utilization)`
         );
       }
     });
   }
 
-  // Check distance violations in sites mode (informational)
+  // Informational distance coverage (sites mode)
   if (mode === 'sites' && constraints.maxRadius > 0) {
     const targetDemandPercentage = constraints.demandPercentage || 100;
     let sitesViolatingDistance = 0;
-    
+
     dcs.forEach(dc => {
       if (dc.totalDemand === 0) return;
-      
+
       let demandWithinRadius = 0;
-      
+
       dc.assignedCustomers.forEach(customer => {
         const distance = haversineDistance(
           customer.latitude,
@@ -712,14 +818,15 @@ export function optimizeWithConstraints(
           demandWithinRadius += customer.demand * customer.conversionFactor;
         }
       });
-      
-      const percentageWithinRadius = (demandWithinRadius / dc.totalDemand) * 100;
-      
+
+      const percentageWithinRadius =
+        (demandWithinRadius / dc.totalDemand) * 100;
+
       if (percentageWithinRadius < targetDemandPercentage) {
         sitesViolatingDistance++;
       }
     });
-    
+
     if (sitesViolatingDistance > 0) {
       warnings.push(
         `${sitesViolatingDistance} site(s) do not meet the ${targetDemandPercentage}% demand coverage within ${constraints.maxRadius} km. This is informational only in 'Number of Sites' mode.`
@@ -727,7 +834,10 @@ export function optimizeWithConstraints(
     }
   }
 
-  const feasible = capacityViolations === 0 && (mode !== 'sites' || totalDemand <= (hasCapacityConstraint ? numDCs * constraints.dcCapacity : Infinity));
+  const feasible =
+    capacityViolations === 0 &&
+    (mode !== 'sites' ||
+      totalDemand <= (hasCapacityConstraint ? numDCs * constraints.dcCapacity : Infinity));
 
   return {
     dcs,
