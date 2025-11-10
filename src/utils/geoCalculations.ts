@@ -366,7 +366,9 @@ export function optimizeWithConstraints(
     distanceUnit: 'km' | 'mile';
     costUnit: string;
   },
-  products?: Product[]
+  products?: Product[],
+  existingSites?: { latitude: number; longitude: number; name: string }[],
+  existingSitesMode?: 'potential' | 'always'
 ): OptimizationResult {
   const warnings: string[] = [];
   let dcs: DistributionCenter[];
@@ -452,17 +454,136 @@ export function optimizeWithConstraints(
     }
   } else {
     // Sites-based optimization: use ONLY the specified number of sites
-    // Check if this is even feasible with capacity constraints
-    if (hasCapacityConstraint) {
-      const maxPossibleCapacity = numDCs * constraints.dcCapacity;
-      if (totalDemand > maxPossibleCapacity) {
-        warnings.push(
-          `INFEASIBLE: Total demand (${totalDemand.toFixed(2)} ${constraints.capacityUnit || 'm3'}) exceeds maximum capacity with ${numDCs} sites (${maxPossibleCapacity.toFixed(2)} ${constraints.capacityUnit || 'm3'}). You need at least ${Math.ceil(totalDemand / constraints.dcCapacity)} sites, or increase capacity to ${(totalDemand / numDCs).toFixed(2)} ${constraints.capacityUnit || 'm3'} per site.`
-        );
+    // Handle existing sites if provided
+    if (existingSites && existingSites.length > 0 && existingSitesMode === 'always') {
+      // Always include existing sites
+      const numExistingSites = existingSites.length;
+      const numNewSites = Math.max(0, numDCs - numExistingSites);
+      
+      if (numNewSites === 0) {
+        // Only use existing sites, assign customers to them
+        dcs = existingSites.map((site, index) => ({
+          id: `existing-${index + 1}`,
+          latitude: site.latitude,
+          longitude: site.longitude,
+          assignedCustomers: [],
+          totalDemand: 0,
+          nearestCity: site.name || 'Existing Site',
+          cityCountry: ''
+        }));
+        
+        // Assign customers to nearest existing site
+        customers.forEach(customer => {
+          let nearestDC = dcs[0];
+          let minDistance = Infinity;
+          
+          dcs.forEach(dc => {
+            const distance = haversineDistance(
+              customer.latitude,
+              customer.longitude,
+              dc.latitude,
+              dc.longitude
+            );
+            if (distance < minDistance) {
+              minDistance = distance;
+              nearestDC = dc;
+            }
+          });
+          
+          nearestDC.assignedCustomers.push(customer);
+          nearestDC.totalDemand += customer.demand * customer.conversionFactor;
+        });
+      } else {
+        // Optimize for new sites, then combine with existing
+        const newDcs = kMeansOptimization(customers, numNewSites);
+        
+        // Combine existing sites with new sites
+        const existingDcs: DistributionCenter[] = existingSites.map((site, index) => ({
+          id: `existing-${index + 1}`,
+          latitude: site.latitude,
+          longitude: site.longitude,
+          assignedCustomers: [],
+          totalDemand: 0,
+          nearestCity: site.name || 'Existing Site',
+          cityCountry: ''
+        }));
+        
+        const allDcs = [...existingDcs, ...newDcs.map((dc, idx) => ({ 
+          ...dc, 
+          id: `new-${idx + 1}` 
+        }))];
+        
+        // Reassign all customers to nearest DC (existing or new)
+        allDcs.forEach(dc => {
+          dc.assignedCustomers = [];
+          dc.totalDemand = 0;
+        });
+        
+        customers.forEach(customer => {
+          let nearestDC = allDcs[0];
+          let minDistance = Infinity;
+          
+          allDcs.forEach(dc => {
+            const distance = haversineDistance(
+              customer.latitude,
+              customer.longitude,
+              dc.latitude,
+              dc.longitude
+            );
+            if (distance < minDistance) {
+              minDistance = distance;
+              nearestDC = dc;
+            }
+          });
+          
+          nearestDC.assignedCustomers.push(customer);
+          nearestDC.totalDemand += customer.demand * customer.conversionFactor;
+        });
+        
+        dcs = allDcs;
       }
+    } else if (existingSites && existingSites.length > 0 && existingSitesMode === 'potential') {
+      // Treat existing sites as potential locations
+      // Run k-means normally, then check if any cluster centers are close to existing sites
+      const tempDcs = kMeansOptimization(customers, numDCs);
+      
+      // For each cluster, check if an existing site is within 50km
+      dcs = tempDcs.map(dc => {
+        let closestExisting = null;
+        let minDist = 50; // 50km threshold
+        
+        existingSites.forEach(site => {
+          const dist = haversineDistance(dc.latitude, dc.longitude, site.latitude, site.longitude);
+          if (dist < minDist) {
+            minDist = dist;
+            closestExisting = site;
+          }
+        });
+        
+        if (closestExisting) {
+          return {
+            ...dc,
+            latitude: closestExisting.latitude,
+            longitude: closestExisting.longitude,
+            nearestCity: closestExisting.name
+          };
+        }
+        return dc;
+      });
+    } else {
+      // Standard optimization without existing sites
+      // Check if this is even feasible with capacity constraints
+      if (hasCapacityConstraint) {
+        const maxPossibleCapacity = numDCs * constraints.dcCapacity;
+        if (totalDemand > maxPossibleCapacity) {
+          warnings.push(
+            `INFEASIBLE: Total demand (${totalDemand.toFixed(2)} ${constraints.capacityUnit || 'm3'}) exceeds maximum capacity with ${numDCs} sites (${maxPossibleCapacity.toFixed(2)} ${constraints.capacityUnit || 'm3'}). You need at least ${Math.ceil(totalDemand / constraints.dcCapacity)} sites, or increase capacity to ${(totalDemand / numDCs).toFixed(2)} ${constraints.capacityUnit || 'm3'} per site.`
+          );
+        }
+      }
+      
+      dcs = kMeansOptimization(customers, numDCs);
     }
-    
-    dcs = kMeansOptimization(customers, numDCs);
   }
 
   // Final check: Report any capacity violations

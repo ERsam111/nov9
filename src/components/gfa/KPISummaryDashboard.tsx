@@ -66,20 +66,28 @@ export function KPISummaryDashboard({
     return totalDemand > 0 ? (coveredDemand / totalDemand) * 100 : 0;
   };
 
-  // Calculate cost efficiency
-  const calculateCostEfficiency = () => {
-    if (!costBreakdown) return { costPerUnit: 0, costPerCustomer: 0, costPerSite: 0 };
+  // Calculate total distance-flow (distance * units)
+  const calculateDistanceFlow = () => {
+    if (customers.length === 0 || dcs.length === 0) return 0;
     
-    const totalDemand = customers.reduce(
-      (sum, c) => sum + c.demand * c.conversionFactor,
-      0
-    );
+    let totalDistanceFlow = 0;
+    customers.forEach((customer) => {
+      const assignedDC = dcs.find((dc) =>
+        dc.assignedCustomers.some((c) => c.id === customer.id)
+      );
+      if (assignedDC) {
+        const distance = getDistance(
+          customer.latitude,
+          customer.longitude,
+          assignedDC.latitude,
+          assignedDC.longitude
+        );
+        const flow = customer.demand * customer.conversionFactor;
+        totalDistanceFlow += distance * flow;
+      }
+    });
     
-    return {
-      costPerUnit: totalDemand > 0 ? costBreakdown.totalCost / totalDemand : 0,
-      costPerCustomer: customers.length > 0 ? costBreakdown.totalCost / customers.length : 0,
-      costPerSite: costBreakdown.numSites > 0 ? costBreakdown.facilityCost / costBreakdown.numSites : 0,
-    };
+    return totalDistanceFlow;
   };
 
   // Haversine formula to calculate distance
@@ -100,7 +108,7 @@ export function KPISummaryDashboard({
 
   const avgDistance = calculateAverageDistance();
   const demandCoverage = calculateDemandCoverage();
-  const costEfficiency = calculateCostEfficiency();
+  const distanceFlow = calculateDistanceFlow();
 
   const kpis = [
     {
@@ -118,23 +126,16 @@ export function KPISummaryDashboard({
       color: "text-green-500",
     },
     {
-      title: "Cost per Unit",
-      value: costBreakdown && costEfficiency.costPerUnit > 0 ? `$${costEfficiency.costPerUnit.toFixed(2)}` : "N/A",
-      icon: DollarSign,
-      description: "Total cost divided by total demand",
-      color: "text-purple-500",
-    },
-    {
-      title: "Cost per Customer",
-      value: costBreakdown && costEfficiency.costPerCustomer > 0 ? `$${costEfficiency.costPerCustomer.toFixed(2)}` : "N/A",
+      title: "Total Distance-Flow",
+      value: distanceFlow > 0 ? `${distanceFlow.toLocaleString(undefined, {maximumFractionDigits: 0})} ${settings.distanceUnit}·units` : "N/A",
       icon: TrendingUp,
-      description: "Total cost divided by number of customers",
-      color: "text-orange-500",
+      description: `Sum of (distance × flow) across all customers`,
+      color: "text-purple-500",
     },
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {kpis.map((kpi, index) => (
         <Card key={index} className="border-border/50 hover:border-primary/30 transition-colors">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

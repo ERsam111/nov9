@@ -163,17 +163,26 @@ const GFA = () => {
     await updateScenario(currentScenario.id, {
       status: 'running'
     });
-    const result = optimizeWithConstraints(customers, settings.numDCs, {
-      maxRadius: settings.maxRadius,
-      demandPercentage: settings.demandPercentage,
-      dcCapacity: settings.dcCapacity,
-      capacityUnit: settings.capacityUnit
-    }, settings.mode, settings.mode === 'cost' ? {
-      transportationCostPerMilePerUnit: settings.transportationCostPerMilePerUnit,
-      facilityCost: settings.facilityCost,
-      distanceUnit: settings.distanceUnit,
-      costUnit: settings.costUnit
-    } : undefined, products);
+    const result = optimizeWithConstraints(
+      customers, 
+      settings.numDCs, 
+      {
+        maxRadius: settings.maxRadius,
+        demandPercentage: settings.demandPercentage,
+        dcCapacity: settings.dcCapacity,
+        capacityUnit: settings.capacityUnit
+      }, 
+      settings.mode, 
+      settings.mode === 'cost' ? {
+        transportationCostPerMilePerUnit: settings.transportationCostPerMilePerUnit,
+        facilityCost: settings.facilityCost,
+        distanceUnit: settings.distanceUnit,
+        costUnit: settings.costUnit
+      } : undefined, 
+      products,
+      settings.includeExistingSites ? existingSites : undefined,
+      settings.includeExistingSites ? settings.existingSitesMode : undefined
+    );
     setDcs(result.dcs);
     setFeasible(result.feasible);
     setWarnings(result.warnings);
