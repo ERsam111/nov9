@@ -22,7 +22,7 @@ const getTableTitle = (type: string) => ({
 const getTableColumns = (tableType: string): string[] => {
   const map: Record<string, string[]> = {
     customers: ["Customer Name", "City", "Country", "Latitude", "Longitude", "Product", "Demand", "Unit of Measure"],
-    products: ["Product Name", "Base Unit", "Selling Price", "Unit Conversions"],
+    products: ["Product Name", "Base Unit", "Selling Price", "to_m3", "to_ft3", "to_kg", "to_tonnes", "to_lbs", "to_liters", "to_pallets", "to_units", "to_sq2", "to_cbm"],
     "existing-sites": ["Site Name", "City", "Country", "Latitude", "Longitude", "Capacity", "Capacity Unit"]
   };
   return map[tableType] || ["Name"];
@@ -79,21 +79,31 @@ export function GFAEditableTable({
   }, [data]);
   const handleAddRow = () => {
     const newRow: any = {};
-    columns.forEach(col => {
-      const key = keyOf(col, tableType);
-      if (tableType === "products") {
-        if (key === "unitConversions") newRow[key] = [];else newRow[key] = "";
-      } else if (tableType === "customers") {
-        if (key === "id") newRow[key] = `customer-${Date.now()}`;else if (key === "latitude" || key === "longitude" || key === "demand") newRow[key] = 0;else if (key === "unitOfMeasure") newRow[key] = "m3";else newRow[key] = "";
-      } else if (tableType === "existing-sites") {
-        if (key === "id") newRow[key] = `site-${Date.now()}`;
-        else if (key === "latitude" || key === "longitude" || key === "capacity") newRow[key] = 0;
-        else if (key === "capacityUnit") newRow[key] = "m3";
-        else newRow[key] = "";
-      } else {
-        newRow[key] = "";
-      }
-    });
+    if (tableType === "products") {
+      newRow.name = "";
+      newRow.baseUnit = "m3";
+      newRow.sellingPrice = "";
+      newRow.unitConversions = {};
+    } else if (tableType === "customers") {
+      newRow.id = `customer-${Date.now()}`;
+      newRow.name = "";
+      newRow.city = "";
+      newRow.country = "";
+      newRow.latitude = 0;
+      newRow.longitude = 0;
+      newRow.product = "";
+      newRow.demand = 0;
+      newRow.unitOfMeasure = "m3";
+    } else if (tableType === "existing-sites") {
+      newRow.id = `site-${Date.now()}`;
+      newRow.name = "";
+      newRow.city = "";
+      newRow.country = "";
+      newRow.latitude = 0;
+      newRow.longitude = 0;
+      newRow.capacity = 0;
+      newRow.capacityUnit = "m3";
+    }
     const updated = [...rows, newRow];
     setRows(updated);
     onDataChange(updated);
@@ -106,10 +116,27 @@ export function GFAEditableTable({
   const handleChange = (i: number, col: string, val: any) => {
     const key = keyOf(col, tableType);
     const updated = [...rows];
-    updated[i] = {
-      ...updated[i],
-      [key]: val
-    };
+    
+    // For product unit conversions, update the unitConversions object
+    if (tableType === "products" && key.startsWith("to_")) {
+      const conversions = { ...(updated[i].unitConversions || {}) };
+      const numVal = parseFloat(val);
+      if (!isNaN(numVal) && numVal > 0) {
+        conversions[key] = numVal;
+      } else {
+        delete conversions[key];
+      }
+      updated[i] = {
+        ...updated[i],
+        unitConversions: conversions
+      };
+    } else {
+      updated[i] = {
+        ...updated[i],
+        [key]: val
+      };
+    }
+    
     setRows(updated);
     onDataChange(updated);
   };
@@ -140,58 +167,6 @@ export function GFAEditableTable({
     XLSX.utils.book_append_sheet(wb, ws, getTableTitle(tableType));
     XLSX.writeFile(wb, `${tableType}_template.xlsx`);
   };
-  const handleAddConversion = (rowIndex: number) => {
-    const updated = [...rows];
-    const conversions = { ...(updated[rowIndex].unitConversions || {}) };
-    const newUnitName = `to_unit${Object.keys(conversions).length + 1}`;
-    conversions[newUnitName] = 1;
-    updated[rowIndex] = {
-      ...updated[rowIndex],
-      unitConversions: conversions
-    };
-    setRows(updated);
-    onDataChange(updated);
-  };
-
-  const handleUpdateConversionKey = (rowIndex: number, oldKey: string, newKey: string) => {
-    if (oldKey === newKey) return;
-    const updated = [...rows];
-    const conversions = { ...(updated[rowIndex].unitConversions || {}) };
-    const value = conversions[oldKey];
-    delete conversions[oldKey];
-    conversions[newKey] = value;
-    updated[rowIndex] = {
-      ...updated[rowIndex],
-      unitConversions: conversions
-    };
-    setRows(updated);
-    onDataChange(updated);
-  };
-
-  const handleUpdateConversionValue = (rowIndex: number, key: string, value: number) => {
-    const updated = [...rows];
-    const conversions = { ...(updated[rowIndex].unitConversions || {}) };
-    conversions[key] = value;
-    updated[rowIndex] = {
-      ...updated[rowIndex],
-      unitConversions: conversions
-    };
-    setRows(updated);
-    onDataChange(updated);
-  };
-
-  const handleDeleteConversion = (rowIndex: number, key: string) => {
-    const updated = [...rows];
-    const conversions = { ...(updated[rowIndex].unitConversions || {}) };
-    delete conversions[key];
-    updated[rowIndex] = {
-      ...updated[rowIndex],
-      unitConversions: conversions
-    };
-    setRows(updated);
-    onDataChange(updated);
-  };
-
   const handleFilterChange = (columnKey: string, filter?: ColumnFilter) => {
     setColumnFilters((prev) => {
       const updated = { ...prev };
@@ -283,36 +258,19 @@ export function GFAEditableTable({
               const key = keyOf(col, tableType);
               const val = row[key] ?? "";
 
-              // Special handling for unit conversions
-              if (tableType === "products" && key === "unitConversions") {
+              // Special handling for unit conversion columns in products
+              if (tableType === "products" && key.startsWith("to_")) {
                 const conversions = row.unitConversions || {};
-                const conversionEntries = Object.entries(conversions);
+                const value = conversions[key] || "";
                 return <TableCell key={col}>
-                            <div className="space-y-2 min-w-[200px]">
-                              {conversionEntries.map(([unitName, factor], convIdx: number) => <div key={convIdx} className="flex items-center gap-2">
-                                  <Input 
-                                    value={unitName} 
-                                    onChange={e => handleUpdateConversionKey(i, unitName, e.target.value)}
-                                    placeholder="Unit name (e.g., to_m3)"
-                                    className="h-8 text-sm w-32" 
-                                  />
-                                  <span className="text-sm">=</span>
-                                  <Input 
-                                    type="number" 
-                                    value={typeof factor === 'number' ? factor : 1} 
-                                    onChange={e => handleUpdateConversionValue(i, unitName, parseFloat(e.target.value) || 1)}
-                                    placeholder="Factor" 
-                                    className="h-8 text-sm w-24" 
-                                  />
-                                  <Button variant="ghost" size="sm" onClick={() => handleDeleteConversion(i, unitName)} className="h-7 w-7 p-0">
-                                    <Trash2 className="h-3 w-3 text-destructive" />
-                                  </Button>
-                                </div>)}
-                              <Button variant="outline" size="sm" onClick={() => handleAddConversion(i)} className="h-7 text-xs">
-                                <Plus className="h-3 w-3 mr-1" /> Add Unit
-                              </Button>
-                            </div>
-                          </TableCell>;
+                  <Input 
+                    type="number"
+                    value={value}
+                    onChange={e => handleChange(i, col, e.target.value)}
+                    placeholder="Factor"
+                    className="h-9 text-sm w-24"
+                  />
+                </TableCell>;
               }
 
               // Special handling for base unit dropdown in products

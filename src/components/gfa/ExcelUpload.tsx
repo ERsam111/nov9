@@ -114,9 +114,9 @@ export function ExcelUpload({
               unitConversions: {}
             };
 
-            // Add all unit conversion columns (any column that's not the core fields and has a numeric value)
+            // Add all unit conversion columns that start with "to_" and have a value
             Object.keys(row).forEach((key) => {
-              if (!['Product', 'product', 'PRODUCT', 'Name', 'name', 'BaseUnit', 'Base Unit', 'baseUnit', 'Unit', 'SellingPrice', 'Selling Price', 'sellingPrice', 'Price'].includes(key)) {
+              if (key.startsWith('to_')) {
                 const value = parseFloat(row[key]);
                 if (!isNaN(value) && value > 0 && product.unitConversions) {
                   product.unitConversions[key] = value;
@@ -231,23 +231,37 @@ export function ExcelUpload({
     const customersSheet = XLSX.utils.json_to_sheet(customersTemplate);
     XLSX.utils.book_append_sheet(workbook, customersSheet, "Customers");
 
-    // Sheet 2: Products
+    // Sheet 2: Products with predefined unit columns
     const productsTemplate = [
       {
         Product: "Electronics",
         BaseUnit: "pallets",
         SellingPrice: 500,
-        "to_m3": 1.2,
-        "to_ft3": 42.4,
-        "to_kg": "",
+        to_m3: 1.2,
+        to_ft3: 42.4,
+        to_kg: 150,
+        to_tonnes: "",
+        to_lbs: "",
+        to_liters: "",
+        to_pallets: "",
+        to_units: "",
+        to_sq2: "",
+        to_cbm: "",
       },
       {
         Product: "Furniture",
         BaseUnit: "m3",
         SellingPrice: 300,
-        "to_m3": 1,
-        "to_ft3": 35.3,
-        "to_pallets": 0.83,
+        to_m3: 1,
+        to_ft3: 35.3,
+        to_kg: "",
+        to_tonnes: "",
+        to_lbs: "",
+        to_liters: 1000,
+        to_pallets: 0.83,
+        to_units: "",
+        to_sq2: "",
+        to_cbm: "",
       }
     ];
     const productsSheet = XLSX.utils.json_to_sheet(productsTemplate);

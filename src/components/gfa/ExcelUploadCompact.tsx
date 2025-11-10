@@ -101,7 +101,7 @@ export function ExcelUploadCompact({
             };
             
             Object.keys(row).forEach((key) => {
-              if (!['Product', 'product', 'PRODUCT', 'Name', 'name', 'BaseUnit', 'Base Unit', 'baseUnit', 'Unit', 'SellingPrice', 'Selling Price', 'sellingPrice', 'Price'].includes(key)) {
+              if (key.startsWith('to_')) {
                 const value = parseFloat(row[key]);
                 if (!isNaN(value) && value > 0 && product.unitConversions) {
                   product.unitConversions[key] = value;
@@ -180,8 +180,36 @@ export function ExcelUploadCompact({
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(customersTemplate), "Customers");
 
     const productsTemplate = [
-      { Product: "Electronics", BaseUnit: "pallets", SellingPrice: 500, "to_m3": 1.2, "to_ft3": 42.4, "to_kg": "" },
-      { Product: "Furniture", BaseUnit: "m3", SellingPrice: 300, "to_m3": 1, "to_ft3": 35.3, "to_pallets": 0.83 }
+      { 
+        Product: "Electronics", 
+        BaseUnit: "pallets", 
+        SellingPrice: 500, 
+        to_m3: 1.2, 
+        to_ft3: 42.4, 
+        to_kg: 150, 
+        to_tonnes: "", 
+        to_lbs: "", 
+        to_liters: "", 
+        to_pallets: "", 
+        to_units: "", 
+        to_sq2: "", 
+        to_cbm: "" 
+      },
+      { 
+        Product: "Furniture", 
+        BaseUnit: "m3", 
+        SellingPrice: 300, 
+        to_m3: 1, 
+        to_ft3: 35.3, 
+        to_kg: "", 
+        to_tonnes: "", 
+        to_lbs: "", 
+        to_liters: 1000, 
+        to_pallets: 0.83, 
+        to_units: "", 
+        to_sq2: "", 
+        to_cbm: "" 
+      }
     ];
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(productsTemplate), "Products");
 
