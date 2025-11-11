@@ -113,21 +113,21 @@ export function KPISummaryDashboard({
   const kpis = [
     {
       title: "Total Cost",
-      value: costBreakdown ? `${settings.costUnit} ${costBreakdown.totalCost.toLocaleString(undefined, {maximumFractionDigits: 0})}` : "N/A",
+      value: costBreakdown ? `$${costBreakdown.totalCost.toLocaleString(undefined, {maximumFractionDigits: 0})}` : "N/A",
       icon: DollarSign,
       description: "Total facility + transportation costs",
       color: "text-red-500",
     },
     {
       title: "Facility Opening Cost",
-      value: costBreakdown ? `${settings.costUnit} ${costBreakdown.facilityCost.toLocaleString(undefined, {maximumFractionDigits: 0})}` : "N/A",
+      value: costBreakdown ? `$${costBreakdown.facilityCost.toLocaleString(undefined, {maximumFractionDigits: 0})}` : "N/A",
       icon: MapPin,
       description: `Cost to open ${costBreakdown?.numSites || 0} new facilities`,
       color: "text-orange-500",
     },
     {
       title: "Transportation Cost",
-      value: costBreakdown ? `${settings.costUnit} ${costBreakdown.transportationCost.toLocaleString(undefined, {maximumFractionDigits: 0})}` : "N/A",
+      value: costBreakdown ? `$${costBreakdown.transportationCost.toLocaleString(undefined, {maximumFractionDigits: 0})}` : "N/A",
       icon: TrendingUp,
       description: "Total cost to transport goods to customers",
       color: "text-blue-500",
