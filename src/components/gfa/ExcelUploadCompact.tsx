@@ -173,6 +173,13 @@ export function ExcelUploadCompact({
   const downloadTemplate = () => {
     const workbook = XLSX.utils.book_new();
 
+    // All possible unit conversion columns
+    const allUnitColumns = {
+      to_m3: "", to_ft3: "", to_kg: "", to_tonnes: "", 
+      to_lbs: "", to_liters: "", to_pallets: "", to_units: "", 
+      to_sq2: "", to_cbm: "", to_sqm: "", to_sqft: ""
+    };
+
     const customersTemplate = [
       { Product: "Electronics", Name: "Customer A", City: "New York", Country: "USA", Latitude: 40.7128, Longitude: -74.0060, Demand: 1000, Unit: "pallets" },
       { Product: "Furniture", Name: "Customer B", City: "Los Angeles", Country: "USA", Latitude: 34.0522, Longitude: -118.2437, Demand: 1500, Unit: "m3" }
@@ -187,13 +194,7 @@ export function ExcelUploadCompact({
         to_m3: 1.2, 
         to_ft3: 42.4, 
         to_kg: 150, 
-        to_tonnes: "", 
-        to_lbs: "", 
-        to_liters: "", 
-        to_pallets: "", 
-        to_units: "", 
-        to_sq2: "", 
-        to_cbm: "" 
+        ...allUnitColumns
       },
       { 
         Product: "Furniture", 
@@ -201,20 +202,16 @@ export function ExcelUploadCompact({
         SellingPrice: 300, 
         to_m3: 1, 
         to_ft3: 35.3, 
-        to_kg: "", 
-        to_tonnes: "", 
-        to_lbs: "", 
         to_liters: 1000, 
         to_pallets: 0.83, 
-        to_units: "", 
-        to_sq2: "", 
-        to_cbm: "" 
+        ...allUnitColumns
       }
     ];
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(productsTemplate), "Products");
 
     const sitesTemplate = [
-      { Name: "Warehouse NYC", City: "New York", Country: "USA", Latitude: 40.7580, Longitude: -73.9855, Capacity: 50000, CapacityUnit: "m3" }
+      { Name: "Warehouse NYC", City: "New York", Country: "USA", Latitude: 40.7580, Longitude: -73.9855, Capacity: 50000, CapacityUnit: "m3" },
+      { Name: "", City: "", Country: "", Latitude: "", Longitude: "", Capacity: "", CapacityUnit: "" }
     ];
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(sitesTemplate), "Existing Sites");
 

@@ -260,84 +260,76 @@ const GFA = () => {
   };
 
   const handleExportCurrentData = () => {
-    if (customers.length === 0) {
-      toast.error("No data to export");
-      return;
-    }
-
     const workbook = XLSX.utils.book_new();
 
-    // Sheet 1: Customers
-    const customersExport = customers.map(c => ({
-      Product: c.product,
-      Name: c.name,
-      City: c.city,
-      Country: c.country,
-      Latitude: c.latitude,
-      Longitude: c.longitude,
-      Demand: c.demand,
-      Unit: c.unitOfMeasure
-    }));
+    // All possible unit conversion columns
+    const allUnitColumns = [
+      'to_m3', 'to_ft3', 'to_kg', 'to_tonnes', 'to_lbs', 
+      'to_liters', 'to_pallets', 'to_units', 'to_sq2', 
+      'to_cbm', 'to_sqm', 'to_sqft'
+    ];
+
+    // Sheet 1: Customers - ALWAYS export (even if empty)
+    const customersExport = customers.length > 0 
+      ? customers.map(c => ({
+          Product: c.product,
+          Name: c.name,
+          City: c.city,
+          Country: c.country,
+          Latitude: c.latitude,
+          Longitude: c.longitude,
+          Demand: c.demand,
+          Unit: c.unitOfMeasure
+        }))
+      : [{ Product: "", Name: "", City: "", Country: "", Latitude: "", Longitude: "", Demand: "", Unit: "" }];
     const customersSheet = XLSX.utils.json_to_sheet(customersExport);
     XLSX.utils.book_append_sheet(workbook, customersSheet, "Customers");
 
-    // Sheet 2: Products - export ALL columns including all unitConversions
-    if (products.length > 0) {
-      // Collect all unique unit conversion keys across all products
-      const allUnitKeys = new Set<string>();
-      products.forEach(p => {
-        if (p.unitConversions) {
-          Object.keys(p.unitConversions).forEach(key => allUnitKeys.add(key));
-        }
-      });
-      
-      const productsExport = products.map(p => {
-        const row: any = {
-          Product: p.name,
-          BaseUnit: p.baseUnit,
-          SellingPrice: p.sellingPrice || ""
-        };
-        
-        // Add all unit conversions with proper keys
-        if (p.unitConversions) {
-          Object.entries(p.unitConversions).forEach(([key, value]) => {
-            row[key] = value;
+    // Sheet 2: Products - ALWAYS export with ALL columns
+    const productsExport = products.length > 0
+      ? products.map(p => {
+          const row: any = {
+            Product: p.name,
+            BaseUnit: p.baseUnit,
+            SellingPrice: p.sellingPrice || ""
+          };
+          
+          // Add ALL unit conversion columns (even if empty)
+          allUnitColumns.forEach(col => {
+            row[col] = (p.unitConversions && p.unitConversions[col]) || "";
           });
-        }
-        
-        // Fill in missing keys with empty string for consistency
-        allUnitKeys.forEach(key => {
-          if (!(key in row)) {
-            row[key] = "";
-          }
-        });
-        
-        return row;
-      });
-      const productsSheet = XLSX.utils.json_to_sheet(productsExport);
-      XLSX.utils.book_append_sheet(workbook, productsSheet, "Products");
-    }
+          
+          return row;
+        })
+      : [{
+          Product: "",
+          BaseUnit: "",
+          SellingPrice: "",
+          ...Object.fromEntries(allUnitColumns.map(col => [col, ""]))
+        }];
+    const productsSheet = XLSX.utils.json_to_sheet(productsExport);
+    XLSX.utils.book_append_sheet(workbook, productsSheet, "Products");
 
-    // Sheet 3: Existing Sites
-    if (existingSites.length > 0) {
-      const sitesExport = existingSites.map(s => ({
-        Name: s.name,
-        City: s.city,
-        Country: s.country,
-        Latitude: s.latitude,
-        Longitude: s.longitude,
-        Capacity: s.capacity,
-        CapacityUnit: s.capacityUnit
-      }));
-      const sitesSheet = XLSX.utils.json_to_sheet(sitesExport);
-      XLSX.utils.book_append_sheet(workbook, sitesSheet, "Existing Sites");
-    }
+    // Sheet 3: Existing Sites - ALWAYS export
+    const sitesExport = existingSites.length > 0
+      ? existingSites.map(s => ({
+          Name: s.name,
+          City: s.city,
+          Country: s.country,
+          Latitude: s.latitude,
+          Longitude: s.longitude,
+          Capacity: s.capacity,
+          CapacityUnit: s.capacityUnit
+        }))
+      : [{ Name: "", City: "", Country: "", Latitude: "", Longitude: "", Capacity: "", CapacityUnit: "" }];
+    const sitesSheet = XLSX.utils.json_to_sheet(sitesExport);
+    XLSX.utils.book_append_sheet(workbook, sitesSheet, "Existing Sites");
 
-    // Sheet 4: Cost Parameters
+    // Sheet 4: Cost Parameters - ALWAYS export
     const costExport = [{
-      TransportationCostPerMilePerUnit: settings.transportationCostPerMilePerUnit,
-      FacilityCost: settings.facilityCost,
-      DistanceUnit: settings.distanceUnit,
+      TransportationCostPerMilePerUnit: settings.transportationCostPerMilePerUnit || "",
+      FacilityCost: settings.facilityCost || "",
+      DistanceUnit: settings.distanceUnit || "",
       CostUnit: settings.costUnit
     }];
     const costSheet = XLSX.utils.json_to_sheet(costExport);
