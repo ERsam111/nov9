@@ -873,9 +873,36 @@ export function optimizeWithConstraints(
     (mode !== 'sites' ||
       totalDemand <= (hasCapacityConstraint ? numDCs * constraints.dcCapacity : Infinity));
 
+  // Calculate cost breakdown for all modes if cost parameters are provided
+  let costBreakdown: OptimizationResult['costBreakdown'] = undefined;
+  if (costParams && products) {
+    const transportationCost = calculateTransportationCost(
+      dcs,
+      costParams.transportationCostPerMilePerUnit,
+      costParams.distanceUnit,
+      costParams.costUnit,
+      products
+    );
+
+    // Count existing sites vs new sites
+    const existingMatchesCount = dcs.filter(dc => 
+      matchExistingSite(dc, existingSites) !== undefined
+    ).length;
+    const newSitesCount = dcs.length - existingMatchesCount;
+    const facilityCost = newSitesCount * costParams.facilityCost;
+
+    costBreakdown = {
+      totalCost: transportationCost + facilityCost,
+      transportationCost,
+      facilityCost,
+      numSites: newSitesCount,
+    };
+  }
+
   return {
     dcs,
     feasible,
     warnings,
+    costBreakdown,
   };
 }
