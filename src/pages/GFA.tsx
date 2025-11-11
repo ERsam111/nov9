@@ -434,7 +434,7 @@ const GFA = () => {
                 productCount={products.length}
                 existingSiteCount={existingSites.length}
               />
-              <div className="flex-1 min-w-0 flex flex-col gap-4 max-w-[calc(100vw-400px)]">
+              <div className="flex-1 min-w-0 flex flex-col gap-4 max-w-[calc(100vw-500px)]">
                 {/* Compact Upload Section */}
                 <Card className="shadow-sm shrink-0">
                   <CardContent className="p-3">
@@ -477,21 +477,26 @@ const GFA = () => {
           </TabsContent>
 
           <TabsContent value="data-support" className="space-y-6">
-            <DataSupportPanel 
+            <div className="max-w-[calc(100vw-300px)] overflow-x-hidden">
+            <DataSupportPanel
               customers={customers} 
               products={products} 
               dcs={dcs} 
               settings={settings}
               costBreakdown={costBreakdown}
             />
+            </div>
           </TabsContent>
 
           <TabsContent value="map" className="space-y-6">
+            <div className="max-w-[calc(100vw-300px)] overflow-x-hidden">
             <GFAMapPanel customers={customers} dcs={dcs} settings={settings} />
+            </div>
           </TabsContent>
 
           <TabsContent value="optimization" className="space-y-6">
-            <GFAOptimizationPanel 
+            <div className="max-w-[calc(100vw-300px)] overflow-x-hidden">
+            <GFAOptimizationPanel
               customers={customers} 
               products={products} 
               existingSites={existingSites}
@@ -499,6 +504,7 @@ const GFA = () => {
               onSettingsChange={setSettings} 
               onOptimize={handleOptimize} 
             />
+            </div>
           </TabsContent>
 
           <TabsContent value="results" className="space-y-6">
