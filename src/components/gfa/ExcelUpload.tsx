@@ -14,12 +14,20 @@ interface ExcelUploadProps {
   onProductsUpload?: (products: Product[], mode: 'append' | 'overwrite') => void;
   onExistingSitesUpload?: (sites: ExistingSite[], mode: 'append' | 'overwrite') => void;
   onCostParametersUpload?: (settings: Partial<OptimizationSettings>) => void;
+  currentCustomers?: Customer[];
+  currentProducts?: Product[];
+  currentExistingSites?: ExistingSite[];
+  currentSettings?: OptimizationSettings;
 }
 export function ExcelUpload({
   onBulkUpload,
   onProductsUpload,
   onExistingSitesUpload,
-  onCostParametersUpload
+  onCostParametersUpload,
+  currentCustomers = [],
+  currentProducts = [],
+  currentExistingSites = [],
+  currentSettings
 }: ExcelUploadProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadMode, setUploadMode] = useState<'append' | 'overwrite'>('append');
@@ -202,6 +210,80 @@ export function ExcelUpload({
     };
     reader.readAsArrayBuffer(file);
   };
+  const exportCurrentData = () => {
+    if (currentCustomers.length === 0) {
+      toast.error("No data to export");
+      return;
+    }
+
+    const workbook = XLSX.utils.book_new();
+
+    // Sheet 1: Customers
+    const customersExport = currentCustomers.map(c => ({
+      Product: c.product,
+      Name: c.name,
+      City: c.city,
+      Country: c.country,
+      Latitude: c.latitude,
+      Longitude: c.longitude,
+      Demand: c.demand,
+      Unit: c.unitOfMeasure
+    }));
+    const customersSheet = XLSX.utils.json_to_sheet(customersExport);
+    XLSX.utils.book_append_sheet(workbook, customersSheet, "Customers");
+
+    // Sheet 2: Products
+    if (currentProducts.length > 0) {
+      const productsExport = currentProducts.map(p => {
+        const row: any = {
+          Product: p.name,
+          BaseUnit: p.baseUnit,
+          SellingPrice: p.sellingPrice || ""
+        };
+        // Add unit conversions
+        if (p.unitConversions) {
+          Object.entries(p.unitConversions).forEach(([key, value]) => {
+            row[key] = value;
+          });
+        }
+        return row;
+      });
+      const productsSheet = XLSX.utils.json_to_sheet(productsExport);
+      XLSX.utils.book_append_sheet(workbook, productsSheet, "Products");
+    }
+
+    // Sheet 3: Existing Sites
+    if (currentExistingSites.length > 0) {
+      const sitesExport = currentExistingSites.map(s => ({
+        Name: s.name,
+        City: s.city,
+        Country: s.country,
+        Latitude: s.latitude,
+        Longitude: s.longitude,
+        Capacity: s.capacity,
+        CapacityUnit: s.capacityUnit
+      }));
+      const sitesSheet = XLSX.utils.json_to_sheet(sitesExport);
+      XLSX.utils.book_append_sheet(workbook, sitesSheet, "Existing Sites");
+    }
+
+    // Sheet 4: Cost Parameters
+    if (currentSettings) {
+      const costExport = [{
+        TransportationCostPerMilePerUnit: currentSettings.transportationCostPerMilePerUnit,
+        FacilityCost: currentSettings.facilityCost,
+        DistanceUnit: currentSettings.distanceUnit,
+        CostUnit: currentSettings.costUnit
+      }];
+      const costSheet = XLSX.utils.json_to_sheet(costExport);
+      XLSX.utils.book_append_sheet(workbook, costSheet, "Cost Parameters");
+    }
+
+    const filename = `gfa_data_export_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(workbook, filename);
+    toast.success("Current data exported successfully");
+  };
+
   const downloadTemplate = () => {
     const workbook = XLSX.utils.book_new();
 
@@ -331,10 +413,21 @@ export function ExcelUpload({
             </Button>
             <input ref={fileInputRef} type="file" accept=".xlsx,.xls" onChange={handleFileUpload} className="hidden" />
             
-            <Button onClick={downloadTemplate} variant="outline" className="w-full" size="lg">
-              <Download className="mr-2 h-4 w-4" />
-              Download Template
-            </Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Button onClick={downloadTemplate} variant="outline" size="lg">
+                <Download className="mr-2 h-4 w-4" />
+                Template
+              </Button>
+              <Button 
+                onClick={exportCurrentData} 
+                variant="outline" 
+                size="lg"
+                disabled={currentCustomers.length === 0}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Export Data
+              </Button>
+            </div>
           </div>
         </div>
 

@@ -140,6 +140,10 @@ export function GFAInputPanel({
             onCostParametersUpload={(params) => {
               onSettingsChange({ ...settings, ...params });
             }}
+            currentCustomers={customers}
+            currentProducts={products}
+            currentExistingSites={existingSites}
+            currentSettings={settings}
           />
         </CardContent>
       </Card>
