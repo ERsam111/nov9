@@ -604,31 +604,37 @@ function buildDCConfiguration(
     return allDcs;
   }
 
-  // mode === 'potential': Run k-means and snap to existing sites if close
-  let dcs = kMeansOptimization(customers, numNewSites);
-
-  // Snap to existing sites if within 50km (saves facility cost)
-  dcs = dcs.map(dc => {
-    let closest: ExistingSite | undefined;
-    let minDist = 50; // km threshold
-
-    for (const site of existingSites) {
-      const dist = haversineDistance(
-        dc.latitude,
-        dc.longitude,
-        Number(site.latitude),
-        Number(site.longitude)
-      );
-      if (dist < minDist) {
-        minDist = dist;
-        closest = site;
-      }
-    }
-
-    return closest
-      ? { ...dc, latitude: Number(closest.latitude), longitude: Number(closest.longitude) }
-      : dc;
-  });
+  // mode === 'potential': Initialize centroids with existing sites, then add k-means for additional sites
+  let dcs: DistributionCenter[];
+  
+  if (numNewSites <= existingSites.length) {
+    // If requesting fewer or equal sites than existing, use existing sites
+    dcs = existingSites.slice(0, numNewSites).map((site, index) => ({
+      id: `existing-${index + 1}`,
+      latitude: Number(site.latitude),
+      longitude: Number(site.longitude),
+      assignedCustomers: [],
+      totalDemand: 0,
+    }));
+  } else {
+    // Need more sites than existing: use all existing + k-means for the rest
+    const existingDcs: DistributionCenter[] = existingSites.map((site, index) => ({
+      id: `existing-${index + 1}`,
+      latitude: Number(site.latitude),
+      longitude: Number(site.longitude),
+      assignedCustomers: [],
+      totalDemand: 0,
+    }));
+    
+    // Run k-means for the additional sites needed
+    const additionalSitesNeeded = numNewSites - existingSites.length;
+    const newDcs = kMeansOptimization(customers, additionalSitesNeeded);
+    
+    dcs = [
+      ...existingDcs,
+      ...newDcs.map((dc, idx) => ({ ...dc, id: `new-${idx + 1}` })),
+    ];
+  }
 
   // Reassign customers after snapping
   dcs.forEach(dc => {
