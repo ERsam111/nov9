@@ -5,8 +5,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Play, ChevronDown } from "lucide-react";
+import { Play, ChevronDown, Upload, Edit, TrendingUp, MessageSquare } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HistoricalDataUpload } from "@/components/forecasting/HistoricalDataUpload";
 import { ModelSelector } from "@/components/forecasting/ModelSelector";
 import { DataAnalytics } from "@/components/forecasting/DataAnalytics";
@@ -16,7 +17,7 @@ import { TimeFilterPanel } from "@/components/forecasting/TimeFilterPanel";
 import { ForecastingDataSupport } from "@/components/forecasting/ForecastingDataSupport";
 import { ManualAdjustment } from "@/components/forecasting/ManualAdjustment";
 import { PromotionalAdjustment } from "@/components/forecasting/PromotionalAdjustment";
-import { DemandForecastingSidebar } from "@/components/forecasting/DemandForecastingSidebar";
+
 import { HistoricalDataPoint, ForecastResult } from "@/types/forecasting";
 import { generateForecasts } from "@/utils/forecastingModels";
 import { useToast } from "@/hooks/use-toast";
@@ -269,30 +270,38 @@ const DemandForecasting = () => {
         />
       </div>
 
-      {/* Main Content with Sidebar */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar Navigation */}
-        <DemandForecastingSidebar
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          hasData={historicalData.length > 0}
-          hasForecast={forecastResults.length > 0}
-        />
+      {/* Main Content */}
+      <div className="flex-1 w-full px-6 py-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="input" className="gap-2" disabled={!currentScenario}>
+              <Upload className="h-4 w-4" />
+              Input Data
+            </TabsTrigger>
+            <TabsTrigger value="manual" className="gap-2" disabled={forecastResults.length === 0}>
+              <Edit className="h-4 w-4" />
+              Manual Adjustment
+            </TabsTrigger>
+            <TabsTrigger value="promotional" className="gap-2" disabled={forecastResults.length === 0}>
+              <TrendingUp className="h-4 w-4" />
+              Promotional Adjustment
+            </TabsTrigger>
+            <TabsTrigger value="data-support" className="gap-2" disabled={!currentScenario || historicalData.length === 0}>
+              <MessageSquare className="h-4 w-4" />
+              Data Support
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Content Area */}
-        <div className="flex-1 overflow-auto p-6">
-          {/* Input Data Tab */}
-          {activeTab === "input" && (
-            <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Data Upload</CardTitle>
-                  <CardDescription>Upload historical demand data to begin forecasting</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <HistoricalDataUpload onDataUpload={handleDataUpload} />
-                </CardContent>
-              </Card>
+          <TabsContent value="input" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Data Upload</CardTitle>
+                <CardDescription>Upload historical demand data to begin forecasting</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <HistoricalDataUpload onDataUpload={handleDataUpload} />
+              </CardContent>
+            </Card>
 
               {historicalData.length > 0 && (
                 <>
@@ -451,31 +460,27 @@ const DemandForecasting = () => {
                   )}
                 </>
               )}
-            </div>
-          )}
+          </TabsContent>
 
-          {/* Manual Adjustment Tab */}
-          {activeTab === "manual" && (
+          <TabsContent value="manual" className="space-y-6">
             <ManualAdjustment
               forecastResults={forecastResults}
               selectedProduct={selectedProduct}
               granularity={granularity}
               uniqueProducts={uniqueProducts}
             />
-          )}
+          </TabsContent>
 
-          {/* Promotional Adjustment Tab */}
-          {activeTab === "promotional" && (
+          <TabsContent value="promotional" className="space-y-6">
             <PromotionalAdjustment
               forecastResults={forecastResults}
               selectedProduct={selectedProduct}
               granularity={granularity}
               uniqueProducts={uniqueProducts}
             />
-          )}
+          </TabsContent>
 
-          {/* Data Support Tab */}
-          {activeTab === "data-support" && (
+          <TabsContent value="data-support" className="space-y-6">
             <ForecastingDataSupport
               historicalData={historicalData}
               forecastResults={forecastResults}
@@ -487,8 +492,8 @@ const DemandForecasting = () => {
               currentScenario={currentScenario}
               outlierAnalysis={outlierInfo}
             />
-          )}
-        </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
