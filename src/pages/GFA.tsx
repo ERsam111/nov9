@@ -261,19 +261,37 @@ const GFA = () => {
     const customersSheet = XLSX.utils.json_to_sheet(customersExport);
     XLSX.utils.book_append_sheet(workbook, customersSheet, "Customers");
 
-    // Sheet 2: Products
+    // Sheet 2: Products - export ALL columns including all unitConversions
     if (products.length > 0) {
+      // Collect all unique unit conversion keys across all products
+      const allUnitKeys = new Set<string>();
+      products.forEach(p => {
+        if (p.unitConversions) {
+          Object.keys(p.unitConversions).forEach(key => allUnitKeys.add(key));
+        }
+      });
+      
       const productsExport = products.map(p => {
         const row: any = {
           Product: p.name,
           BaseUnit: p.baseUnit,
           SellingPrice: p.sellingPrice || ""
         };
+        
+        // Add all unit conversions with proper keys
         if (p.unitConversions) {
           Object.entries(p.unitConversions).forEach(([key, value]) => {
             row[key] = value;
           });
         }
+        
+        // Fill in missing keys with empty string for consistency
+        allUnitKeys.forEach(key => {
+          if (!(key in row)) {
+            row[key] = "";
+          }
+        });
+        
         return row;
       });
       const productsSheet = XLSX.utils.json_to_sheet(productsExport);

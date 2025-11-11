@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, CheckCircle2, MapPin, TrendingUp, DollarSign, Download } from "lucide-react";
+import { AlertCircle, CheckCircle2, MapPin, TrendingUp, DollarSign, Download, Map } from "lucide-react";
 import { Customer, DistributionCenter, Product, OptimizationSettings } from "@/types/gfa";
 import { ResultsPanel } from "./ResultsPanel";
 import { DistanceAnalysis } from "./DistanceAnalysis";
@@ -9,6 +9,7 @@ import { DemandInsights } from "./DemandInsights";
 import { KPISummaryDashboard } from "./KPISummaryDashboard";
 import { ScenarioComparison } from "./ScenarioComparison";
 import { SensitivityAnalysis } from "./SensitivityAnalysis";
+import { MapView } from "./MapView";
 import { useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -81,6 +82,27 @@ export function GFAResultsPanel({
           settings={settings}
           costBreakdown={costBreakdown}
         />
+
+        {/* Map View - Site-Customer Connections */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Map className="h-5 w-5" />
+              Network Map
+            </CardTitle>
+            <CardDescription>Visual representation of site-customer connections</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[600px]">
+              <MapView
+                customers={customers}
+                dcs={dcs}
+                distanceRangeStep={distanceRangeStep}
+                distanceUnit={settings.distanceUnit}
+              />
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Status Alert */}
       {feasible ? (
