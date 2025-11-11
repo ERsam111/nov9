@@ -106,7 +106,7 @@ const Dashboard = () => {
       </div>
 
       {/* Tools Grid */}
-      <div className="px-6 py-6 max-w-7xl mx-auto">
+      <div className="px-6 py-6 max-w-[1600px] mx-auto w-full">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
           {tools.map((tool, index) => {
           const Icon = tool.icon;
