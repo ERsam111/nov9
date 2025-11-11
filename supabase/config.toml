@@ -1,1 +1,4 @@
 project_id = "epkhxpztwdwvisuxneyg"
+
+[functions.inventory-data-support]
+verify_jwt = false

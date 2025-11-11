@@ -7,7 +7,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { EditableTable } from "../components/EditableTable";
-import { Play, Database, BarChart3, Network, TrendingUp, ClipboardList, Download, FileSpreadsheet, Upload } from "lucide-react";
+import { Play, Database, BarChart3, Network, TrendingUp, ClipboardList, Download, FileSpreadsheet, Upload, Bot } from "lucide-react";
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell } from "recharts";
 import { NetworkMap } from "../components/NetworkMap";
 import { ScrollArea } from "../components/ui/scroll-area";
@@ -36,6 +36,7 @@ import {
 } from "../data/allTables";
 import { downloadTemplate, exportResultsToExcel, importFromExcel } from "../utils/excelExport";
 import { compressData, decompressData, formatBytes } from "../utils/dataCompression";
+import { InventoryDataSupport } from "../components/InventoryDataSupport";
 
 const Index = ({ currentScenario, updateScenario, saveScenarioOutput, saveScenarioInput, loadScenarioOutput }: any) => {
   const [replications, setReplications] = useState(10);
@@ -750,6 +751,10 @@ const Index = ({ currentScenario, updateScenario, saveScenarioOutput, saveScenar
             <TabsTrigger value="network">Map View</TabsTrigger>
             <TabsTrigger value="simulation">Run Simulation</TabsTrigger>
             <TabsTrigger value="results">Results</TabsTrigger>
+            <TabsTrigger value="datasupport">
+              <Bot className="h-4 w-4 mr-2" />
+              Data Support
+            </TabsTrigger>
           </TabsList>
 
           {/* --- Input Tables --- */}
@@ -1515,6 +1520,44 @@ const Index = ({ currentScenario, updateScenario, saveScenarioOutput, saveScenar
                 </details>
               </Card>
             )}
+          </TabsContent>
+
+          {/* --- Data Support --- */}
+          <TabsContent value="datasupport" className="mt-1">
+            <InventoryDataSupport
+              scenarioId={currentScenario?.id}
+              scenarioName={currentScenario?.name}
+              scenarioDescription={currentScenario?.description}
+              inputData={{
+                customerData,
+                facilityData,
+                productData,
+                customerFulfillmentData,
+                replenishmentData,
+                productionData,
+                inventoryPolicyData,
+                warehousingData,
+                orderFulfillmentData,
+                transportationData,
+                transportationModeData,
+                customerOrderData,
+                bomData,
+                groupData,
+                unitOfMeasureData,
+                inputFactorsData,
+              }}
+              results={{
+                simulationResults,
+                orderLogResults,
+                inventoryData,
+                productionLogResults,
+                productFlowLogResults,
+                tripLogResults,
+              }}
+              settings={{
+                replications,
+              }}
+            />
           </TabsContent>
         </Tabs>
       </div>
