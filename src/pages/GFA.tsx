@@ -11,6 +11,7 @@ import { exportReport } from "@/utils/exportReport";
 import { toast } from "sonner";
 import { GFASidebarNav } from "@/components/gfa/GFASidebarNav";
 import { GFAEditableTable } from "@/components/gfa/GFAEditableTable";
+import { DemandTable } from "@/components/gfa/DemandTable";
 import { GFACostParametersPanel } from "@/components/gfa/GFACostParametersPanel";
 import { GFAMapPanel } from "@/components/gfa/GFAMapPanel";
 import { GFAOptimizationPanel } from "@/components/gfa/GFAOptimizationPanel";
@@ -430,7 +431,8 @@ const GFA = () => {
               <GFASidebarNav 
                 activeTable={activeTable} 
                 onTableSelect={setActiveTable} 
-                customerCount={customers.length} 
+                customerCount={customers.filter(c => !c.product || c.product === "").length}
+                demandCount={customers.filter(c => c.product && c.product !== "").length}
                 productCount={products.length}
                 existingSiteCount={existingSites.length}
               />
@@ -468,6 +470,56 @@ const GFA = () => {
                 {/* Active Table Content with horizontal scroll */}
                 <div className="flex-1 min-w-0 overflow-hidden">
                   {activeTable === "customers" && <GFAEditableTable tableType="customers" data={customers} onDataChange={setCustomers} onGeocode={handleGeocodeCustomer} />}
+                  {activeTable === "demand" && (
+                    <DemandTable
+                      demands={customers.filter(c => c.product).map(c => ({
+                        id: c.id,
+                        customerId: c.id,
+                        customerName: c.name,
+                        product: c.product,
+                        quantity: c.demand,
+                        unitOfMeasure: c.unitOfMeasure,
+                        conversionFactor: c.conversionFactor,
+                      }))}
+                      customers={customers.filter((c, idx, self) => 
+                        idx === self.findIndex(item => item.name === c.name && item.city === c.city)
+                      ).map(c => ({
+                        id: c.id,
+                        name: c.name,
+                        city: c.city,
+                        country: c.country,
+                        latitude: c.latitude,
+                        longitude: c.longitude,
+                        included: c.included !== false,
+                      }))}
+                      products={products}
+                      onAddDemand={(demand) => {
+                        const customerLoc = customers.find(c => c.id === demand.customerId);
+                        if (!customerLoc) {
+                          toast.error("Customer location not found");
+                          return;
+                        }
+                        const newCustomer = {
+                          id: `customer-${Date.now()}-${Math.random()}`,
+                          name: customerLoc.name,
+                          city: customerLoc.city,
+                          country: customerLoc.country,
+                          latitude: customerLoc.latitude,
+                          longitude: customerLoc.longitude,
+                          product: demand.product,
+                          demand: demand.quantity,
+                          unitOfMeasure: demand.unitOfMeasure,
+                          conversionFactor: demand.conversionFactor,
+                          included: customerLoc.included !== false,
+                        };
+                        setCustomers([...customers, newCustomer]);
+                      }}
+                      onRemoveDemand={(id) => {
+                        const updatedCustomers = customers.filter(c => c.id !== id);
+                        setCustomers(updatedCustomers);
+                      }}
+                    />
+                  )}
                   {activeTable === "products" && <GFAEditableTable tableType="products" data={products} onDataChange={setProducts} />}
                   {activeTable === "existing-sites" && <GFAEditableTable tableType="existing-sites" data={existingSites} onDataChange={setExistingSites} />}
                   {activeTable === "costs" && <GFACostParametersPanel settings={settings} onSettingsChange={setSettings} />}
