@@ -155,32 +155,27 @@ const GFA = () => {
     }
   }, [customers, products, demands, existingSites, settings, currentScenario?.id]);
 
-  // Extract unique products from customers - auto-populate
-  useEffect(() => {
-    if (customers.length === 0) {
-      setProducts([]);
-      return;
-    }
-    setProducts(prevProducts => {
-      const productMap = new Map<string, Product>();
-      customers.forEach(customer => {
-        const productName = customer.product;
-        if (productName && !productMap.has(productName)) {
-          const existingProduct = prevProducts.find(p => p.name === productName);
-          productMap.set(productName, {
-            name: productName,
-            baseUnit: customer.unitOfMeasure || "",
-            unitConversions: existingProduct?.unitConversions || {},
-            sellingPrice: existingProduct?.sellingPrice
-          });
-        }
-      });
-      return Array.from(productMap.values());
-    });
-  }, [customers]);
+  // Helper function to merge customers with demands for optimization
+  const getCustomersWithDemand = () => {
+    return demands.map(demand => {
+      const customer = customers.find(c => c.id === demand.customerId);
+      if (!customer) return null;
+      
+      return {
+        ...customer,
+        product: demand.product,
+        demand: demand.quantity,
+        unitOfMeasure: demand.unitOfMeasure,
+        conversionFactor: demand.conversionFactor,
+      };
+    }).filter(c => c !== null);
+  };
+
   const handleOptimize = async () => {
-    if (customers.length === 0) {
-      toast.error("Add at least one customer before optimizing");
+    const customersWithDemand = getCustomersWithDemand();
+    
+    if (customersWithDemand.length === 0) {
+      toast.error("Add customer demand data before optimizing");
       return;
     }
     if (!currentScenario) {
@@ -194,7 +189,7 @@ const GFA = () => {
       status: 'running'
     });
     const result = optimizeWithConstraints(
-      customers, 
+      customersWithDemand as any,
       settings.numDCs, 
       {
         maxRadius: settings.maxRadius,
@@ -435,8 +430,8 @@ const GFA = () => {
               <GFASidebarNav 
                 activeTable={activeTable} 
                 onTableSelect={setActiveTable} 
-                customerCount={customers.filter(c => !c.product || c.product === "").length}
-                demandCount={customers.filter(c => c.product && c.product !== "").length}
+                customerCount={customers.length}
+                demandCount={demands.length}
                 productCount={products.length}
                 existingSiteCount={existingSites.length}
               />
