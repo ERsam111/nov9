@@ -278,21 +278,27 @@ export function convertDemand(
 /**
  * Helper: does a DC coincide with (or sit very near) an existing site?
  * Used to decide whether the facility opening cost should apply.
+ * Returns the matched existing site if found within threshold.
  */
 function matchExistingSite(
   dc: DistributionCenter,
   existingSites?: ExistingSite[],
-  thresholdKm: number = 1 // conservative tolerance
+  thresholdKm: number = 1 // very tight tolerance - must be at exact location
 ): ExistingSite | undefined {
   if (!existingSites || existingSites.length === 0) return undefined;
-  for (const s of existingSites) {
-    const d = haversineDistance(
+  
+  for (const site of existingSites) {
+    const distance = haversineDistance(
       dc.latitude,
       dc.longitude,
-      Number(s.latitude),
-      Number(s.longitude)
+      Number(site.latitude),
+      Number(site.longitude)
     );
-    if (d <= thresholdKm) return s;
+    
+    // If DC is at or very near existing site location, it matches
+    if (distance <= thresholdKm) {
+      return site;
+    }
   }
   return undefined;
 }
@@ -504,7 +510,7 @@ export function optimizeWithCost(
       });
     }
 
-    // --- COSTS ---
+    // --- CALCULATE TOTAL COST (Transportation + Facility Opening) ---
     const transportationCost = calculateTransportationCost(
       dcs,
       transportationCostPerDistancePerUnit,
@@ -513,19 +519,20 @@ export function optimizeWithCost(
       products
     );
 
-    // Count DCs that correspond to existing sites.
-    // In 'always' mode, treat all existing sites as already open (no facility cost)
-    // In 'potential' mode, existing sites compete with new sites (no facility cost for matched existing)
+    // Existing sites have NO facility opening cost
+    // Count how many DCs are at existing site locations (within 1km threshold)
     const existingMatchesCount = dcs.filter(dc => {
       return matchExistingSite(dc, existingSites) !== undefined;
     }).length;
 
-    // New (greenfield) sites are those not matched to an already-open site
-    const newSitesCount = Math.max(0, dcs.length - existingMatchesCount);
-
+    // Only NEW sites (not at existing locations) have facility opening cost
+    const newSitesCount = dcs.length - existingMatchesCount;
     const facilityOpeningCost = newSitesCount * facilityCost;
+    
+    // TOTAL COST = Transportation + Facility (only for new sites)
     const totalCost = transportationCost + facilityOpeningCost;
 
+    // Keep the solution with the LOWEST total cost
     if (totalCost < bestTotalCost) {
       bestTotalCost = totalCost;
       bestDcs = dcs;
