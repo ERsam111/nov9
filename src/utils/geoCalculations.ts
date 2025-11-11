@@ -411,86 +411,62 @@ export function optimizeWithCost(
       }
     }
   } else if (existingSitesMode === 'potential' && hasExistingSites) {
-    // POTENTIAL MODE: Existing sites compete with new sites
-    // Try all combinations and choose the one with LOWEST total cost
+    // POTENTIAL MODE: For each number of sites, compare:
+    // 1. Using existing sites (0 facility cost)
+    // 2. Using new k-means sites (with facility cost)
+    // Choose the configuration with LOWEST total cost
     
-    // Option 1: Try using ONLY existing sites (0 facility cost)
-    const existingOnlyDcs = buildDCConfiguration(
-      customers,
-      0,
-      existingSites!,
-      'potential-existing-only'
-    );
-    
-    let { totalCost, transportationCost, facilityCost: facilityOpeningCost } = 
-      calculateConfigurationCost(
-        existingOnlyDcs,
-        transportationCostPerDistancePerUnit,
-        distanceUnit,
-        costUnit,
-        products,
-        facilityCost,
-        existingSites
-      );
-    
-    if (totalCost < bestTotalCost) {
-      bestTotalCost = totalCost;
-      bestDcs = existingOnlyDcs;
-      bestTransportationCost = transportationCost;
-      bestNumSites = existingOnlyDcs.length;
-      bestFacilityCost = facilityOpeningCost;
-    }
-
-    // Option 2: Try new sites with potential snapping to existing sites
-    for (let numNewSites = 1; numNewSites <= maxTrialSites; numNewSites++) {
-      const dcs = buildDCConfiguration(
-        customers,
-        numNewSites,
-        existingSites!,
-        'potential'
-      );
-
-      ({ totalCost, transportationCost, facilityCost: facilityOpeningCost } = 
-        calculateConfigurationCost(
-          dcs,
+    for (let numSites = 1; numSites <= maxTrialSites; numSites++) {
+      // Option A: Try using existing sites (if we have enough)
+      if (numSites <= existingSites!.length) {
+        const existingDcs = buildDCConfiguration(
+          customers,
+          numSites,
+          existingSites!,
+          'use-existing-subset'
+        );
+        
+        const existingCost = calculateConfigurationCost(
+          existingDcs,
           transportationCostPerDistancePerUnit,
           distanceUnit,
           costUnit,
           products,
           facilityCost,
           existingSites
-        ));
-
-      if (totalCost < bestTotalCost) {
-        bestTotalCost = totalCost;
-        bestDcs = dcs;
-        bestTransportationCost = transportationCost;
-        bestNumSites = dcs.length;
-        bestFacilityCost = facilityOpeningCost;
-      }
-    }
-  } else {
-    // NO EXISTING SITES: Standard optimization
-    for (let numSites = 1; numSites <= maxTrialSites; numSites++) {
-      const dcs = kMeansOptimization(customers, numSites);
-
-      const { totalCost, transportationCost, facilityCost: facilityOpeningCost } = 
-        calculateConfigurationCost(
-          dcs,
-          transportationCostPerDistancePerUnit,
-          distanceUnit,
-          costUnit,
-          products,
-          facilityCost,
-          undefined
         );
-
-      if (totalCost < bestTotalCost) {
-        bestTotalCost = totalCost;
-        bestDcs = dcs;
-        bestTransportationCost = transportationCost;
-        bestNumSites = dcs.length;
-        bestFacilityCost = facilityOpeningCost;
+        
+        console.log(`[${numSites} sites] Existing sites cost:`, existingCost);
+        
+        if (existingCost.totalCost < bestTotalCost) {
+          bestTotalCost = existingCost.totalCost;
+          bestDcs = existingDcs;
+          bestTransportationCost = existingCost.transportationCost;
+          bestNumSites = existingDcs.length;
+          bestFacilityCost = existingCost.facilityCost;
+        }
+      }
+      
+      // Option B: Try pure k-means (new sites with facility cost)
+      const newDcs = kMeansOptimization(customers, numSites);
+      const newCost = calculateConfigurationCost(
+        newDcs,
+        transportationCostPerDistancePerUnit,
+        distanceUnit,
+        costUnit,
+        products,
+        facilityCost,
+        undefined // No existing sites = all new sites pay facility cost
+      );
+      
+      console.log(`[${numSites} sites] New k-means cost:`, newCost);
+      
+      if (newCost.totalCost < bestTotalCost) {
+        bestTotalCost = newCost.totalCost;
+        bestDcs = newDcs;
+        bestTransportationCost = newCost.transportationCost;
+        bestNumSites = newDcs.length;
+        bestFacilityCost = newCost.facilityCost;
       }
     }
   }
@@ -515,11 +491,15 @@ function buildDCConfiguration(
   customers: Customer[],
   numNewSites: number,
   existingSites: ExistingSite[],
-  mode: 'always' | 'potential' | 'potential-existing-only'
+  mode: 'always' | 'potential' | 'potential-existing-only' | 'use-existing-subset'
 ): DistributionCenter[] {
-  if (mode === 'potential-existing-only') {
-    // Use ONLY existing sites
-    const dcs: DistributionCenter[] = existingSites.map((site, index) => ({
+  if (mode === 'potential-existing-only' || mode === 'use-existing-subset') {
+    // Use ONLY existing sites (either all or a subset)
+    const sitesToUse = mode === 'use-existing-subset' 
+      ? existingSites.slice(0, numNewSites) 
+      : existingSites;
+    
+    const dcs: DistributionCenter[] = sitesToUse.map((site, index) => ({
       id: `existing-${index + 1}`,
       latitude: Number(site.latitude),
       longitude: Number(site.longitude),
