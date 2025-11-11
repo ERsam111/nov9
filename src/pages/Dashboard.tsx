@@ -69,105 +69,69 @@ const Dashboard = () => {
   };
   return <div className="min-h-full bg-gradient-to-br from-background via-background to-primary/5">
       {/* Hero Section */}
-      <div className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-gfa/10 via-forecasting/10 to-inventory/10 animate-gradient" />
-        <div className="relative px-6 py-8 md:py-10">
-          <div className="max-w-4xl mx-auto">
-            <div className="text-center space-y-6 animate-fade-in">
-              <div className="flex justify-center mb-4 gap-3">
-                <Button onClick={() => setCaseStudiesOpen(true)} variant="outline" size="lg" className="group hover:border-gfa hover:bg-gfa/5">
-                  <BookOpen className="h-5 w-5 mr-2 text-gfa group-hover:scale-110 transition-transform" />
-                  Case Studies & User Guides
-                </Button>
+      <div className="relative overflow-hidden border-b">
+        <div className="absolute inset-0 bg-gradient-to-r from-gfa/5 via-forecasting/5 to-inventory/5" />
+        <div className="relative px-4 py-4">
+          <div className="max-w-6xl mx-auto">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-gfa via-forecasting to-inventory bg-clip-text text-transparent">
+                  JCG Supply Chain Optimization
+                </h1>
+                <p className="text-sm text-muted-foreground mt-1">
+                  AI-powered tools for supply chain management
+                </p>
               </div>
-              
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4 animate-fade-in">
-                <Sparkles className="h-4 w-4" />
-                <span>AI-Powered Platform</span>
-              </div>
-
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold bg-gradient-to-r from-gfa via-forecasting to-inventory bg-clip-text text-transparent animate-gradient pb-2 leading-tight">
-                JCG Supply Chain Optimization
-              </h1>
-              <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mt-6">
-                Advanced tools with interactive assistant to streamline operations and provide intelligent insights
-              </p>
-              
-              {/* Benefits */}
-              <div className="flex flex-wrap justify-center gap-4 mt-8">
-                <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-card border text-sm">
-                  <Bot className="h-4 w-4 text-primary" />
-                  <span>Interactive Assistant</span>
-                </div>
-                <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-card border text-sm">
-                  <Brain className="h-4 w-4 text-secondary" />
-                  <span>Smart Analysis</span>
-                </div>
-                <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-card border text-sm">
-                  <Sparkles className="h-4 w-4 text-accent" />
-                  <span>Auto Insights</span>
-                </div>
-              </div>
+              <Button onClick={() => setCaseStudiesOpen(true)} variant="outline" size="sm" className="hover:border-gfa">
+                <BookOpen className="h-4 w-4 mr-2" />
+                Guides
+              </Button>
             </div>
           </div>
         </div>
       </div>
 
       {/* Tools Grid */}
-      <div className="px-6 pb-20 max-w-7xl mx-auto">
-        <div className="mb-3">
-
-          
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="px-4 py-4 max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-3">
           {tools.map((tool, index) => {
           const Icon = tool.icon;
-          return <Card key={tool.title} className={`group relative overflow-hidden border-2 transition-all duration-300 animate-fade-in ${tool.comingSoon ? 'opacity-75 cursor-not-allowed border-muted' : `hover:shadow-2xl hover:border-${tool.color} hover:-translate-y-1 cursor-pointer border-border`}`} style={{
-            animationDelay: `${index * 100}ms`
-          }} onClick={() => handleToolClick(tool)}>
-                {/* Gradient Overlay */}
-                {!tool.comingSoon && <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{
-              background: `linear-gradient(135deg, hsl(var(--${tool.color}-teal-light) / 0.3), transparent)`
+          return <Card key={tool.title} className={`group relative overflow-hidden transition-all duration-300 ${tool.comingSoon ? 'opacity-60 cursor-not-allowed' : 'hover:shadow-lg hover:-translate-y-0.5 cursor-pointer'}`} onClick={() => handleToolClick(tool)}>
+                {!tool.comingSoon && <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{
+              background: `linear-gradient(135deg, hsl(var(--${tool.color}) / 0.1), transparent)`
             }} />}
                 
-                <CardHeader className="relative z-10 pb-4">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className={`h-14 w-14 rounded-xl flex items-center justify-center transition-all duration-300 ${tool.comingSoon ? 'bg-muted' : `bg-${tool.color}-light group-hover:scale-110 group-hover:shadow-lg`}`} style={!tool.comingSoon ? {
+                <CardHeader className="relative z-10 p-3 pb-2">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${tool.comingSoon ? 'bg-muted' : 'group-hover:scale-110'} transition-all`} style={!tool.comingSoon ? {
                   background: tool.gradient,
                   opacity: 0.2
                 } : undefined}>
-                      <Icon className={`h-7 w-7 ${tool.comingSoon ? 'text-muted-foreground' : `text-${tool.color}`}`} style={!tool.comingSoon ? {
+                      <Icon className={`h-4 w-4 ${tool.comingSoon ? 'text-muted-foreground' : ''}`} style={!tool.comingSoon ? {
                     color: `hsl(var(--${tool.color}))`
                   } : undefined} />
                     </div>
-                    {tool.comingSoon && <span className="px-3 py-1 rounded-full bg-muted text-muted-foreground text-xs font-medium">
-                        Coming Soon
+                    {tool.comingSoon && <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs">
+                        Soon
                       </span>}
                   </div>
                   
-                  <CardTitle className={`text-xl mb-2 transition-colors ${tool.comingSoon ? '' : `group-hover:text-${tool.color}`}`} style={!tool.comingSoon ? {} : undefined}>
+                  <CardTitle className="text-sm mb-1">
                     {tool.title}
                   </CardTitle>
-                  <CardDescription className="text-sm leading-relaxed">
+                  <CardDescription className="text-xs line-clamp-1">
                     {tool.description}
                   </CardDescription>
                 </CardHeader>
                 
-                <CardContent className="relative z-10 pt-0">
-                  {!tool.comingSoon}
-                  <Button variant={tool.comingSoon ? "ghost" : "default"} className={`w-full transition-all duration-300 ${tool.comingSoon ? 'cursor-not-allowed' : `group-hover:shadow-md`}`} style={!tool.comingSoon ? {
+                <CardContent className="relative z-10 p-3 pt-0">
+                  <Button variant={tool.comingSoon ? "ghost" : "default"} size="sm" className="w-full h-7 text-xs" style={!tool.comingSoon ? {
                 background: tool.gradient
               } : undefined} disabled={tool.comingSoon}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    {tool.comingSoon ? 'Coming Soon' : 'Create Project'}
+                    <Plus className="h-3 w-3 mr-1" />
+                    {tool.comingSoon ? 'Soon' : 'Create'}
                   </Button>
                 </CardContent>
-
-                {/* Bottom border accent */}
-                {!tool.comingSoon && <div className="absolute bottom-0 left-0 right-0 h-1 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300" style={{
-              background: tool.gradient
-            }} />}
               </Card>;
         })}
         </div>
