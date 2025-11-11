@@ -71,22 +71,17 @@ const Index = () => {
 
   return <div className="min-h-screen bg-background">
       {/* Top Navigation Bar */}
-      <nav className="sticky top-0 z-50 bg-background/95 backdrop-blur-lg border-b border-border/50">
+      <nav className="sticky top-0 z-50 bg-background/80 backdrop-blur-lg border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
+          <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate("/")}>
-              <div className="w-12 h-12 rounded-lg bg-primary/10 border border-primary/30 flex items-center justify-center">
-                <Network className="h-7 w-7 text-primary" />
+            <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate("/")}>
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-gfa-green to-network-blue flex items-center justify-center">
+                <Network className="h-6 w-6 text-white" />
               </div>
-              <div className="flex flex-col">
-                <span className="text-lg font-bold text-foreground uppercase tracking-wider">
-                  OptimiWare
-                </span>
-                <span className="text-xs text-muted-foreground uppercase tracking-widest">
-                  Solutions
-                </span>
-              </div>
+              <span className="text-xl font-bold bg-gradient-to-r from-gfa-green to-network-blue bg-clip-text text-transparent">
+                OptimiWare
+              </span>
             </div>
 
             {/* Desktop Navigation */}
@@ -95,7 +90,7 @@ const Index = () => {
                 <a
                   key={item.name}
                   href={item.href}
-                  className="text-sm font-medium text-foreground/80 hover:text-foreground transition-colors lowercase"
+                  className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
                 >
                   {item.name}
                 </a>
@@ -104,11 +99,12 @@ const Index = () => {
 
             {/* Desktop Action Buttons */}
             <div className="hidden md:flex items-center gap-3">
-              <Button 
-                onClick={() => navigate("/auth")} 
-                className="shadow-lg bg-primary text-primary-foreground hover:bg-primary/90 px-8 py-6 text-base font-semibold rounded-full"
-              >
-                Contact Us
+              <Button variant="ghost" onClick={() => navigate("/auth")}>
+                Sign In
+              </Button>
+              <Button onClick={() => navigate("/auth")} className="shadow-lg">
+                Get Started
+                <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </div>
 
@@ -128,13 +124,13 @@ const Index = () => {
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden border-t border-border/50 bg-background/95 backdrop-blur-lg">
+          <div className="md:hidden border-t bg-background/95 backdrop-blur-lg">
             <div className="px-4 py-4 space-y-3">
               {navItems.map((item) => (
                 <a
                   key={item.name}
                   href={item.href}
-                  className="block px-4 py-2 text-sm font-medium text-foreground/80 hover:text-foreground hover:bg-muted rounded-lg transition-colors lowercase"
+                  className="block px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   {item.name}
@@ -142,13 +138,24 @@ const Index = () => {
               ))}
               <div className="pt-3 space-y-2">
                 <Button 
-                  className="w-full shadow-lg bg-primary text-primary-foreground hover:bg-primary/90 rounded-full font-semibold" 
+                  variant="outline" 
+                  className="w-full" 
                   onClick={() => {
                     navigate("/auth");
                     setMobileMenuOpen(false);
                   }}
                 >
-                  Contact Us
+                  Sign In
+                </Button>
+                <Button 
+                  className="w-full shadow-lg" 
+                  onClick={() => {
+                    navigate("/auth");
+                    setMobileMenuOpen(false);
+                  }}
+                >
+                  Get Started
+                  <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </div>
             </div>
@@ -157,61 +164,76 @@ const Index = () => {
       </nav>
 
       {/* Hero Section */}
-      <section id="features" className="relative overflow-hidden min-h-[90vh] flex items-center">
+      <section id="features" className="relative overflow-hidden min-h-[90vh] flex items-center border-b">
         {/* Network Mesh Background */}
-        <div className="network-mesh" />
+        <div className="absolute inset-0 bg-gradient-to-br from-gfa-green/5 via-forecasting-purple/5 to-network-blue/5" />
+        <div className="network-mesh opacity-30" />
         <div className="network-dots" />
         
         {/* Animated network connections */}
-        <div className="absolute inset-0 opacity-20">
+        <div className="absolute inset-0 opacity-10">
           <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
             <defs>
               <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" style={{ stopColor: 'hsl(73 100% 50%)', stopOpacity: 0 }} />
-                <stop offset="50%" style={{ stopColor: 'hsl(73 100% 50%)', stopOpacity: 0.5 }} />
-                <stop offset="100%" style={{ stopColor: 'hsl(73 100% 50%)', stopOpacity: 0 }} />
+                <stop offset="0%" style={{ stopColor: 'hsl(142 70% 45%)', stopOpacity: 0 }} />
+                <stop offset="50%" style={{ stopColor: 'hsl(142 70% 45%)', stopOpacity: 0.5 }} />
+                <stop offset="100%" style={{ stopColor: 'hsl(142 70% 45%)', stopOpacity: 0 }} />
               </linearGradient>
             </defs>
-            <line x1="10%" y1="20%" x2="30%" y2="40%" stroke="url(#lineGradient)" strokeWidth="1" />
-            <line x1="30%" y1="40%" x2="50%" y2="30%" stroke="url(#lineGradient)" strokeWidth="1" />
-            <line x1="50%" y1="30%" x2="70%" y2="50%" stroke="url(#lineGradient)" strokeWidth="1" />
-            <line x1="70%" y1="50%" x2="90%" y2="35%" stroke="url(#lineGradient)" strokeWidth="1" />
-            <line x1="20%" y1="60%" x2="40%" y2="70%" stroke="url(#lineGradient)" strokeWidth="1" />
-            <line x1="40%" y1="70%" x2="60%" y2="80%" stroke="url(#lineGradient)" strokeWidth="1" />
-            <line x1="60%" y1="80%" x2="80%" y2="65%" stroke="url(#lineGradient)" strokeWidth="1" />
+            <line x1="10%" y1="20%" x2="30%" y2="40%" stroke="url(#lineGradient)" strokeWidth="2" />
+            <line x1="30%" y1="40%" x2="50%" y2="30%" stroke="url(#lineGradient)" strokeWidth="2" />
+            <line x1="50%" y1="30%" x2="70%" y2="50%" stroke="url(#lineGradient)" strokeWidth="2" />
+            <line x1="70%" y1="50%" x2="90%" y2="35%" stroke="url(#lineGradient)" strokeWidth="2" />
+            <line x1="20%" y1="60%" x2="40%" y2="70%" stroke="url(#lineGradient)" strokeWidth="2" />
+            <line x1="40%" y1="70%" x2="60%" y2="80%" stroke="url(#lineGradient)" strokeWidth="2" />
+            <line x1="60%" y1="80%" x2="80%" y2="65%" stroke="url(#lineGradient)" strokeWidth="2" />
+            <circle cx="10%" cy="20%" r="4" fill="hsl(142 70% 45%)" opacity="0.6" />
+            <circle cx="30%" cy="40%" r="4" fill="hsl(270 65% 55%)" opacity="0.6" />
+            <circle cx="50%" cy="30%" r="4" fill="hsl(220 85% 55%)" opacity="0.6" />
+            <circle cx="70%" cy="50%" r="4" fill="hsl(25 90% 55%)" opacity="0.6" />
+            <circle cx="90%" cy="35%" r="4" fill="hsl(142 70% 45%)" opacity="0.6" />
           </svg>
         </div>
         
+        {/* Floating gradient orbs */}
+        <div className="absolute top-20 left-10 w-64 h-64 bg-gradient-to-br from-gfa-green/20 to-transparent rounded-full blur-3xl animate-orb" />
+        <div className="absolute top-40 right-20 w-80 h-80 bg-gradient-to-br from-forecasting-purple/20 to-transparent rounded-full blur-3xl animate-orb" style={{ animationDelay: '2s' }} />
+        <div className="absolute bottom-20 left-1/3 w-72 h-72 bg-gradient-to-br from-network-blue/20 to-transparent rounded-full blur-3xl animate-orb" style={{ animationDelay: '4s' }} />
+        
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 relative">
           <div className="max-w-4xl">
-            <h1 className="text-6xl sm:text-7xl lg:text-8xl font-bold tracking-tight mb-4 animate-fade-in">
-              <span className="text-foreground">Supply Chain</span>
-              <br />
-              <span className="text-foreground">Optimization</span>
-              <span className="text-primary text-8xl">.</span>
+            <h1 className="text-6xl sm:text-7xl lg:text-8xl font-bold tracking-tight mb-6 animate-fade-in">
+              <span className="bg-gradient-to-r from-gfa-green via-forecasting-purple to-network-blue bg-clip-text text-transparent">
+                Supply Chain Optimization
+              </span>
+              <span className="text-gfa-green">.</span>
             </h1>
 
-            <div className="mt-16">
-              <p className="text-lg text-foreground/80 mb-8">Our results tell a compelling story:</p>
-              <div className="w-20 h-1 bg-primary/50 mb-12" />
+            <p className="text-xl text-muted-foreground mb-12 max-w-2xl animate-fade-in">
+              AI-powered analytics platform for network design, demand forecasting, and inventory optimization
+            </p>
+
+            <div className="mt-16 animate-fade-in">
+              <p className="text-base text-muted-foreground mb-6">Our results tell a compelling story:</p>
+              <div className="w-20 h-1 bg-gradient-to-r from-gfa-green to-forecasting-purple mb-10" />
               
               {/* Stats Grid */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
-                <div>
-                  <div className="text-5xl md:text-6xl font-bold text-primary mb-3">6</div>
-                  <div className="text-sm text-foreground/70">optimization<br />modules</div>
+                <div className="group hover:scale-105 transition-transform">
+                  <div className="text-5xl md:text-6xl font-bold bg-gradient-to-br from-gfa-green to-gfa-green/70 bg-clip-text text-transparent mb-3">6</div>
+                  <div className="text-sm text-muted-foreground">optimization<br />modules</div>
                 </div>
-                <div>
-                  <div className="text-5xl md:text-6xl font-bold text-primary mb-3">100+</div>
-                  <div className="text-sm text-foreground/70">delivered<br />projects</div>
+                <div className="group hover:scale-105 transition-transform">
+                  <div className="text-5xl md:text-6xl font-bold bg-gradient-to-br from-forecasting-purple to-forecasting-purple/70 bg-clip-text text-transparent mb-3">100+</div>
+                  <div className="text-sm text-muted-foreground">delivered<br />projects</div>
                 </div>
-                <div>
-                  <div className="text-5xl md:text-6xl font-bold text-primary mb-3">Real-time</div>
-                  <div className="text-sm text-foreground/70">AI-powered<br />insights</div>
+                <div className="group hover:scale-105 transition-transform">
+                  <div className="text-5xl md:text-6xl font-bold bg-gradient-to-br from-network-blue to-network-blue/70 bg-clip-text text-transparent mb-3">AI</div>
+                  <div className="text-sm text-muted-foreground">powered<br />insights</div>
                 </div>
-                <div>
-                  <div className="text-5xl md:text-6xl font-bold text-primary mb-3">24/7</div>
-                  <div className="text-sm text-foreground/70">intelligent<br />assistant</div>
+                <div className="group hover:scale-105 transition-transform">
+                  <div className="text-5xl md:text-6xl font-bold bg-gradient-to-br from-inventory-orange to-inventory-orange/70 bg-clip-text text-transparent mb-3">24/7</div>
+                  <div className="text-sm text-muted-foreground">intelligent<br />assistant</div>
                 </div>
               </div>
             </div>
@@ -221,7 +243,7 @@ const Index = () => {
           <div className="flex flex-col sm:flex-row gap-4 mt-16 animate-fade-in">
             <Button 
               size="lg" 
-              className="text-base px-8 py-6 shadow-lg bg-primary text-primary-foreground hover:bg-primary/90 rounded-full font-semibold" 
+              className="text-base px-8 py-6 shadow-lg hover:shadow-xl transition-all" 
               onClick={() => navigate("/auth")}
             >
               Get Started
@@ -230,7 +252,7 @@ const Index = () => {
             <Button 
               size="lg" 
               variant="outline" 
-              className="text-base px-8 py-6 rounded-full border-foreground/20 hover:bg-foreground/5" 
+              className="text-base px-8 py-6" 
               onClick={() => navigate("/auth")}
             >
               Sign In
