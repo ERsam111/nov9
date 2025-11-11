@@ -31,7 +31,16 @@ const DemandForecasting = () => {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<string>("input");
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
-  const { currentScenario, setCurrentScenario, loadScenariosByProject } = useScenarios();
+  const { 
+    currentScenario, 
+    setCurrentScenario, 
+    loadScenariosByProject, 
+    updateScenario, 
+    saveScenarioInput, 
+    saveScenarioOutput,
+    loadScenarioInput,
+    loadScenarioOutput 
+  } = useScenarios();
   const [rawHistoricalData, setRawHistoricalData] = useState<HistoricalDataPoint[]>([]);
   const [historicalData, setHistoricalData] = useState<HistoricalDataPoint[]>([]);
   const [selectedModels, setSelectedModels] = useState<string[]>(["moving_average", "exponential_smoothing"]);
@@ -57,18 +66,70 @@ const DemandForecasting = () => {
   const [isConfigOpen, setIsConfigOpen] = useState(true);
   const [isModelOpen, setIsModelOpen] = useState(true);
   
-  // Load saved data on mount
+  // Load scenario data when scenario changes
   useEffect(() => {
-    const saved = getScenario1Results();
-    if (saved) {
-      // Restore forecast results
-      setForecastResults(saved.results);
-      setSelectedProduct(saved.product);
-      if (saved.granularity === "daily" || saved.granularity === "weekly" || saved.granularity === "monthly") {
-        setGranularity(saved.granularity);
+    const loadScenarioData = async () => {
+      if (currentScenario) {
+        // Load saved input data
+        const inputData = await loadScenarioInput(currentScenario.id);
+        if (inputData) {
+          setHistoricalData(inputData.historicalData || []);
+          setRawHistoricalData(inputData.rawHistoricalData || []);
+          setSelectedProduct(inputData.selectedProduct || "");
+          setSelectedCustomer(inputData.selectedCustomer || "all");
+          setForecastPeriods(inputData.forecastPeriods || 6);
+          if (inputData.granularity === "daily" || inputData.granularity === "weekly" || inputData.granularity === "monthly") {
+            setGranularity(inputData.granularity);
+          }
+          setSelectedModels(inputData.selectedModels || ["moving_average", "exponential_smoothing"]);
+          setModelParams(inputData.modelParams || modelParams);
+        } else {
+          // Clear data for new scenario
+          setHistoricalData([]);
+          setRawHistoricalData([]);
+          setSelectedProduct("");
+          setSelectedCustomer("all");
+          setForecastPeriods(6);
+          setForecastResults([]);
+        }
+
+        // Load saved output data
+        const outputData = await loadScenarioOutput(currentScenario.id);
+        if (outputData) {
+          setForecastResults(outputData.forecastResults || []);
+        }
       }
-    }
-  }, []);
+    };
+
+    loadScenarioData();
+  }, [currentScenario?.id]);
+
+  // Auto-save input data when key parameters change
+  useEffect(() => {
+    const saveInputData = async () => {
+      if (currentScenario && historicalData.length > 0) {
+        await saveScenarioInput(currentScenario.id, {
+          historicalData,
+          rawHistoricalData,
+          selectedProduct,
+          selectedCustomer,
+          forecastPeriods,
+          granularity,
+          selectedModels,
+          modelParams,
+          filterStartDate,
+          filterEndDate
+        });
+      }
+    };
+
+    // Debounce to avoid too many saves
+    const timeoutId = setTimeout(() => {
+      saveInputData();
+    }, 1000);
+
+    return () => clearTimeout(timeoutId);
+  }, [historicalData, selectedProduct, selectedCustomer, forecastPeriods, granularity, selectedModels, currentScenario?.id]);
 
   // Update default parameters when granularity changes
   const handleGranularityChange = (newGranularity: string) => {
@@ -190,7 +251,7 @@ const DemandForecasting = () => {
     }));
   };
 
-  const runForecasting = () => {
+  const runForecasting = async () => {
     if (historicalData.length === 0) {
       toast({
         title: "No data available",
@@ -238,12 +299,38 @@ const DemandForecasting = () => {
     const results = generateForecasts(filteredData, forecastPeriods, selectedModels, modelParams, granularity);
     setForecastResults(results);
 
-    // Save results for Scenario 2
+    // Save input data to scenario
+    if (currentScenario) {
+      await saveScenarioInput(currentScenario.id, {
+        historicalData,
+        rawHistoricalData,
+        selectedProduct,
+        selectedCustomer,
+        forecastPeriods,
+        granularity,
+        selectedModels,
+        modelParams,
+        filterStartDate,
+        filterEndDate
+      });
+
+      // Save output data to scenario
+      await saveScenarioOutput(currentScenario.id, {
+        forecastResults: results
+      });
+
+      // Mark scenario as completed
+      await updateScenario(currentScenario.id, {
+        status: 'completed'
+      });
+    }
+
+    // Also save for backward compatibility with Scenario 2
     saveScenario1Results(results, selectedProduct, granularity);
 
     toast({
       title: "Forecast generated",
-      description: `Generated forecasts using ${selectedModels.length} model(s). Results saved for Scenario 2.`
+      description: `Forecast completed and saved to scenario.`
     });
   };
 
