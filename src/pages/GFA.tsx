@@ -335,18 +335,18 @@ const GFA = () => {
     const productsSheet = XLSX.utils.json_to_sheet(productsExport);
     XLSX.utils.book_append_sheet(workbook, productsSheet, "Products");
 
-    // Sheet 3: Existing Sites - ALWAYS export
+    // Sheet 3: Existing Sites - ALWAYS export with proper data types
     const sitesExport = existingSites.length > 0
       ? existingSites.map(s => ({
-          Name: s.name,
-          City: s.city,
-          Country: s.country,
-          Latitude: s.latitude,
-          Longitude: s.longitude,
-          Capacity: s.capacity,
-          CapacityUnit: s.capacityUnit
+          Name: s.name || "",
+          City: s.city || "",
+          Country: s.country || "",
+          Latitude: s.latitude || 0,
+          Longitude: s.longitude || 0,
+          Capacity: s.capacity || 0,
+          CapacityUnit: s.capacityUnit || "m3"
         }))
-      : [{ Name: "", City: "", Country: "", Latitude: "", Longitude: "", Capacity: "", CapacityUnit: "" }];
+      : [{ Name: "", City: "", Country: "", Latitude: 0, Longitude: 0, Capacity: 0, CapacityUnit: "m3" }];
     const sitesSheet = XLSX.utils.json_to_sheet(sitesExport);
     XLSX.utils.book_append_sheet(workbook, sitesSheet, "Existing Sites");
 
@@ -469,7 +469,7 @@ const GFA = () => {
                 <div className="flex-1 min-w-0 overflow-hidden">
                   {activeTable === "customers" && <GFAEditableTable tableType="customers" data={customers} onDataChange={setCustomers} onGeocode={handleGeocodeCustomer} />}
                   {activeTable === "products" && <GFAEditableTable tableType="products" data={products} onDataChange={setProducts} />}
-                  {activeTable === "existing-sites" && <GFAEditableTable tableType="existing-sites" data={existingSites} onDataChange={setExistingSites} />}
+                  {activeTable === "existing_sites" && <GFAEditableTable tableType="existing_sites" data={existingSites} onDataChange={setExistingSites} />}
                   {activeTable === "costs" && <GFACostParametersPanel settings={settings} onSettingsChange={setSettings} />}
                 </div>
               </div>
