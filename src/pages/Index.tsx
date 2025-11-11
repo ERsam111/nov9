@@ -2,9 +2,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { MapPin, TrendingUp, Network, Gauge, ArrowRight, CheckCircle2, BarChart3, Zap, Clock, Truck, Target, Users, Shield, Lightbulb, Mail, Linkedin, Twitter, Github, Quote, Sparkles, Brain, MessageSquare, Calendar } from "lucide-react";
+import { MapPin, TrendingUp, Network, Gauge, ArrowRight, CheckCircle2, BarChart3, Zap, Clock, Truck, Target, Users, Shield, Lightbulb, Mail, Linkedin, Twitter, Github, Quote, Sparkles, Brain, MessageSquare, Calendar, Menu, X } from "lucide-react";
+import { useState } from "react";
+
 const Index = () => {
   const navigate = useNavigate();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const features = [{
     icon: MapPin,
     title: "GFA",
@@ -58,9 +61,110 @@ const Index = () => {
     aiFeature: "Smart scheduling & capacity optimization"
   }];
   const benefits = ["Multi-echelon optimization", "Real-time insights", "Interactive assistant", "Smart decision support"];
+  
+  const navItems = [
+    { name: "Features", href: "#features" },
+    { name: "About Us", href: "#about" },
+    { name: "Pricing", href: "#pricing" },
+    { name: "Contact", href: "#contact" }
+  ];
+
   return <div className="min-h-screen bg-background">
+      {/* Top Navigation Bar */}
+      <nav className="sticky top-0 z-50 bg-background/80 backdrop-blur-lg border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            {/* Logo */}
+            <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate("/")}>
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-gfa-green to-network-blue flex items-center justify-center">
+                <Network className="h-6 w-6 text-white" />
+              </div>
+              <span className="text-xl font-bold bg-gradient-to-r from-gfa-green to-network-blue bg-clip-text text-transparent">
+                OptimiWare
+              </span>
+            </div>
+
+            {/* Desktop Navigation */}
+            <div className="hidden md:flex items-center gap-8">
+              {navItems.map((item) => (
+                <a
+                  key={item.name}
+                  href={item.href}
+                  className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {item.name}
+                </a>
+              ))}
+            </div>
+
+            {/* Desktop Action Buttons */}
+            <div className="hidden md:flex items-center gap-3">
+              <Button variant="ghost" onClick={() => navigate("/auth")}>
+                Sign In
+              </Button>
+              <Button onClick={() => navigate("/auth")} className="shadow-lg">
+                Get Started
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* Mobile Menu Button */}
+            <button
+              className="md:hidden p-2 rounded-lg hover:bg-muted transition-colors"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              {mobileMenuOpen ? (
+                <X className="h-6 w-6" />
+              ) : (
+                <Menu className="h-6 w-6" />
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile Menu */}
+        {mobileMenuOpen && (
+          <div className="md:hidden border-t bg-background/95 backdrop-blur-lg">
+            <div className="px-4 py-4 space-y-3">
+              {navItems.map((item) => (
+                <a
+                  key={item.name}
+                  href={item.href}
+                  className="block px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  {item.name}
+                </a>
+              ))}
+              <div className="pt-3 space-y-2">
+                <Button 
+                  variant="outline" 
+                  className="w-full" 
+                  onClick={() => {
+                    navigate("/auth");
+                    setMobileMenuOpen(false);
+                  }}
+                >
+                  Sign In
+                </Button>
+                <Button 
+                  className="w-full shadow-lg" 
+                  onClick={() => {
+                    navigate("/auth");
+                    setMobileMenuOpen(false);
+                  }}
+                >
+                  Get Started
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+      </nav>
+
       {/* Hero Section */}
-      <section className="relative overflow-hidden border-b">
+      <section id="features" className="relative overflow-hidden border-b">
         {/* Animated Mesh Background */}
         <div className="absolute inset-0 bg-gradient-to-br from-gfa-green/10 via-forecasting-purple/10 to-network-blue/10" />
         <div className="absolute inset-0 opacity-40" style={{
@@ -196,8 +300,8 @@ const Index = () => {
       </section>
 
 
-      {/* Value Propositions */}
-      <section className="relative border-y overflow-hidden">
+      {/* Value Propositions / About Us */}
+      <section id="about" className="relative border-y overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-forecasting-purple/8 via-background to-network-blue/8" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-inventory-orange/10 to-transparent rounded-full blur-3xl" />
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-br from-gfa-green/10 to-transparent rounded-full blur-3xl" />
@@ -286,8 +390,8 @@ const Index = () => {
         </div>
       </section>
 
-      {/* FAQ Section */}
-      <section className="relative border-t overflow-hidden">
+      {/* FAQ Section / Pricing Info */}
+      <section id="pricing" className="relative border-t overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-bl from-transport-indigo/5 via-background to-production-teal/5" />
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20 relative">
           <div className="text-center mb-12">
@@ -390,8 +494,8 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t bg-muted/50">
+      {/* Footer / Contact */}
+      <footer id="contact" className="border-t bg-muted/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
             {/* Brand */}
