@@ -16,16 +16,17 @@ export interface Product {
 
 export interface Customer {
   id: string;
-  product: string;
   name: string;
   city: string;
+  region?: string;
   country: string;
   latitude: number;
   longitude: number;
+  product: string;
   demand: number;
-  unitOfMeasure: string; // e.g., "pallets", "m3", "tonnes", "sq2"
-  conversionFactor: number; // conversion to standard unit (m3)
-  included?: boolean; // whether this customer is included in analysis (optional for backward compatibility)
+  unitOfMeasure: string;
+  conversionFactor: number;
+  included?: boolean;
 }
 
 export interface Demand {
