@@ -60,8 +60,19 @@ const Index = () => {
   const benefits = ["Multi-echelon optimization", "Real-time insights", "Interactive assistant", "Smart decision support"];
   return <div className="min-h-screen bg-background">
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-primary/5 via-background to-secondary/5 border-b">
-        <div className="absolute inset-0 bg-grid-pattern opacity-5" />
+      <section className="relative overflow-hidden border-b">
+        {/* Animated Mesh Background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-gfa-green/10 via-forecasting-purple/10 to-network-blue/10" />
+        <div className="absolute inset-0 opacity-40" style={{
+          background: 'radial-gradient(circle at 20% 50%, hsl(142 70% 45% / 0.15) 0%, transparent 50%), radial-gradient(circle at 80% 30%, hsl(270 65% 55% / 0.15) 0%, transparent 50%), radial-gradient(circle at 40% 80%, hsl(220 85% 55% / 0.15) 0%, transparent 50%)'
+        }} />
+        
+        {/* Floating Orbs */}
+        <div className="absolute top-20 left-10 w-64 h-64 bg-gradient-to-br from-gfa-green/30 to-transparent rounded-full blur-3xl animate-orb" />
+        <div className="absolute top-40 right-20 w-80 h-80 bg-gradient-to-br from-forecasting-purple/30 to-transparent rounded-full blur-3xl animate-orb" style={{ animationDelay: '2s' }} />
+        <div className="absolute bottom-20 left-1/3 w-72 h-72 bg-gradient-to-br from-network-blue/30 to-transparent rounded-full blur-3xl animate-orb" style={{ animationDelay: '4s' }} />
+        <div className="absolute bottom-40 right-1/4 w-96 h-96 bg-gradient-to-br from-inventory-orange/20 to-transparent rounded-full blur-3xl animate-orb" style={{ animationDelay: '6s' }} />
+        
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28 relative">
           <div className="text-center max-w-4xl mx-auto">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-8 animate-fade-in">
@@ -156,8 +167,9 @@ const Index = () => {
       </section>
 
       {/* Stats Section */}
-      <section className="border-t bg-muted/30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <section className="relative border-t overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-gfa-green/5 via-forecasting-purple/5 to-network-blue/5" />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 relative">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 text-center">
             <div className="space-y-2">
               <BarChart3 className="h-8 w-8 mx-auto text-primary mb-3" />
@@ -185,8 +197,11 @@ const Index = () => {
 
 
       {/* Value Propositions */}
-      <section className="border-y bg-gradient-to-br from-primary/5 via-background to-secondary/5">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+      <section className="relative border-y overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-forecasting-purple/8 via-background to-network-blue/8" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-inventory-orange/10 to-transparent rounded-full blur-3xl" />
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-br from-gfa-green/10 to-transparent rounded-full blur-3xl" />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 relative">
           <div className="text-center mb-16">
             <h2 className="text-3xl sm:text-4xl font-bold mb-4">Why Choose Our Platform</h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
@@ -272,8 +287,9 @@ const Index = () => {
       </section>
 
       {/* FAQ Section */}
-      <section className="border-t bg-muted/30">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+      <section className="relative border-t overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-bl from-transport-indigo/5 via-background to-production-teal/5" />
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20 relative">
           <div className="text-center mb-12">
             <h2 className="text-3xl sm:text-4xl font-bold mb-4">Frequently Asked Questions</h2>
             <p className="text-lg text-muted-foreground">
