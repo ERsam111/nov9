@@ -36,8 +36,8 @@ export function ManualAdjustment({
   // Load saved results on mount
   useEffect(() => {
     const saved = JSON.parse(localStorage.getItem('scenario2_results') || 'null');
-    if (saved) {
-      setEnrichedAdjustments(saved.map((s: any) => ({
+    if (saved?.adjustments) {
+      setEnrichedAdjustments(saved.adjustments.map((s: any) => ({
         ...s,
         period: new Date(s.period),
         fromPeriod: new Date(s.fromPeriod),
