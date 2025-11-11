@@ -73,8 +73,18 @@ const DemandForecasting = () => {
         // Load saved input data
         const inputData = await loadScenarioInput(currentScenario.id);
         if (inputData) {
-          setHistoricalData(inputData.historicalData || []);
-          setRawHistoricalData(inputData.rawHistoricalData || []);
+          // Convert date strings back to Date objects
+          const historicalWithDates = (inputData.historicalData || []).map((d: any) => ({
+            ...d,
+            date: new Date(d.date)
+          }));
+          const rawWithDates = (inputData.rawHistoricalData || []).map((d: any) => ({
+            ...d,
+            date: new Date(d.date)
+          }));
+          
+          setHistoricalData(historicalWithDates);
+          setRawHistoricalData(rawWithDates);
           setSelectedProduct(inputData.selectedProduct || "");
           setSelectedCustomer(inputData.selectedCustomer || "all");
           setForecastPeriods(inputData.forecastPeriods || 6);
@@ -83,6 +93,14 @@ const DemandForecasting = () => {
           }
           setSelectedModels(inputData.selectedModels || ["moving_average", "exponential_smoothing"]);
           setModelParams(inputData.modelParams || modelParams);
+          
+          // Restore date filters if they exist
+          if (inputData.filterStartDate) {
+            setFilterStartDate(new Date(inputData.filterStartDate));
+          }
+          if (inputData.filterEndDate) {
+            setFilterEndDate(new Date(inputData.filterEndDate));
+          }
         } else {
           // Clear data for new scenario
           setHistoricalData([]);
@@ -91,12 +109,22 @@ const DemandForecasting = () => {
           setSelectedCustomer("all");
           setForecastPeriods(6);
           setForecastResults([]);
+          setFilterStartDate(null);
+          setFilterEndDate(null);
         }
 
         // Load saved output data
         const outputData = await loadScenarioOutput(currentScenario.id);
         if (outputData) {
-          setForecastResults(outputData.forecastResults || []);
+          // Convert forecast result dates back to Date objects
+          const resultsWithDates = (outputData.forecastResults || []).map((result: any) => ({
+            ...result,
+            forecast: result.forecast.map((f: any) => ({
+              ...f,
+              date: new Date(f.date)
+            }))
+          }));
+          setForecastResults(resultsWithDates);
         }
       }
     };
