@@ -8,33 +8,33 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 210 30% 98%;
-    --foreground: 215 25% 15%;
+    --background: 230 30% 6%;
+    --foreground: 0 0% 95%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 215 25% 15%;
+    --card: 230 25% 10%;
+    --card-foreground: 0 0% 95%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 215 25% 15%;
+    --popover: 230 25% 10%;
+    --popover-foreground: 0 0% 95%;
 
-    --primary: 150 60% 45%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 73 100% 50%;
+    --primary-foreground: 230 30% 6%;
 
-    --secondary: 210 85% 35%;
-    --secondary-foreground: 0 0% 100%;
+    --secondary: 73 100% 45%;
+    --secondary-foreground: 230 30% 6%;
 
-    --muted: 150 15% 94%;
-    --muted-foreground: 150 10% 50%;
+    --muted: 230 20% 15%;
+    --muted-foreground: 0 0% 60%;
 
-    --accent: 150 70% 40%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 73 100% 50%;
+    --accent-foreground: 230 30% 6%;
 
     --destructive: 0 85% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 150 15% 88%;
-    --input: 150 15% 88%;
-    --ring: 150 60% 45%;
+    --border: 230 20% 20%;
+    --input: 230 20% 15%;
+    --ring: 73 100% 50%;
 
     --radius: 0.75rem;
     
@@ -240,6 +240,34 @@ All colors MUST be HSL.
 
   .animate-fade-in {
     animation: fade-in 1s ease-out;
+  }
+
+  /* Network mesh background animation */
+  @keyframes network-pulse {
+    0%, 100% {
+      opacity: 0.3;
+    }
+    50% {
+      opacity: 0.6;
+    }
+  }
+
+  .network-mesh {
+    position: absolute;
+    inset: 0;
+    background-image: 
+      linear-gradient(90deg, hsl(230 20% 15% / 0.5) 1px, transparent 1px),
+      linear-gradient(180deg, hsl(230 20% 15% / 0.5) 1px, transparent 1px);
+    background-size: 80px 80px;
+    opacity: 0.4;
+  }
+
+  .network-dots {
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(circle, hsl(73 100% 50% / 0.2) 2px, transparent 2px);
+    background-size: 80px 80px;
+    animation: network-pulse 4s ease-in-out infinite;
   }
   
   /* Always show horizontal scrollbar */
