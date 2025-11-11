@@ -129,11 +129,22 @@ export function ExcelUploadCompact({
             longitude: parseFloat(row.Longitude || row.longitude || row.Lng || 0),
             capacity: parseFloat(row.Capacity || row.capacity || 0),
             capacityUnit: (row.CapacityUnit || row["Capacity Unit"] || row.Unit || "m3").toString().trim(),
-          })).filter(s => s.name && s.capacity > 0 && s.latitude && s.longitude);
+          })).filter(s => 
+            s.name && 
+            s.capacity > 0 && 
+            !isNaN(s.latitude) && 
+            !isNaN(s.longitude) &&
+            s.latitude >= -90 && 
+            s.latitude <= 90 && 
+            s.longitude >= -180 && 
+            s.longitude <= 180
+          );
 
           if (sites.length > 0) {
             onExistingSitesUpload(sites, uploadMode);
             toast.success(`Imported ${sites.length} sites`);
+          } else if (sitesData.length > 0) {
+            toast.error("No valid sites found - check coordinates and capacity");
           }
         }
 
