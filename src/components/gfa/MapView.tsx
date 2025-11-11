@@ -3,15 +3,18 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { Card } from "@/components/ui/card";
 import { Customer, DistributionCenter } from "@/types/gfa";
-
 interface MapViewProps {
   customers: Customer[];
   dcs: DistributionCenter[];
   distanceRangeStep: number; // e.g., 100
   distanceUnit: "km" | "mile"; // "km" or "mile"
 }
-
-export function MapView({ customers, dcs, distanceRangeStep, distanceUnit }: MapViewProps) {
+export function MapView({
+  customers,
+  dcs,
+  distanceRangeStep,
+  distanceUnit
+}: MapViewProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -34,28 +37,30 @@ export function MapView({ customers, dcs, distanceRangeStep, distanceUnit }: Map
   const dcMarkersRef = useRef<mapboxgl.Marker[]>([]);
 
   // keep last user camera
-  const lastUserViewRef = useRef<{ center: mapboxgl.LngLatLike; zoom: number; bearing: number; pitch: number } | null>(
-    null,
-  );
+  const lastUserViewRef = useRef<{
+    center: mapboxgl.LngLatLike;
+    zoom: number;
+    bearing: number;
+    pitch: number;
+  } | null>(null);
 
   // token
   const MAPBOX_TOKEN = "pk.eyJ1IjoiZXJzaGFkMTExIiwiYSI6ImNtZ204Z2V2ejE3angyanNnM28xdng0aWwifQ.YXPI9Lti9Y6fEoFbYrqzTg";
 
   // helpers
   const kmToMiles = (km: number) => km * 0.621371;
-  const distInUnit = (km: number) => (distanceUnit === "mile" ? kmToMiles(km) : km);
+  const distInUnit = (km: number) => distanceUnit === "mile" ? kmToMiles(km) : km;
   const haversineKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
     const R = 6371;
-    const toRad = (d: number) => (d * Math.PI) / 180;
+    const toRad = (d: number) => d * Math.PI / 180;
     const dLat = toRad(lat2 - lat1);
     const dLon = toRad(lon2 - lon1);
     const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
     return 2 * R * Math.asin(Math.sqrt(a));
   };
-  const getLat = (x: any) => (typeof x?.lat === "number" ? x.lat : x?.latitude);
-  const getLon = (x: any) => (typeof x?.lon === "number" ? x.lon : x?.longitude);
+  const getLat = (x: any) => typeof x?.lat === "number" ? x.lat : x?.latitude;
+  const getLon = (x: any) => typeof x?.lon === "number" ? x.lon : x?.longitude;
   const getId = (x: any) => x?.id ?? x?.customer_id ?? x?.customer_name ?? x?.name;
-
   const palette = ["#22c55e", "#84cc16", "#eab308", "#f97316", "#ef4444", "#a855f7", "#3b82f6", "#06b6d4"];
   const safeStep = Math.max(1, distanceRangeStep || 0);
   const siteFilterActive = selectedSites.size > 0;
@@ -70,11 +75,11 @@ export function MapView({ customers, dcs, distanceRangeStep, distanceUnit }: Map
       rangeIndex: number;
       coords: [[number, number], [number, number]];
     }> = [];
-    dcs.forEach((dc) => {
+    dcs.forEach(dc => {
       const dLat = getLat(dc),
         dLon = getLon(dc);
       if (typeof dLat !== "number" || typeof dLon !== "number") return;
-      (dc.assignedCustomers || []).forEach((c) => {
+      (dc.assignedCustomers || []).forEach(c => {
         const cLat = getLat(c),
           cLon = getLon(c);
         if (typeof cLat !== "number" || typeof cLon !== "number") return;
@@ -85,10 +90,7 @@ export function MapView({ customers, dcs, distanceRangeStep, distanceUnit }: Map
           cId: getId(c),
           distance: dUnit,
           rangeIndex: Math.floor(dUnit / safeStep),
-          coords: [
-            [dLon, dLat],
-            [cLon, cLat],
-          ],
+          coords: [[dLon, dLat], [cLon, cLat]]
         });
       });
     });
@@ -98,43 +100,42 @@ export function MapView({ customers, dcs, distanceRangeStep, distanceUnit }: Map
   // range chips
   const ranges = useMemo(() => {
     if (!allConnections.length) return [];
-    const maxDistance = Math.max(...allConnections.map((f) => f.distance), 0);
+    const maxDistance = Math.max(...allConnections.map(f => f.distance), 0);
     const numRanges = Math.ceil(maxDistance / safeStep);
     const unit = distanceUnit === "mile" ? "miles" : "km";
-    return Array.from({ length: numRanges }, (_, i) => ({
+    return Array.from({
+      length: numRanges
+    }, (_, i) => ({
       index: i,
       label: `${i * safeStep}-${(i + 1) * safeStep} ${unit}`,
-      color: palette[i % palette.length],
+      color: palette[i % palette.length]
     }));
   }, [allConnections, safeStep, distanceUnit]);
 
   // select all sites whenever dcs change
   useEffect(() => {
-    setSelectedSites(new Set(dcs.map((dc) => dc.id)));
+    setSelectedSites(new Set(dcs.map(dc => dc.id)));
   }, [dcs]);
 
   // init map once
   useEffect(() => {
     if (!mapContainer.current || mapRef.current) return;
     mapboxgl.accessToken = MAPBOX_TOKEN;
-
     const map = new mapboxgl.Map({
       container: mapContainer.current,
       style: "mapbox://styles/mapbox/light-v11",
       center: [0, 20],
       zoom: 2.2,
       renderWorldCopies: false,
-      trackResize: true,
+      trackResize: true
     });
-
     map.addControl(new mapboxgl.NavigationControl(), "top-right");
-
     const onMoveEnd = () => {
       lastUserViewRef.current = {
         center: map.getCenter(),
         zoom: map.getZoom(),
         bearing: map.getBearing(),
-        pitch: map.getPitch(),
+        pitch: map.getPitch()
       };
     };
     map.on("moveend", onMoveEnd);
@@ -145,12 +146,10 @@ export function MapView({ customers, dcs, distanceRangeStep, distanceUnit }: Map
     map.on("zoomstart", disableAutoFit);
     map.on("rotatestart", disableAutoFit);
     map.on("pitchstart", disableAutoFit);
-
     map.on("load", () => {
       setIsLoaded(true);
       onMoveEnd();
     });
-
     mapRef.current = map;
     return () => {
       map.off("moveend", onMoveEnd);
@@ -179,35 +178,32 @@ export function MapView({ customers, dcs, distanceRangeStep, distanceUnit }: Map
     const map = mapRef.current;
 
     // clear old
-    customerMarkersRef.current.forEach((m) => m.remove());
-    dcMarkersRef.current.forEach((m) => m.remove());
+    customerMarkersRef.current.forEach(m => m.remove());
+    dcMarkersRef.current.forEach(m => m.remove());
     customerMarkersRef.current = [];
     dcMarkersRef.current = [];
 
     // demand scaling
-    const demands = customers.map((c) => c.demand ?? 0);
+    const demands = customers.map(c => c.demand ?? 0);
     const minDemand = demands.length ? Math.min(...demands) : 0;
     const maxDemand = demands.length ? Math.max(...demands) : 0;
     const demandRange = Math.max(0, maxDemand - minDemand);
 
     // customers
     if (showCustomers) {
-      customers.forEach((c) => {
+      customers.forEach(c => {
         const lat = getLat(c),
           lon = getLon(c);
         if (typeof lat !== "number" || typeof lon !== "number") return;
-
         if (siteFilterActive && dcs.length > 0) {
-          const assignedDc = dcs.find((dc) => dc.assignedCustomers?.some((ac) => getId(ac) === getId(c)));
+          const assignedDc = dcs.find(dc => dc.assignedCustomers?.some(ac => getId(ac) === getId(c)));
           if (assignedDc && !selectedSites.has(assignedDc.id)) return;
         }
-
         const minSize = 8,
           maxSize = 32;
         const val = typeof c.demand === "number" ? c.demand : minDemand;
         const norm = demandRange > 0 ? (val - minDemand) / demandRange : 0.5;
         const size = minSize + norm * (maxSize - minSize);
-
         const el = document.createElement("div");
         el.style.width = `${size}px`;
         el.style.height = `${size}px`;
@@ -216,17 +212,15 @@ export function MapView({ customers, dcs, distanceRangeStep, distanceUnit }: Map
         el.style.border = "2px solid white";
         el.style.boxShadow = "0 2px 4px rgba(0,0,0,0.25)";
         el.style.cursor = "pointer";
-
         const name = (c as any).customer_name ?? c.name ?? "Customer";
-        const popup = new mapboxgl.Popup({ offset: 18 }).setHTML(
-          `<div style="padding:8px;">
+        const popup = new mapboxgl.Popup({
+          offset: 18
+        }).setHTML(`<div style="padding:8px;">
             <strong>${name}</strong><br/>
             ${typeof c.demand === "number" ? `Demand: ${c.demand} ${c.unitOfMeasure ?? ""}<br/>` : ""}
             ${c.product ? `Product: ${c.product}<br/>` : ""}
             Loc: ${lat.toFixed(3)}, ${lon.toFixed(3)}
-          </div>`,
-        );
-
+          </div>`);
         const mk = new mapboxgl.Marker(el).setLngLat([lon, lat]).addTo(map);
         mk.setPopup(popup);
         customerMarkersRef.current.push(mk);
@@ -235,12 +229,11 @@ export function MapView({ customers, dcs, distanceRangeStep, distanceUnit }: Map
 
     // dcs
     if (showSites) {
-      dcs.forEach((dc) => {
+      dcs.forEach(dc => {
         const lat = getLat(dc),
           lon = getLon(dc);
         if (typeof lat !== "number" || typeof lon !== "number") return;
         if (siteFilterActive && !selectedSites.has(dc.id)) return;
-
         const el = document.createElement("div");
         el.style.width = "14px";
         el.style.height = "14px";
@@ -248,16 +241,14 @@ export function MapView({ customers, dcs, distanceRangeStep, distanceUnit }: Map
         el.style.border = "2px solid white";
         el.style.boxShadow = "0 2px 4px rgba(0,0,0,0.3)";
         el.style.cursor = "pointer";
-
-        const popup = new mapboxgl.Popup({ offset: 18 }).setHTML(
-          `<div style="padding:8px;">
+        const popup = new mapboxgl.Popup({
+          offset: 18
+        }).setHTML(`<div style="padding:8px;">
             <strong>${dc.id}</strong><br/>
             ${typeof dc.totalDemand === "number" ? `Total Demand: ${dc.totalDemand.toFixed(0)}<br/>` : ""}
             Customers: ${dc.assignedCustomers?.length ?? 0}<br/>
             Loc: ${lat.toFixed(3)}, ${lon.toFixed(3)}
-          </div>`,
-        );
-
+          </div>`);
         const mk = new mapboxgl.Marker(el).setLngLat([lon, lat]).addTo(map);
         mk.setPopup(popup);
         dcMarkersRef.current.push(mk);
@@ -269,7 +260,6 @@ export function MapView({ customers, dcs, distanceRangeStep, distanceUnit }: Map
   useEffect(() => {
     if (!isLoaded || !mapRef.current) return;
     const map = mapRef.current;
-
     const clearLines = () => {
       if (!map || !map.getStyle()) return;
       try {
@@ -279,34 +269,40 @@ export function MapView({ customers, dcs, distanceRangeStep, distanceUnit }: Map
         console.warn("Error clearing lines:", error);
       }
     };
-
     clearLines();
-
     if (!showLines || allConnections.length === 0) return;
-
-    const features = allConnections
-      .filter((f) => (siteFilterActive ? selectedSites.has(f.dcId) : true))
-      .filter((f) => (isAnyRangeSelected ? selectedRanges.has(f.rangeIndex) : true))
-      .map((f) => ({
-        type: "Feature" as const,
-        geometry: { type: "LineString" as const, coordinates: f.coords },
-        properties: { color: palette[f.rangeIndex % palette.length] },
-      }));
-
+    const features = allConnections.filter(f => siteFilterActive ? selectedSites.has(f.dcId) : true).filter(f => isAnyRangeSelected ? selectedRanges.has(f.rangeIndex) : true).map(f => ({
+      type: "Feature" as const,
+      geometry: {
+        type: "LineString" as const,
+        coordinates: f.coords
+      },
+      properties: {
+        color: palette[f.rangeIndex % palette.length]
+      }
+    }));
     if (!features.length) return;
-
     map.addSource("connections", {
       type: "geojson",
-      data: { type: "FeatureCollection", features },
+      data: {
+        type: "FeatureCollection",
+        features
+      }
     });
     map.addLayer({
       id: "connections-layer",
       type: "line",
       source: "connections",
-      layout: { "line-join": "round", "line-cap": "round" },
-      paint: { "line-color": ["get", "color"], "line-width": 1.8, "line-opacity": 0.8 },
+      layout: {
+        "line-join": "round",
+        "line-cap": "round"
+      },
+      paint: {
+        "line-color": ["get", "color"],
+        "line-width": 1.8,
+        "line-opacity": 0.8
+      }
     });
-
     return () => clearLines();
   }, [isLoaded, showLines, allConnections, selectedRanges, selectedSites, siteFilterActive, isAnyRangeSelected]);
 
@@ -314,24 +310,24 @@ export function MapView({ customers, dcs, distanceRangeStep, distanceUnit }: Map
   useEffect(() => {
     if (!isLoaded || !mapRef.current) return;
     const map = mapRef.current;
-
     const coords: [number, number][] = [];
-    customers.forEach((c) => {
+    customers.forEach(c => {
       const lat = getLat(c),
         lon = getLon(c);
       if (typeof lat === "number" && typeof lon === "number") coords.push([lon, lat]);
     });
-    dcs.forEach((dc) => {
+    dcs.forEach(dc => {
       const lat = getLat(dc),
         lon = getLon(dc);
       if (typeof lat === "number" && typeof lon === "number") coords.push([lon, lat]);
     });
-
     if (!coords.length) return;
-
     if (autoFit || !initialFitDoneRef.current) {
       const bounds = coords.slice(1).reduce((b, c) => b.extend(c), new mapboxgl.LngLatBounds(coords[0], coords[0]));
-      map.fitBounds(bounds, { padding: 50, maxZoom: 6 });
+      map.fitBounds(bounds, {
+        padding: 50,
+        maxZoom: 6
+      });
       initialFitDoneRef.current = true;
     }
   }, [isLoaded, customers, dcs, autoFit]);
@@ -341,19 +337,19 @@ export function MapView({ customers, dcs, distanceRangeStep, distanceUnit }: Map
     if (!mapRef.current) return;
     const coords: [number, number][] = [];
     if (showCustomers) {
-      customers.forEach((c) => {
+      customers.forEach(c => {
         const lat = getLat(c),
           lon = getLon(c);
         if (typeof lat !== "number" || typeof lon !== "number") return;
         if (siteFilterActive && dcs.length > 0) {
-          const assignedDc = dcs.find((dc) => dc.assignedCustomers?.some((ac) => getId(ac) === getId(c)));
+          const assignedDc = dcs.find(dc => dc.assignedCustomers?.some(ac => getId(ac) === getId(c)));
           if (assignedDc && !selectedSites.has(assignedDc.id)) return;
         }
         coords.push([lon, lat]);
       });
     }
     if (showSites) {
-      dcs.forEach((dc) => {
+      dcs.forEach(dc => {
         if (siteFilterActive && !selectedSites.has(dc.id)) return;
         const lat = getLat(dc),
           lon = getLon(dc);
@@ -362,39 +358,44 @@ export function MapView({ customers, dcs, distanceRangeStep, distanceUnit }: Map
     }
     if (!coords.length) return;
     const bounds = coords.slice(1).reduce((b, c) => b.extend(c), new mapboxgl.LngLatBounds(coords[0], coords[0]));
-    mapRef.current.fitBounds(bounds, { padding: 50, maxZoom: 6 });
+    mapRef.current.fitBounds(bounds, {
+      padding: 50,
+      maxZoom: 6
+    });
   };
-
-  return (
-    <div className="w-full h-full flex flex-col">
+  return <div className="w-full h-full flex flex-col">
       {/* header / legend / controls */}
-      <div className="flex items-center gap-3 mb-2 flex-wrap text-xs">
+      <div className="flex items-center gap-3 mb-2 flex-wrap text-xs px-[11px] my-[10px]">
         <h3 className="text-sm font-semibold">Network Visualization</h3>
 
         <label className="flex items-center gap-1.5 text-xs cursor-pointer">
-          <input type="checkbox" checked={showCustomers} onChange={(e) => setShowCustomers(e.target.checked)} className="h-3 w-3" />
+          <input type="checkbox" checked={showCustomers} onChange={e => setShowCustomers(e.target.checked)} className="h-3 w-3" />
           <span className="flex items-center gap-1.5">
-            <span
-              className="inline-block rounded-full"
-              style={{ width: 8, height: 8, background: "rgba(59,130,246,0.75)", border: "1px solid white" }}
-            />
+            <span className="inline-block rounded-full" style={{
+            width: 8,
+            height: 8,
+            background: "rgba(59,130,246,0.75)",
+            border: "1px solid white"
+          }} />
             Customers
           </span>
         </label>
 
         <label className="flex items-center gap-1.5 text-xs cursor-pointer">
-          <input type="checkbox" checked={showSites} onChange={(e) => setShowSites(e.target.checked)} className="h-3 w-3" />
+          <input type="checkbox" checked={showSites} onChange={e => setShowSites(e.target.checked)} className="h-3 w-3" />
           <span className="flex items-center gap-1.5">
-            <span
-              className="inline-block"
-              style={{ width: 8, height: 8, background: "#22c55e", border: "1px solid white" }}
-            />
+            <span className="inline-block" style={{
+            width: 8,
+            height: 8,
+            background: "#22c55e",
+            border: "1px solid white"
+          }} />
             Sites
           </span>
         </label>
 
         <label className="flex items-center gap-1.5 text-xs cursor-pointer">
-          <input type="checkbox" checked={showLines} onChange={(e) => setShowLines(e.target.checked)} className="h-3 w-3" />
+          <input type="checkbox" checked={showLines} onChange={e => setShowLines(e.target.checked)} className="h-3 w-3" />
           <span className="flex items-center gap-1.5">
             <span className="inline-block w-6 h-0.5 bg-slate-400" />
             Lines
@@ -403,7 +404,7 @@ export function MapView({ customers, dcs, distanceRangeStep, distanceUnit }: Map
 
         <div className="ml-auto flex items-center gap-1.5 text-xs">
           <label className="flex items-center gap-1 cursor-pointer">
-            <input type="checkbox" checked={autoFit} onChange={(e) => setAutoFit(e.target.checked)} className="h-3 w-3" />
+            <input type="checkbox" checked={autoFit} onChange={e => setAutoFit(e.target.checked)} className="h-3 w-3" />
             Auto-fit
           </label>
           <button onClick={fitNow} className="text-[10px] px-1.5 py-0.5 rounded border bg-background hover:bg-muted">
@@ -413,88 +414,58 @@ export function MapView({ customers, dcs, distanceRangeStep, distanceUnit }: Map
       </div>
 
       {/* site filter */}
-      {dcs.length > 0 && (
-        <div className="mb-2">
-          <div className="flex items-center justify-between gap-1.5 mb-1.5">
+      {dcs.length > 0 && <div className="mb-2">
+          <div className="flex items-center justify-between gap-1.5 mb-1.5 px-[11px]">
             <span className="text-[10px] text-muted-foreground">Sites:</span>
             <div className="flex gap-1">
-              <button
-                onClick={() => setSelectedSites(new Set(dcs.map((dc) => dc.id)))}
-                className="text-[10px] px-1.5 py-0.5 rounded border bg-background hover:bg-muted"
-              >
+              <button onClick={() => setSelectedSites(new Set(dcs.map(dc => dc.id)))} className="text-[10px] px-1.5 py-0.5 rounded border bg-background hover:bg-muted">
                 All
               </button>
-              <button
-                onClick={() => setSelectedSites(new Set())}
-                className="text-[10px] px-1.5 py-0.5 rounded border bg-background hover:bg-muted"
-              >
+              <button onClick={() => setSelectedSites(new Set())} className="text-[10px] px-1.5 py-0.5 rounded border bg-background hover:bg-muted">
                 None
               </button>
             </div>
           </div>
-          <div className="flex gap-2 flex-wrap">
-            {dcs.map((dc) => (
-              <label key={dc.id} className="flex items-center gap-1 text-[10px] cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={selectedSites.has(dc.id)}
-                  onChange={() =>
-                    setSelectedSites((prev) => {
-                      const next = new Set(prev);
-                      next.has(dc.id) ? next.delete(dc.id) : next.add(dc.id);
-                      return next;
-                    })
-                  }
-                  className="h-3 w-3"
-                />
+          <div className="flex gap-2 flex-wrap px-[11px]">
+            {dcs.map(dc => <label key={dc.id} className="flex items-center gap-1 text-[10px] cursor-pointer">
+                <input type="checkbox" checked={selectedSites.has(dc.id)} onChange={() => setSelectedSites(prev => {
+            const next = new Set(prev);
+            next.has(dc.id) ? next.delete(dc.id) : next.add(dc.id);
+            return next;
+          })} className="h-3 w-3" />
                 <span>{dc.id}</span>
-              </label>
-            ))}
+              </label>)}
           </div>
-        </div>
-      )}
+        </div>}
 
       {/* range chips - very small */}
-      {ranges.length > 0 && (
-        <div className="mb-2 flex items-center gap-1 flex-wrap">
+      {ranges.length > 0 && <div className="mb-2 flex items-center gap-1 flex-wrap px-[11px]">
           <span className="text-[10px] text-muted-foreground">Ranges:</span>
-          {ranges.map((r) => {
-            const active = selectedRanges.has(r.index) || (!isAnyRangeSelected && true);
-            return (
-              <button
-                key={r.index}
-                onClick={() =>
-                  setSelectedRanges((prev) => {
-                    const next = new Set(prev);
-                    next.has(r.index) ? next.delete(r.index) : next.add(r.index);
-                    return next;
-                  })
-                }
-                className={`text-[9px] px-1 py-0.5 rounded border transition ${active ? "ring-1 ring-black/10" : "opacity-40"}`}
-                style={{ backgroundColor: r.color, color: "#000", borderColor: "rgba(0,0,0,0.08)" }}
-                title={r.label}
-              >
+          {ranges.map(r => {
+        const active = selectedRanges.has(r.index) || !isAnyRangeSelected && true;
+        return <button key={r.index} onClick={() => setSelectedRanges(prev => {
+          const next = new Set(prev);
+          next.has(r.index) ? next.delete(r.index) : next.add(r.index);
+          return next;
+        })} className={`text-[9px] px-1 py-0.5 rounded border transition ${active ? "ring-1 ring-black/10" : "opacity-40"}`} style={{
+          backgroundColor: r.color,
+          color: "#000",
+          borderColor: "rgba(0,0,0,0.08)"
+        }} title={r.label}>
                 {r.label}
-              </button>
-            );
-          })}
-          <button
-            onClick={() => setSelectedRanges(new Set(ranges.map((r) => r.index)))}
-            className="text-[10px] px-1.5 py-0.5 rounded border bg-background hover:bg-muted"
-          >
+              </button>;
+      })}
+          <button onClick={() => setSelectedRanges(new Set(ranges.map(r => r.index)))} className="text-[10px] px-1.5 py-0.5 rounded border bg-background hover:bg-muted">
             All
           </button>
-          <button
-            onClick={() => setSelectedRanges(new Set())}
-            className="text-[10px] px-1.5 py-0.5 rounded border bg-background hover:bg-muted"
-          >
+          <button onClick={() => setSelectedRanges(new Set())} className="text-[10px] px-1.5 py-0.5 rounded border bg-background hover:bg-muted">
             None
           </button>
-        </div>
-      )}
+        </div>}
 
       {/* map container */}
-      <div ref={mapContainer} className="w-full flex-1 rounded border overflow-hidden" style={{ minHeight: '400px' }} />
-    </div>
-  );
+      <div ref={mapContainer} className="w-full flex-1 rounded border overflow-hidden" style={{
+      minHeight: '400px'
+    }} />
+    </div>;
 }
