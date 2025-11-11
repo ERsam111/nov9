@@ -20,24 +20,24 @@ export function GFAMapPanel({ customers, dcs, settings }: GFAMapPanelProps) {
       {/* Map Controls */}
       <div className="flex gap-4">
         <Card className="w-fit">
-          <CardContent className="pt-2 pb-2">
-            <div className="flex gap-3 items-center">
-              <div className="space-y-1">
-                <Label className="text-[10px]">Distance Range Step</Label>
+          <CardContent className="pt-4">
+            <div className="flex gap-4 items-center">
+              <div className="space-y-2">
+                <Label className="text-xs">Distance Range Step</Label>
                 <Input
                   type="number"
                   min="1"
                   step="1"
                   value={distanceRangeStep}
                   onChange={(e) => setDistanceRangeStep(Number(e.target.value) || 100)}
-                  className="w-[80px] h-8 text-xs"
+                  className="w-[90px]"
                   placeholder="100"
                 />
               </div>
-              <div className="space-y-1">
-                <Label className="text-[10px]">Unit</Label>
+              <div className="space-y-2">
+                <Label className="text-xs">Unit</Label>
                 <Select value={settings.distanceUnit} disabled>
-                  <SelectTrigger className="w-[80px] h-8 text-xs">
+                  <SelectTrigger className="w-[100px]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -52,12 +52,12 @@ export function GFAMapPanel({ customers, dcs, settings }: GFAMapPanelProps) {
 
         {customers.length > 0 && (
           <Card className="w-fit">
-            <CardContent className="pt-2 pb-2 px-3">
-              <div className="flex items-center gap-2">
-                <Label className="text-[10px] whitespace-nowrap">Total Demand</Label>
-                <div className="text-sm font-semibold">
+            <CardContent className="pt-4">
+              <div className="space-y-2">
+                <Label className="text-xs">Total Demand</Label>
+                <div className="text-xl font-semibold">
                   {customers.reduce((sum, c) => sum + c.demand, 0).toFixed(2)}{" "}
-                  <span className="text-xs text-muted-foreground">units</span>
+                  <span className="text-sm text-muted-foreground">units</span>
                 </div>
               </div>
             </CardContent>
