@@ -123,35 +123,20 @@ export function ExcelUploadCompact({
           console.log("Raw existing sites data from Excel:", sitesData);
           
           const sites: ExistingSite[] = sitesData.map((row: any, index: number) => {
-            // Parse values with proper fallbacks
-            const name = (row.Name || row.name || row["Site Name"] || row.Site || "").toString().trim();
-            const city = (row.City || row.city || "").toString().trim();
-            const country = (row.Country || row.country || "").toString().trim();
-            const latStr = row.Latitude || row.latitude || row.Lat || "0";
-            const lngStr = row.Longitude || row.longitude || row.Lng || "0";
-            const capStr = row.Capacity || row.capacity || "0";
-            const capacityUnit = (row.CapacityUnit || row["Capacity Unit"] || row.Unit || "m3").toString().trim();
-            
-            // Parse numbers
-            const latitude = typeof latStr === 'number' ? latStr : parseFloat(latStr.toString().replace(/[^\d.-]/g, ''));
-            const longitude = typeof lngStr === 'number' ? lngStr : parseFloat(lngStr.toString().replace(/[^\d.-]/g, ''));
-            const capacity = typeof capStr === 'number' ? capStr : parseFloat(capStr.toString().replace(/[^\d.-]/g, ''));
-            
             const site = {
               id: `site-${Date.now()}-${index}`,
-              name,
-              city,
-              country,
-              latitude: isNaN(latitude) ? 0 : latitude,
-              longitude: isNaN(longitude) ? 0 : longitude,
-              capacity: isNaN(capacity) ? 0 : capacity,
-              capacityUnit,
+              name: (row.Name || row.name || row.Site || "").toString().trim(),
+              city: (row.City || row.city || "").toString().trim(),
+              country: (row.Country || row.country || "").toString().trim(),
+              latitude: parseFloat(row.Latitude || row.latitude || row.Lat || 0),
+              longitude: parseFloat(row.Longitude || row.longitude || row.Lng || 0),
+              capacity: parseFloat(row.Capacity || row.capacity || 0),
+              capacityUnit: (row.CapacityUnit || row["Capacity Unit"] || row.Unit || "m3").toString().trim(),
             };
             console.log(`Site ${index}:`, site);
             return site;
           }).filter(s => {
             const isValid = s.name && 
-              s.name.trim() !== "" &&
               s.capacity > 0 && 
               !isNaN(s.latitude) && 
               !isNaN(s.longitude) &&
@@ -162,7 +147,7 @@ export function ExcelUploadCompact({
             
             if (!isValid) {
               console.log("Invalid site filtered out:", s, {
-                hasName: !!s.name && s.name.trim() !== "",
+                hasName: !!s.name,
                 hasCapacity: s.capacity > 0,
                 validLat: !isNaN(s.latitude) && s.latitude >= -90 && s.latitude <= 90,
                 validLng: !isNaN(s.longitude) && s.longitude >= -180 && s.longitude <= 180
@@ -255,7 +240,7 @@ export function ExcelUploadCompact({
 
     const sitesTemplate = [
       { Name: "Warehouse NYC", City: "New York", Country: "USA", Latitude: 40.7580, Longitude: -73.9855, Capacity: 50000, CapacityUnit: "m3" },
-      { Name: "", City: "", Country: "", Latitude: 0, Longitude: 0, Capacity: 0, CapacityUnit: "m3" }
+      { Name: "", City: "", Country: "", Latitude: "", Longitude: "", Capacity: "", CapacityUnit: "" }
     ];
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(sitesTemplate), "Existing Sites");
 
