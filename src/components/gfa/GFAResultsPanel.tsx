@@ -8,6 +8,7 @@ import { ProfitabilityAnalysis } from "./ProfitabilityAnalysis";
 import { DemandInsights } from "./DemandInsights";
 import { KPISummaryDashboard } from "./KPISummaryDashboard";
 import { ScenarioComparison } from "./ScenarioComparison";
+import { SensitivityAnalysis } from "./SensitivityAnalysis";
 import { useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -26,6 +27,7 @@ interface GFAResultsPanelProps {
   feasible: boolean;
   warnings: string[];
   costBreakdown?: { totalCost: number; transportationCost: number; facilityCost: number; numSites: number };
+  existingSites?: import("@/types/gfa").ExistingSite[];
 }
 
 export function GFAResultsPanel({
@@ -36,6 +38,7 @@ export function GFAResultsPanel({
   feasible,
   warnings,
   costBreakdown,
+  existingSites,
 }: GFAResultsPanelProps) {
   const [distanceRangeStep, setDistanceRangeStep] = useState<number>(100);
   const { toast } = useToast();
@@ -248,6 +251,16 @@ export function GFAResultsPanel({
           />
         </CardContent>
       </Card>
+
+      {/* Sensitivity Analysis */}
+      {settings.mode === 'cost' && (
+        <SensitivityAnalysis
+          customers={customers}
+          products={products}
+          settings={settings}
+          existingSites={existingSites}
+        />
+      )}
       </TabsContent>
 
       <TabsContent value="comparison" className="space-y-6">

@@ -357,7 +357,16 @@ const GFA = () => {
           </TabsContent>
 
           <TabsContent value="results" className="space-y-6">
-            <GFAResultsPanel dcs={dcs} customers={customers} products={products} settings={settings} feasible={feasible} warnings={warnings} costBreakdown={costBreakdown} />
+            <GFAResultsPanel 
+              dcs={dcs} 
+              customers={customers} 
+              products={products} 
+              settings={settings} 
+              feasible={feasible} 
+              warnings={warnings} 
+              costBreakdown={costBreakdown}
+              existingSites={existingSites}
+            />
           </TabsContent>
         </Tabs>
       </div>
