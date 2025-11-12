@@ -491,7 +491,7 @@ const GFA = () => {
 
                 {/* Active Table Content with horizontal scroll */}
                 <div className="flex-1 min-w-0 overflow-hidden">
-                  {activeTable === "customers" && <GFAEditableTable tableType="customers" data={customers} onDataChange={setCustomers} onGeocode={handleGeocodeCustomer} />}
+                  {activeTable === "customers" && <GFAEditableTable tableType="customers" data={customers} onDataChange={setCustomers} onGeocode={handleGeocodeCustomer} products={products} />}
                   {activeTable === "products" && <GFAEditableTable tableType="products" data={products} onDataChange={setProducts} />}
                   {activeTable === "existing-sites" && <GFAEditableTable tableType="existing-sites" data={existingSites} onDataChange={setExistingSites} />}
                   {activeTable === "costs" && <GFACostParametersPanel settings={settings} onSettingsChange={setSettings} />}

@@ -13,6 +13,7 @@ interface GFAEditableTableProps {
   data: any[];
   onDataChange: (data: any[]) => void;
   onGeocode?: (index: number) => void;
+  products?: any[]; // For customer table product dropdown
 }
 const getTableTitle = (type: string) => ({
   customers: "Customers",
@@ -68,7 +69,8 @@ export function GFAEditableTable({
   tableType,
   data,
   onDataChange,
-  onGeocode
+  onGeocode,
+  products = []
 }: GFAEditableTableProps) {
   const [rows, setRows] = useState<any[]>(data);
   const columns = getTableColumns(tableType);
@@ -289,6 +291,30 @@ export function GFAEditableTable({
                                 <SelectItem value="ft3">ft³ (Cubic Feet)</SelectItem>
                                 <SelectItem value="liters">Liters</SelectItem>
                                 <SelectItem value="units">Units</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>;
+              }
+
+              // Special handling for product dropdown in customers
+              if (tableType === "customers" && key === "product") {
+                return <TableCell key={col}>
+                            <Select value={String(val)} onValueChange={v => handleChange(i, col, v)}>
+                              <SelectTrigger className="w-full h-9 text-sm">
+                                <SelectValue placeholder="Select product" />
+                              </SelectTrigger>
+                              <SelectContent className="z-50 bg-background">
+                                {products.length > 0 ? (
+                                  products.map((product) => (
+                                    <SelectItem key={product.name} value={product.name}>
+                                      {product.name}
+                                    </SelectItem>
+                                  ))
+                                ) : (
+                                  <SelectItem value="" disabled>
+                                    No products available
+                                  </SelectItem>
+                                )}
                               </SelectContent>
                             </Select>
                           </TableCell>;
