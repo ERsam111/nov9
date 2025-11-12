@@ -28,33 +28,59 @@ export function executeDataTransformation(plan: TransformationPlan, currentData:
     
     // Handle demand multiplication and updates
     if (type === "MULTIPLY" || type === "UPDATE") {
-      // Handle SETTING demand to a fixed value (not multiplying)
-      if (details.toLowerCase().includes("set") || details.toLowerCase().includes("demand = ")) {
-        const demandMatch = details.match(/demand\s*=\s*(\d+\.?\d*)/i);
-        if (demandMatch && result.customers) {
-          const fixedDemand = parseFloat(demandMatch[1]);
-          console.log(`Setting all customer demand to fixed value: ${fixedDemand}`);
-          result.customers = result.customers.map((c: any) => ({
-            ...c,
-            demand: fixedDemand
-          }));
-          console.log(`Set demand to ${fixedDemand} for ${result.customers.length} customers`);
-          continue; // Skip to next operation
-        }
+      const lowerDetails = details.toLowerCase();
+      
+      // Check for SQL-style multiplication: "demand = demand * X" or "demand * X"
+      const multiplicationMatch = details.match(/demand\s*(?:=\s*demand\s*)?\*\s*(\d+\.?\d*)/i);
+      if (multiplicationMatch && result.customers) {
+        const multiplier = parseFloat(multiplicationMatch[1]);
+        console.log(`Multiplying all customer demand by ${multiplier} (from SQL pattern)`);
+        result.customers = result.customers.map((c: any) => ({
+          ...c,
+          demand: c.demand * multiplier
+        }));
+        console.log(`Updated ${result.customers.length} customers with multiplier ${multiplier}`);
+        continue;
       }
       
-      // Handle ALL customer demand multiplication (most common case)
-      if (details.toLowerCase().includes("all") && details.toLowerCase().includes("customer") && details.toLowerCase().includes("demand")) {
+      // Handle SETTING demand to a fixed value (not multiplying): "demand = 100"
+      const fixedDemandMatch = details.match(/demand\s*=\s*(\d+\.?\d*)(?:\s|$)/i);
+      if (fixedDemandMatch && !details.match(/demand\s*\*/i) && result.customers) {
+        const fixedDemand = parseFloat(fixedDemandMatch[1]);
+        console.log(`Setting all customer demand to fixed value: ${fixedDemand}`);
+        result.customers = result.customers.map((c: any) => ({
+          ...c,
+          demand: fixedDemand
+        }));
+        console.log(`Set demand to ${fixedDemand} for ${result.customers.length} customers`);
+        continue;
+      }
+      
+      // Handle natural language with percentages: "increase all customer demand by 50%"
+      if (lowerDetails.includes("customer") && lowerDetails.includes("demand")) {
         const percentMatch = details.match(/(\d+\.?\d*)%/);
-        if (percentMatch && result.customers) {
-          const percentage = parseFloat(percentMatch[0]);
-          const multiplier = 1 + (percentage / 100);
-          console.log(`Multiplying all customer demand by ${multiplier}`);
+        if (percentMatch) {
+          const percentage = parseFloat(percentMatch[1]);
+          const isIncrease = lowerDetails.includes("increase") || lowerDetails.includes("raise");
+          const isDecrease = lowerDetails.includes("decrease") || lowerDetails.includes("reduce");
+          
+          let multiplier = 1;
+          if (isIncrease) {
+            multiplier = 1 + (percentage / 100);
+          } else if (isDecrease) {
+            multiplier = 1 - (percentage / 100);
+          } else {
+            // Default to increase if not specified
+            multiplier = 1 + (percentage / 100);
+          }
+          
+          console.log(`Multiplying all customer demand by ${multiplier} (from ${percentage}% change)`);
           result.customers = result.customers.map((c: any) => ({
             ...c,
             demand: c.demand * multiplier
           }));
           console.log(`Updated ${result.customers.length} customers`);
+          continue;
         }
       }
       // Handle specific product demand changes
