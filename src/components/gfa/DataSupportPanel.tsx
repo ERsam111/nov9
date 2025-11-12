@@ -29,18 +29,24 @@ interface TransformationPlan {
 }
 
 interface ComparisonData {
-  customers?: Array<{
+  customerDemand?: Array<{
     name: string;
     oldDemand: number;
     newDemand: number;
     change: number;
     changePercent: number;
   }>;
+  customerLocation?: Array<{
+    name: string;
+    field: string;
+    oldValue: any;
+    newValue: any;
+  }>;
   products?: Array<{
     name: string;
-    oldBaseUnit: string;
-    newBaseUnit: string;
-    changed: boolean;
+    field: string;
+    oldValue: any;
+    newValue: any;
   }>;
   existingSites?: Array<{
     name: string;
@@ -277,9 +283,27 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
     
     // Capture "before" snapshots of all data
     const beforeSnapshot = {
-      customers: customers.map(c => ({ name: c.name, demand: c.demand })),
-      products: products.map(p => ({ name: p.name, baseUnit: p.baseUnit })),
-      existingSites: existingSites.map(s => ({ name: s.name, city: s.city })),
+      customers: customers.map(c => ({ 
+        name: c.name, 
+        demand: c.demand, 
+        city: c.city, 
+        country: c.country, 
+        latitude: c.latitude, 
+        longitude: c.longitude 
+      })),
+      products: products.map(p => ({ 
+        name: p.name, 
+        baseUnit: p.baseUnit, 
+        sellingPrice: p.sellingPrice,
+        unitConversions: p.unitConversions 
+      })),
+      existingSites: existingSites.map(s => ({ 
+        name: s.name, 
+        city: s.city, 
+        country: s.country, 
+        latitude: s.latitude, 
+        longitude: s.longitude 
+      })),
       settings: { ...settings }
     };
     
@@ -323,11 +347,11 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
         // Generate comparison data for all affected data types
         const comparison: ComparisonData = {};
         
-        // Customer comparison
+        // Customer demand comparison
         if (data.updatedData.customers) {
-          const customerChanges = beforeSnapshot.customers.map(before => {
+          const demandChanges = beforeSnapshot.customers.map(before => {
             const after = data.updatedData.customers.find((c: Customer) => c.name === before.name);
-            if (after) {
+            if (after && after.demand !== before.demand) {
               const change = after.demand - before.demand;
               const changePercent = before.demand !== 0 ? ((change / before.demand) * 100) : 0;
               return {
@@ -338,17 +362,35 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
                 changePercent
               };
             }
-            return {
-              name: before.name,
-              oldDemand: before.demand,
-              newDemand: before.demand,
-              change: 0,
-              changePercent: 0
-            };
-          }).filter(c => c.change !== 0);
+            return null;
+          }).filter((c): c is NonNullable<typeof c> => c !== null);
           
-          if (customerChanges.length > 0) {
-            comparison.customers = customerChanges;
+          if (demandChanges.length > 0) {
+            comparison.customerDemand = demandChanges;
+          }
+          
+          // Customer location/attribute comparison
+          const locationChanges = [];
+          for (const before of beforeSnapshot.customers) {
+            const after = data.updatedData.customers.find((c: Customer) => c.name === before.name);
+            if (after) {
+              if (after.city !== before.city) {
+                locationChanges.push({ name: before.name, field: 'City', oldValue: before.city, newValue: after.city });
+              }
+              if (after.country !== before.country) {
+                locationChanges.push({ name: before.name, field: 'Country', oldValue: before.country, newValue: after.country });
+              }
+              if (after.latitude !== before.latitude) {
+                locationChanges.push({ name: before.name, field: 'Latitude', oldValue: before.latitude, newValue: after.latitude });
+              }
+              if (after.longitude !== before.longitude) {
+                locationChanges.push({ name: before.name, field: 'Longitude', oldValue: before.longitude, newValue: after.longitude });
+              }
+            }
+          }
+          
+          if (locationChanges.length > 0) {
+            comparison.customerLocation = locationChanges;
           }
         }
         
@@ -356,29 +398,36 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
         if (data.updatedData.products) {
           const productChanges = [];
           
-          // Check for modified products
           for (const before of beforeSnapshot.products) {
             const after = data.updatedData.products.find((p: Product) => p.name === before.name);
-            if (after && after.baseUnit !== before.baseUnit) {
-              productChanges.push({
-                name: before.name,
-                oldBaseUnit: before.baseUnit,
-                newBaseUnit: after.baseUnit,
-                changed: true
-              });
-            }
-          }
-          
-          // Check for new products
-          for (const after of data.updatedData.products) {
-            const before = beforeSnapshot.products.find(p => p.name === after.name);
-            if (!before) {
-              productChanges.push({
-                name: after.name,
-                oldBaseUnit: "(new)",
-                newBaseUnit: after.baseUnit,
-                changed: true
-              });
+            if (after) {
+              if (after.sellingPrice !== before.sellingPrice) {
+                productChanges.push({
+                  name: before.name,
+                  field: 'Selling Price',
+                  oldValue: before.sellingPrice ?? 'Not set',
+                  newValue: after.sellingPrice ?? 'Not set'
+                });
+              }
+              if (after.baseUnit !== before.baseUnit) {
+                productChanges.push({
+                  name: before.name,
+                  field: 'Base Unit',
+                  oldValue: before.baseUnit,
+                  newValue: after.baseUnit
+                });
+              }
+              // Check unit conversions
+              const beforeConv = JSON.stringify(before.unitConversions || {});
+              const afterConv = JSON.stringify(after.unitConversions || {});
+              if (beforeConv !== afterConv) {
+                productChanges.push({
+                  name: before.name,
+                  field: 'Unit Conversions',
+                  oldValue: beforeConv,
+                  newValue: afterConv
+                });
+              }
             }
           }
           
@@ -957,7 +1006,7 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
               {comparisonData && Object.keys(comparisonData).length > 0 && (
                 <div className="space-y-3">
                   {/* Customer Demand Comparison */}
-                  {comparisonData.customers && comparisonData.customers.length > 0 && (
+                  {comparisonData.customerDemand && comparisonData.customerDemand.length > 0 && (
                     <Alert className="border-green-500/30 bg-green-500/5">
                       <CheckCircle className="h-4 w-4 text-green-600" />
                       <AlertDescription className="mt-2">
@@ -974,7 +1023,7 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
                               </TableRow>
                             </TableHeader>
                             <TableBody>
-                              {comparisonData.customers.slice(0, 10).map((row, idx) => (
+                              {comparisonData.customerDemand.slice(0, 10).map((row, idx) => (
                                 <TableRow key={idx}>
                                   <TableCell className="font-medium">{row.name}</TableCell>
                                   <TableCell className="text-right text-muted-foreground">
@@ -993,11 +1042,47 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
                               ))}
                             </TableBody>
                           </Table>
-                          {comparisonData.customers.length > 10 && (
+                          {comparisonData.customerDemand.length > 10 && (
                             <div className="text-xs text-muted-foreground text-center py-2 bg-muted/30">
-                              Showing 10 of {comparisonData.customers.length} changed customers
+                              Showing 10 of {comparisonData.customerDemand.length} changed customers
                             </div>
                           )}
+                        </div>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  
+                  {/* Customer Location/Attributes Comparison */}
+                  {comparisonData.customerLocation && comparisonData.customerLocation.length > 0 && (
+                    <Alert className="border-amber-500/30 bg-amber-500/5">
+                      <CheckCircle className="h-4 w-4 text-amber-600" />
+                      <AlertDescription className="mt-2">
+                        <h4 className="font-semibold mb-3 text-amber-600">Customer Location/Attributes Changes</h4>
+                        <div className="bg-background rounded-lg border overflow-hidden">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="w-[30%]">Customer</TableHead>
+                                <TableHead>Field</TableHead>
+                                <TableHead>Old Value</TableHead>
+                                <TableHead className="w-10 text-center"></TableHead>
+                                <TableHead>New Value</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {comparisonData.customerLocation.map((row, idx) => (
+                                <TableRow key={idx}>
+                                  <TableCell className="font-medium">{row.name}</TableCell>
+                                  <TableCell className="text-muted-foreground">{row.field}</TableCell>
+                                  <TableCell className="text-muted-foreground">{String(row.oldValue)}</TableCell>
+                                  <TableCell className="text-center">
+                                    <ArrowRight className="h-4 w-4 text-primary mx-auto" />
+                                  </TableCell>
+                                  <TableCell className="font-semibold text-amber-600">{String(row.newValue)}</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
                         </div>
                       </AlertDescription>
                     </Alert>
@@ -1013,21 +1098,23 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
                           <Table>
                             <TableHeader>
                               <TableRow>
-                                <TableHead>Product Name</TableHead>
-                                <TableHead>Old Base Unit</TableHead>
+                                <TableHead className="w-[30%]">Product Name</TableHead>
+                                <TableHead>Field</TableHead>
+                                <TableHead>Old Value</TableHead>
                                 <TableHead className="w-10 text-center"></TableHead>
-                                <TableHead>New Base Unit</TableHead>
+                                <TableHead>New Value</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
                               {comparisonData.products.map((row, idx) => (
                                 <TableRow key={idx}>
                                   <TableCell className="font-medium">{row.name}</TableCell>
-                                  <TableCell className="text-muted-foreground">{row.oldBaseUnit}</TableCell>
+                                  <TableCell className="text-muted-foreground">{row.field}</TableCell>
+                                  <TableCell className="text-muted-foreground">{String(row.oldValue)}</TableCell>
                                   <TableCell className="text-center">
                                     <ArrowRight className="h-4 w-4 text-primary mx-auto" />
                                   </TableCell>
-                                  <TableCell className="font-semibold text-blue-600">{row.newBaseUnit}</TableCell>
+                                  <TableCell className="font-semibold text-blue-600">{String(row.newValue)}</TableCell>
                                 </TableRow>
                               ))}
                             </TableBody>
