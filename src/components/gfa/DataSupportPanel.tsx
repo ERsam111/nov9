@@ -799,6 +799,14 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
     setInput(""); // Clear input
     setIsLoading(true);
 
+    // Clear any previous transformation plan when in transformation mode
+    if (activeTab === "transformation") {
+      setTransformationPlan(null);
+      setComparisonData(null);
+      setPendingUpdatedData(null);
+      setShowQueryEditor(false);
+    }
+
     try {
       // Save user message to database
       const { error: saveUserError } = await (supabase as any).from("data_support_messages").insert({
@@ -816,10 +824,12 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
             customers,
             products,
             dcs,
+            existingSites,
             settings,
             costBreakdown,
           },
           model: selectedModel,
+          mode: activeTab, // "insights" or "transformation"
         },
       });
 
@@ -852,11 +862,28 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
         throw new Error(data.error);
       }
 
-      const assistantMessage: Message = {
-        role: "assistant",
-        content: data.answer,
-      };
-      setMessages((prev) => [...prev, assistantMessage]);
+      // Handle transformation mode response
+      if (activeTab === "transformation" && data.transformationPlan) {
+        // Show query editor for user to review/edit
+        const queryText = data.transformationPlan.operations
+          .map((op: any) => op.details)
+          .join('\n');
+        setEditableQuery(queryText);
+        setTransformationPlan(data.transformationPlan);
+        setShowQueryEditor(true);
+        
+        const assistantMessage: Message = {
+          role: "assistant",
+          content: data.answer || "I've prepared a transformation plan for your request. Please review and edit it below.",
+        };
+        setMessages((prev) => [...prev, assistantMessage]);
+      } else {
+        const assistantMessage: Message = {
+          role: "assistant",
+          content: data.answer,
+        };
+        setMessages((prev) => [...prev, assistantMessage]);
+      }
 
       // Play received sound
       try {
@@ -869,7 +896,7 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
       await (supabase as any).from("data_support_messages").insert({
         scenario_id: currentScenario.id,
         role: "assistant",
-        content: assistantMessage.content,
+        content: data.answer || "Transformation plan generated",
       });
     } catch (error) {
       console.error("Error:", error);
