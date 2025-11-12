@@ -87,6 +87,7 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
   const [transformationPlan, setTransformationPlan] = useState<TransformationPlan | null>(null);
   const [isExecuting, setIsExecuting] = useState(false);
   const [comparisonData, setComparisonData] = useState<ComparisonData | null>(null);
+  const [pendingUpdatedData, setPendingUpdatedData] = useState<any>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -162,6 +163,7 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
     if (activeTab === "transformation") {
       setTransformationPlan(null);
       setComparisonData(null);
+      setPendingUpdatedData(null);
     }
 
     try {
@@ -448,33 +450,28 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
         
         if (Object.keys(comparison).length > 0) {
           setComparisonData(comparison);
-          
-          // Auto-dismiss comparison after 10 seconds
-          setTimeout(() => {
-            setComparisonData(null);
-          }, 10000);
         }
         
-        // Call the update handler
-        onDataUpdate(data.updatedData);
+        // Store the updated data for later acceptance
+        setPendingUpdatedData(data.updatedData);
         
-        // Add success message
-        const successMessage: Message = {
+        // Add preview message
+        const previewMessage: Message = {
           role: "assistant",
-          content: "✅ Transformation completed successfully! Check the comparison table below to see before/after demand values.",
+          content: "✅ Transformation preview ready! Review the changes below and click 'Accept Changes' to apply them.",
         };
-        setMessages((prev) => [...prev, successMessage]);
+        setMessages((prev) => [...prev, previewMessage]);
 
         // Save to database
         if (currentScenario) {
           await (supabase as any).from("data_support_messages").insert({
             scenario_id: currentScenario.id,
             role: "assistant",
-            content: successMessage.content,
+            content: previewMessage.content,
           });
         }
 
-        toast.success("Transformation complete!");
+        toast.success("Preview generated - review and accept changes");
         setTransformationPlan(null);
 
         // Play success sound
@@ -500,6 +497,69 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
     } finally {
       setIsExecuting(false);
     }
+  };
+
+  const acceptChanges = async () => {
+    if (!pendingUpdatedData || !onDataUpdate) {
+      toast.error("No pending changes to accept");
+      return;
+    }
+
+    // Apply the changes
+    onDataUpdate(pendingUpdatedData);
+    
+    // Add success message
+    const successMessage: Message = {
+      role: "assistant",
+      content: "✅ Changes applied successfully! Your data has been updated.",
+    };
+    setMessages((prev) => [...prev, successMessage]);
+
+    // Save to database
+    if (currentScenario) {
+      await (supabase as any).from("data_support_messages").insert({
+        scenario_id: currentScenario.id,
+        role: "assistant",
+        content: successMessage.content,
+      });
+    }
+
+    // Clear pending data and comparison
+    setPendingUpdatedData(null);
+    setComparisonData(null);
+    
+    toast.success("Changes applied!");
+    
+    // Play success sound
+    try {
+      getSoundEffects().playSuccessSound();
+    } catch (error) {
+      console.log("Could not play sound:", error);
+    }
+  };
+
+  const rejectChanges = async () => {
+    // Add rejection message
+    const rejectMessage: Message = {
+      role: "assistant",
+      content: "❌ Changes rejected. Your original data remains unchanged.",
+    };
+    setMessages((prev) => [...prev, rejectMessage]);
+
+    // Save to database
+    if (currentScenario) {
+      await (supabase as any).from("data_support_messages").insert({
+        scenario_id: currentScenario.id,
+        role: "assistant",
+        content: rejectMessage.content,
+      });
+    }
+
+    // Clear pending data and comparison
+    setPendingUpdatedData(null);
+    setComparisonData(null);
+    
+    toast.info("Changes rejected");
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -1040,15 +1100,26 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
                     </Alert>
                   )}
 
-                  {/* Dismiss Button */}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setComparisonData(null)}
-                    className="w-full"
-                  >
-                    Dismiss All Comparisons
-                  </Button>
+                  {/* Accept/Reject Buttons */}
+                  <div className="flex gap-3">
+                    <Button
+                      onClick={acceptChanges}
+                      className="flex-1 bg-green-600 hover:bg-green-700"
+                      size="lg"
+                    >
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Accept Changes
+                    </Button>
+                    <Button
+                      onClick={rejectChanges}
+                      variant="destructive"
+                      className="flex-1"
+                      size="lg"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Reject Changes
+                    </Button>
+                  </div>
                 </div>
               )}
               
