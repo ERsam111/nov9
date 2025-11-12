@@ -18,69 +18,77 @@ export function executeDataTransformation(plan: TransformationPlan, currentData:
   if (currentData.existingSites) result.existingSites = JSON.parse(JSON.stringify(currentData.existingSites));
   if (currentData.settings) result.settings = JSON.parse(JSON.stringify(currentData.settings));
 
+  console.log("Executing transformation plan:", plan);
+  console.log("Operations count:", plan.operations.length);
+
   // Execute each operation
   for (const operation of plan.operations) {
     const { type, details } = operation;
+    console.log(`Executing operation: ${type} - ${details}`);
     
-    // Parse the operation details to understand what to do
+    // Handle demand multiplication and updates
     if (type === "MULTIPLY" || type === "UPDATE") {
-      // Handle demand multiplication
-      if (details.toLowerCase().includes("demand") && details.toLowerCase().includes("multiply")) {
-        const match = details.match(/(\d+\.?\d*)/);
-        if (match && result.customers) {
-          const multiplier = parseFloat(match[0]);
+      // Handle ALL customer demand multiplication (most common case)
+      if (details.toLowerCase().includes("all") && details.toLowerCase().includes("customer") && details.toLowerCase().includes("demand")) {
+        const percentMatch = details.match(/(\d+\.?\d*)%/);
+        if (percentMatch && result.customers) {
+          const percentage = parseFloat(percentMatch[0]);
+          const multiplier = 1 + (percentage / 100);
+          console.log(`Multiplying all customer demand by ${multiplier}`);
           result.customers = result.customers.map((c: any) => ({
             ...c,
             demand: c.demand * multiplier
           }));
+          console.log(`Updated ${result.customers.length} customers`);
         }
       }
-      
       // Handle specific product demand changes
-      if (details.toLowerCase().includes("product") && result.customers) {
-        const productMatch = details.match(/product\s+['"]?(\w+)['"]?/i);
-        const numberMatch = details.match(/(\d+\.?\d*)%?/);
-        if (productMatch && numberMatch) {
-          const productName = productMatch[1];
-          const percentage = parseFloat(numberMatch[0]);
-          const multiplier = percentage > 10 ? percentage / 100 : 1 + (percentage / 100);
-          
-          result.customers = result.customers.map((c: any) => {
-            if (c.product.toLowerCase().includes(productName.toLowerCase())) {
-              return { ...c, demand: c.demand * multiplier };
-            }
-            return c;
-          });
-        }
-      }
-
-      // Handle specific country changes
-      if (details.toLowerCase().includes("country") && result.customers) {
-        const countryMatch = details.match(/country\s+['"]?(\w+)['"]?/i);
-        const numberMatch = details.match(/(\d+\.?\d*)%?/);
-        if (countryMatch && numberMatch) {
-          const countryName = countryMatch[1];
-          const percentage = parseFloat(numberMatch[0]);
+      else if (details.toLowerCase().includes("product") && result.customers) {
+        const productMatch = details.match(/product\s+['"]?([^'"]+?)['"]?\s/i);
+        const percentMatch = details.match(/(\d+\.?\d*)%/);
+        if (productMatch && percentMatch) {
+          const productName = productMatch[1].trim();
+          const percentage = parseFloat(percentMatch[0]);
           const multiplier = 1 + (percentage / 100);
+          console.log(`Updating demand for product "${productName}" by ${multiplier}`);
           
           result.customers = result.customers.map((c: any) => {
-            if (c.country.toLowerCase().includes(countryName.toLowerCase())) {
+            if (c.product && c.product.toLowerCase().includes(productName.toLowerCase())) {
               return { ...c, demand: c.demand * multiplier };
             }
             return c;
           });
         }
       }
-      
+      // Handle specific country changes
+      else if (details.toLowerCase().includes("country") && result.customers) {
+        const countryMatch = details.match(/country\s+['"]?([^'"]+?)['"]?\s/i) || details.match(/in\s+([A-Z][a-z]+)/);
+        const percentMatch = details.match(/(\d+\.?\d*)%/);
+        if (countryMatch && percentMatch) {
+          const countryName = countryMatch[1].trim();
+          const percentage = parseFloat(percentMatch[0]);
+          const multiplier = 1 + (percentage / 100);
+          console.log(`Updating demand for country "${countryName}" by ${multiplier}`);
+          
+          result.customers = result.customers.map((c: any) => {
+            if (c.country && c.country.toLowerCase().includes(countryName.toLowerCase())) {
+              return { ...c, demand: c.demand * multiplier };
+            }
+            return c;
+          });
+        }
+      }
       // Handle settings updates
-      if (details.toLowerCase().includes("settings") || details.toLowerCase().includes("capacity")) {
+      else if (details.toLowerCase().includes("capacity") || details.toLowerCase().includes("setting")) {
         const numberMatch = details.match(/(\d+\.?\d*)/);
         if (numberMatch && result.settings) {
           const value = parseFloat(numberMatch[0]);
           if (details.toLowerCase().includes("capacity")) {
             result.settings.dcCapacity = value;
-          } else if (details.toLowerCase().includes("numdc") || details.toLowerCase().includes("number")) {
+            console.log(`Updated DC capacity to ${value}`);
+          } else if (details.toLowerCase().includes("numdc") || details.toLowerCase().includes("number of")) {
             result.settings.numDCs = Math.floor(value);
+            console.log(`Updated number of DCs to ${value}`);
           }
         }
       }
@@ -90,38 +98,45 @@ export function executeDataTransformation(plan: TransformationPlan, currentData:
       // Handle adding new customers
       if (details.toLowerCase().includes("customer") && result.customers) {
         const numberMatch = details.match(/(\d+)/);
-        const countryMatch = details.match(/in\s+(\w+)/i) || details.match(/country[:\s]+(\w+)/i);
+        const countryMatch = details.match(/in\s+([A-Z][a-z]+)/i) || details.match(/country[:\s]+([A-Z][a-z]+)/i);
         
         if (numberMatch) {
           const count = parseInt(numberMatch[0]);
           const country = countryMatch ? countryMatch[1] : "Unknown";
+          const defaultProduct = result.products?.[0]?.name || "Product";
+          const defaultUnit = result.products?.[0]?.baseUnit || "unit";
+          
+          console.log(`Adding ${count} new customers in ${country}`);
           
           for (let i = 0; i < count; i++) {
             const newCustomer = {
-              id: `new-${Date.now()}-${i}`,
+              id: `new-${Date.now()}-${i}-${Math.random().toString(36).substr(2, 9)}`,
               name: `New Customer ${i + 1}`,
               city: "To Be Determined",
               country: country,
               latitude: 0,
               longitude: 0,
               demand: 100,
-              product: result.products?.[0]?.name || "Product",
-              unitOfMeasure: result.products?.[0]?.baseUnit || "unit",
+              product: defaultProduct,
+              unitOfMeasure: defaultUnit,
               conversionFactor: 1
             };
             result.customers.push(newCustomer);
           }
+          console.log(`Added ${count} customers, total now: ${result.customers.length}`);
         }
       }
       
       // Handle adding existing sites
-      if (details.toLowerCase().includes("existing site") && result.existingSites) {
-        const cityMatch = details.match(/in\s+(\w+)/i) || details.match(/city[:\s]+(\w+)/i);
+      else if (details.toLowerCase().includes("existing site") || details.toLowerCase().includes("site")) {
+        if (!result.existingSites) result.existingSites = [];
+        
+        const cityMatch = details.match(/in\s+([A-Z][a-z]+)/i) || details.match(/city[:\s]+([A-Z][a-z]+)/i);
         
         if (cityMatch) {
           const city = cityMatch[1];
           const newSite = {
-            id: `new-site-${Date.now()}`,
+            id: `new-site-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             name: `${city} Site`,
             city: city,
             country: "To Be Determined",
@@ -131,15 +146,18 @@ export function executeDataTransformation(plan: TransformationPlan, currentData:
             capacityUnit: result.settings?.capacityUnit || "m3"
           };
           result.existingSites.push(newSite);
+          console.log(`Added existing site in ${city}`);
         }
       }
       
       // Handle adding products
-      if (details.toLowerCase().includes("product") && result.products) {
-        const nameMatch = details.match(/product\s+['"]?(\w+)['"]?/i);
+      else if (details.toLowerCase().includes("product")) {
+        if (!result.products) result.products = [];
+        
+        const nameMatch = details.match(/product\s+['"]?([^'"]+?)['"]?/i);
         
         if (nameMatch) {
-          const productName = nameMatch[1];
+          const productName = nameMatch[1].trim();
           const newProduct = {
             name: productName,
             baseUnit: "unit",
@@ -147,6 +165,7 @@ export function executeDataTransformation(plan: TransformationPlan, currentData:
             unitConversions: {}
           };
           result.products.push(newProduct);
+          console.log(`Added product: ${productName}`);
         }
       }
     }
@@ -154,9 +173,10 @@ export function executeDataTransformation(plan: TransformationPlan, currentData:
     else if (type === "DELETE" || type === "REMOVE") {
       // Handle removing customers
       if (details.toLowerCase().includes("customer") && result.customers) {
-        const idMatch = details.match(/id[:\s]+['"]?(\w+-?\w*)['"]?/i);
-        const cityMatch = details.match(/city[:\s]+['"]?(\w+)['"]?/i);
-        const countryMatch = details.match(/country[:\s]+['"]?(\w+)['"]?/i);
+        const initialCount = result.customers.length;
+        const idMatch = details.match(/id[:\s]+['"]?([^'"\s]+)['"]?/i);
+        const cityMatch = details.match(/city[:\s]+['"]?([^'"\s]+)['"]?/i);
+        const countryMatch = details.match(/country[:\s]+['"]?([^'"\s]+)['"]?/i);
         
         if (idMatch) {
           result.customers = result.customers.filter((c: any) => c.id !== idMatch[1]);
@@ -169,9 +189,17 @@ export function executeDataTransformation(plan: TransformationPlan, currentData:
             !c.country.toLowerCase().includes(countryMatch[1].toLowerCase())
           );
         }
+        console.log(`Removed ${initialCount - result.customers.length} customers`);
       }
     }
   }
   
+  console.log("Transformation complete. Final data:", {
+    customersCount: result.customers?.length || 0,
+    productsCount: result.products?.length || 0,
+    existingSitesCount: result.existingSites?.length || 0
+  });
+  
   return result;
 }
+

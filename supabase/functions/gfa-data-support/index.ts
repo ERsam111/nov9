@@ -14,12 +14,27 @@ serve(async (req) => {
   }
 
   try {
-    const { question, context, model = "gpt-3.5-turbo", mode = "insights" } = await req.json();
+    const requestBody = await req.json();
+    const { question, context, model = "gpt-3.5-turbo", mode = "insights" } = requestBody;
     
     // Handle execute-transformation mode
     if (mode === "execute-transformation") {
-      const { transformationPlan, currentData } = await req.json();
+      const { transformationPlan, currentData } = requestBody;
+      console.log("Executing transformation with plan:", transformationPlan);
+      console.log("Current data before transformation:", {
+        customersCount: currentData.customers?.length || 0,
+        productsCount: currentData.products?.length || 0,
+        existingSitesCount: currentData.existingSites?.length || 0
+      });
+      
       const updatedData = executeDataTransformation(transformationPlan, currentData);
+      
+      console.log("Updated data after transformation:", {
+        customersCount: updatedData.customers?.length || 0,
+        productsCount: updatedData.products?.length || 0,
+        existingSitesCount: updatedData.existingSites?.length || 0
+      });
+      
       return new Response(
         JSON.stringify({ updatedData }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -197,7 +212,7 @@ If asked about visualizations, acknowledge that visualization features will be a
       }
     ];
 
-    const requestBody: any = {
+    const openAIRequestBody: any = {
       model,
       messages: [
         { role: "system", content: systemPrompt },
@@ -215,7 +230,7 @@ If asked about visualizations, acknowledge that visualization features will be a
         Authorization: `Bearer ${OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(requestBody),
+      body: JSON.stringify(openAIRequestBody),
     });
 
     if (!response.ok) {

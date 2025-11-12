@@ -386,6 +386,39 @@ const GFA = () => {
       toast.error("Failed to geocode address");
     }
   };
+
+  // Handle data updates from transformations
+  const handleDataUpdate = (updatedData: {
+    customers?: Customer[];
+    products?: Product[];
+    existingSites?: ExistingSite[];
+    settings?: OptimizationSettings;
+  }) => {
+    console.log("Applying data transformation:", updatedData);
+    
+    if (updatedData.customers) {
+      setCustomers(updatedData.customers);
+      console.log("Updated customers:", updatedData.customers.length);
+    }
+    if (updatedData.products) {
+      setProducts(updatedData.products);
+      console.log("Updated products:", updatedData.products.length);
+    }
+    if (updatedData.existingSites) {
+      setExistingSites(updatedData.existingSites);
+      console.log("Updated existing sites:", updatedData.existingSites.length);
+    }
+    if (updatedData.settings) {
+      setSettings(updatedData.settings);
+      console.log("Updated settings:", updatedData.settings);
+    }
+    
+    // Switch to input tab to show the updated data
+    setActiveTab("input");
+    
+    toast.success("Data transformation completed successfully!");
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {/* Project & Scenario Navigation */}
@@ -482,8 +515,10 @@ const GFA = () => {
               customers={customers} 
               products={products} 
               dcs={dcs} 
+              existingSites={existingSites}
               settings={settings}
               costBreakdown={costBreakdown}
+              onDataUpdate={handleDataUpdate}
             />
             </div>
           </TabsContent>

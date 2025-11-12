@@ -230,9 +230,19 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
   };
 
   const executeTransformation = async () => {
-    if (!transformationPlan || !onDataUpdate) return;
+    if (!transformationPlan || !onDataUpdate) {
+      toast.error("Cannot execute transformation: missing plan or update handler");
+      return;
+    }
 
     setIsExecuting(true);
+    console.log("Starting transformation execution...");
+    console.log("Current data counts:", {
+      customers: customers.length,
+      products: products.length,
+      existingSites: existingSites.length
+    });
+    
     try {
       const { data, error } = await supabase.functions.invoke("gfa-data-support", {
         body: {
@@ -247,29 +257,46 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
         },
       });
 
-      if (error || data?.error) {
-        throw new Error(data?.error || "Failed to execute transformation");
+      console.log("Transformation response:", data);
+      console.log("Transformation error:", error);
+
+      if (error) {
+        console.error("Supabase invocation error:", error);
+        throw new Error(error.message || "Failed to execute transformation");
+      }
+
+      if (data?.error) {
+        console.error("Edge function returned error:", data.error);
+        throw new Error(data.error);
       }
 
       // Update the data in parent component
-      if (data.updatedData) {
+      if (data?.updatedData) {
+        console.log("Received updated data:", {
+          customersCount: data.updatedData.customers?.length || 0,
+          productsCount: data.updatedData.products?.length || 0,
+          existingSitesCount: data.updatedData.existingSites?.length || 0
+        });
+        
         onDataUpdate(data.updatedData);
         
         // Add success message
         const successMessage: Message = {
           role: "assistant",
-          content: "✅ Transformation completed successfully! The input data has been updated.",
+          content: "✅ Transformation completed successfully! The input data has been updated. Check the Input Data tab to see the changes.",
         };
         setMessages((prev) => [...prev, successMessage]);
 
         // Save to database
-        await (supabase as any).from("data_support_messages").insert({
-          scenario_id: currentScenario?.id,
-          role: "assistant",
-          content: successMessage.content,
-        });
+        if (currentScenario) {
+          await (supabase as any).from("data_support_messages").insert({
+            scenario_id: currentScenario.id,
+            role: "assistant",
+            content: successMessage.content,
+          });
+        }
 
-        toast.success("Data transformation completed!");
+        toast.success("Data transformation completed! Check the Input Data tab.");
         setTransformationPlan(null);
 
         // Play success sound
@@ -278,10 +305,19 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
         } catch (error) {
           console.log("Could not play sound:", error);
         }
+      } else {
+        throw new Error("No updated data received from transformation");
       }
     } catch (error) {
       console.error("Error executing transformation:", error);
       toast.error(error instanceof Error ? error.message : "Failed to execute transformation");
+      
+      // Add error message to chat
+      const errorMessage: Message = {
+        role: "assistant",
+        content: `❌ Failed to execute transformation: ${error instanceof Error ? error.message : "Unknown error"}`,
+      };
+      setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsExecuting(false);
     }
