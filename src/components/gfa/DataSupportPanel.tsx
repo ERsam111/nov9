@@ -866,14 +866,13 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
                   </>
                 ) : (
                   <>
-                    <li>• Increase demand for all customers by 10%</li>
-                    <li>• Change demand for product Electronics by 20%</li>
-                    <li>• Rename product 'Widget' to 'SuperWidget'</li>
-                    <li>• Change transportation cost to 5 per mile</li>
-                    <li>• Update DC capacity to 2000 units</li>
-                    <li>• Decrease demand by 50%</li>
-                    <li>• Change facility cost to $150,000</li>
-                    <li>• Update distance unit to miles</li>
+                    <li>• Increase demand for all customers by 20%</li>
+                    <li>• Set selling price to 15 for all products</li>
+                    <li>• Change transportation cost to 0.8 per mile</li>
+                    <li>• Update facility cost to 75000</li>
+                    <li>• Change customer 'New York City 1' city to 'Boston'</li>
+                    <li>• Set latitude 40.7128 and longitude -74.0060 for customer 'Manhattan 1'</li>
+                    <li>• Update unit conversion m3 = 1.5 for product 'Product A'</li>
                   </>
                 )}
               </ul>

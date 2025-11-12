@@ -165,6 +165,176 @@ export function executeDataTransformation(plan: TransformationPlan, currentData:
           }
         }
       }
+      // Handle product selling price updates
+      else if (details.toLowerCase().includes("selling") && details.toLowerCase().includes("price") && result.products) {
+        const priceMatch = details.match(/(\d+\.?\d*)/);
+        const productMatch = details.match(/product\s+['"]?([^'"]+?)['"]?\s/i);
+        
+        if (priceMatch) {
+          const price = parseFloat(priceMatch[0]);
+          
+          if (productMatch) {
+            // Update specific product
+            const productName = productMatch[1].trim();
+            result.products = result.products.map((p: any) => 
+              p.name.toLowerCase().includes(productName.toLowerCase()) 
+                ? { ...p, sellingPrice: price } 
+                : p
+            );
+            console.log(`Updated selling price for product "${productName}" to ${price}`);
+          } else {
+            // Update all products
+            result.products = result.products.map((p: any) => ({ ...p, sellingPrice: price }));
+            console.log(`Updated selling price for all products to ${price}`);
+          }
+        }
+      }
+      // Handle latitude/longitude updates
+      else if ((details.toLowerCase().includes("latitude") || details.toLowerCase().includes("longitude") || 
+                details.toLowerCase().includes("lat") || details.toLowerCase().includes("long")) &&
+               (result.customers || result.existingSites)) {
+        
+        const latMatch = details.match(/lat(?:itude)?[:\s]+(-?\d+\.?\d*)/i);
+        const longMatch = details.match(/long(?:itude)?[:\s]+(-?\d+\.?\d*)/i);
+        const nameMatch = details.match(/(?:customer|site)\s+['"]?([^'"]+?)['"]?\s/i);
+        
+        if (latMatch || longMatch) {
+          const lat = latMatch ? parseFloat(latMatch[1]) : null;
+          const long = longMatch ? parseFloat(longMatch[1]) : null;
+          
+          if (details.toLowerCase().includes("customer") && result.customers) {
+            if (nameMatch) {
+              const name = nameMatch[1].trim();
+              result.customers = result.customers.map((c: any) => {
+                if (c.name.toLowerCase().includes(name.toLowerCase())) {
+                  return {
+                    ...c,
+                    ...(lat !== null && { latitude: lat }),
+                    ...(long !== null && { longitude: long })
+                  };
+                }
+                return c;
+              });
+              console.log(`Updated coordinates for customer "${name}"`);
+            } else {
+              result.customers = result.customers.map((c: any) => ({
+                ...c,
+                ...(lat !== null && { latitude: lat }),
+                ...(long !== null && { longitude: long })
+              }));
+              console.log(`Updated coordinates for all customers`);
+            }
+          }
+          
+          if (details.toLowerCase().includes("site") && result.existingSites) {
+            if (nameMatch) {
+              const name = nameMatch[1].trim();
+              result.existingSites = result.existingSites.map((s: any) => {
+                if (s.name.toLowerCase().includes(name.toLowerCase())) {
+                  return {
+                    ...s,
+                    ...(lat !== null && { latitude: lat }),
+                    ...(long !== null && { longitude: long })
+                  };
+                }
+                return s;
+              });
+              console.log(`Updated coordinates for site "${name}"`);
+            }
+          }
+        }
+      }
+      // Handle city/country updates
+      else if ((details.toLowerCase().includes("city") || details.toLowerCase().includes("country")) &&
+               !details.toLowerCase().includes("demand") &&
+               (result.customers || result.existingSites)) {
+        
+        const cityMatch = details.match(/city[:\s]+['"]?([^'"\n]+?)['"]?(?:\s|$)/i);
+        const countryMatch = details.match(/country[:\s]+['"]?([^'"\n]+?)['"]?(?:\s|$)/i);
+        const nameMatch = details.match(/(?:customer|site)\s+['"]?([^'"]+?)['"]?\s/i);
+        
+        if (cityMatch || countryMatch) {
+          const city = cityMatch ? cityMatch[1].trim() : null;
+          const country = countryMatch ? countryMatch[1].trim() : null;
+          
+          if (details.toLowerCase().includes("customer") && result.customers) {
+            if (nameMatch) {
+              const name = nameMatch[1].trim();
+              result.customers = result.customers.map((c: any) => {
+                if (c.name.toLowerCase().includes(name.toLowerCase())) {
+                  return {
+                    ...c,
+                    ...(city && { city }),
+                    ...(country && { country })
+                  };
+                }
+                return c;
+              });
+              console.log(`Updated location for customer "${name}"`);
+            } else {
+              result.customers = result.customers.map((c: any) => ({
+                ...c,
+                ...(city && { city }),
+                ...(country && { country })
+              }));
+              console.log(`Updated location for all customers`);
+            }
+          }
+          
+          if (details.toLowerCase().includes("site") && result.existingSites) {
+            if (nameMatch) {
+              const name = nameMatch[1].trim();
+              result.existingSites = result.existingSites.map((s: any) => {
+                if (s.name.toLowerCase().includes(name.toLowerCase())) {
+                  return {
+                    ...s,
+                    ...(city && { city }),
+                    ...(country && { country })
+                  };
+                }
+                return s;
+              });
+              console.log(`Updated location for site "${name}"`);
+            }
+          }
+        }
+      }
+      // Handle unit conversion updates for products
+      else if (details.toLowerCase().includes("unit") && details.toLowerCase().includes("conversion") && result.products) {
+        const productMatch = details.match(/product\s+['"]?([^'"]+?)['"]?\s/i);
+        const unitMatch = details.match(/(['"]?[a-zA-Z0-9_]+['"]?)\s*[=:]\s*(\d+\.?\d*)/i);
+        
+        if (unitMatch) {
+          const unitName = unitMatch[1].replace(/['"]/g, '').trim();
+          const conversionFactor = parseFloat(unitMatch[2]);
+          
+          if (productMatch) {
+            const productName = productMatch[1].trim();
+            result.products = result.products.map((p: any) => {
+              if (p.name.toLowerCase().includes(productName.toLowerCase())) {
+                return {
+                  ...p,
+                  unitConversions: {
+                    ...(p.unitConversions || {}),
+                    [unitName]: conversionFactor
+                  }
+                };
+              }
+              return p;
+            });
+            console.log(`Updated unit conversion for product "${productName}": ${unitName} = ${conversionFactor}`);
+          } else {
+            result.products = result.products.map((p: any) => ({
+              ...p,
+              unitConversions: {
+                ...(p.unitConversions || {}),
+                [unitName]: conversionFactor
+              }
+            }));
+            console.log(`Updated unit conversion for all products: ${unitName} = ${conversionFactor}`);
+          }
+        }
+      }
     }
     
     // INSERT, ADD, DELETE, and REMOVE operations are NOT ALLOWED
