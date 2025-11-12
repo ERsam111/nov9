@@ -95,6 +95,7 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
   const [isExecuting, setIsExecuting] = useState(false);
   const [comparisonData, setComparisonData] = useState<ComparisonData | null>(null);
   const [pendingUpdatedData, setPendingUpdatedData] = useState<any>(null);
+  const [beforeSnapshot, setBeforeSnapshot] = useState<any>(null); // Store before data for full preview
   const [editableQuery, setEditableQuery] = useState<string>("");
   const [showQueryEditor, setShowQueryEditor] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -320,31 +321,16 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
       existingSites: existingSites.length
     });
     
-    // Capture "before" snapshots of all data
-    const beforeSnapshot = {
-      customers: customers.map(c => ({ 
-        name: c.name, 
-        demand: c.demand, 
-        city: c.city, 
-        country: c.country, 
-        latitude: c.latitude, 
-        longitude: c.longitude 
-      })),
-      products: products.map(p => ({ 
-        name: p.name, 
-        baseUnit: p.baseUnit, 
-        sellingPrice: p.sellingPrice,
-        unitConversions: p.unitConversions 
-      })),
-      existingSites: existingSites.map(s => ({ 
-        name: s.name, 
-        city: s.city, 
-        country: s.country, 
-        latitude: s.latitude, 
-        longitude: s.longitude 
-      })),
-      settings: { ...settings }
+    // Capture "before" snapshots of all data - STORE ALL COLUMNS
+    const beforeSnapshotData = {
+      customers: JSON.parse(JSON.stringify(customers)), // Full deep copy with all columns
+      products: JSON.parse(JSON.stringify(products)), // Full deep copy with all columns
+      existingSites: JSON.parse(JSON.stringify(existingSites)), // Full deep copy with all columns
+      settings: JSON.parse(JSON.stringify(settings)) // Full deep copy with all fields
     };
+    
+    // Store in state for preview display
+    setBeforeSnapshot(beforeSnapshotData);
     
     try {
       const { data, error } = await supabase.functions.invoke("gfa-data-support", {
@@ -388,7 +374,7 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
         
         // Customer demand comparison
         if (data.updatedData.customers) {
-          const demandChanges = beforeSnapshot.customers.map(before => {
+          const demandChanges = beforeSnapshotData.customers.map(before => {
             const after = data.updatedData.customers.find((c: Customer) => c.name === before.name);
             if (after && after.demand !== before.demand) {
               const change = after.demand - before.demand;
@@ -410,7 +396,7 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
           
           // Customer location/attribute comparison
           const locationChanges = [];
-          for (const before of beforeSnapshot.customers) {
+          for (const before of beforeSnapshotData.customers) {
             const after = data.updatedData.customers.find((c: Customer) => c.name === before.name);
             if (after) {
               if (after.city !== before.city) {
@@ -437,7 +423,7 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
         if (data.updatedData.products) {
           const productChanges = [];
           
-          for (const before of beforeSnapshot.products) {
+          for (const before of beforeSnapshotData.products) {
             const after = data.updatedData.products.find((p: Product) => p.name === before.name);
             if (after) {
               if (after.sellingPrice !== before.sellingPrice) {
@@ -481,7 +467,7 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
           
           // Check for new sites
           for (const after of data.updatedData.existingSites) {
-            const before = beforeSnapshot.existingSites.find(s => s.name === after.name);
+            const before = beforeSnapshotData.existingSites.find(s => s.name === after.name);
             if (!before) {
               siteChanges.push({
                 name: after.name || after.city,
@@ -491,7 +477,7 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
           }
           
           // Check for removed sites
-          for (const before of beforeSnapshot.existingSites) {
+          for (const before of beforeSnapshotData.existingSites) {
             const after = data.updatedData.existingSites.find((s: ExistingSite) => s.name === before.name);
             if (!after) {
               siteChanges.push({
@@ -520,7 +506,7 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
           ];
           
           for (const field of fieldsToCheck) {
-            const oldVal = (beforeSnapshot.settings as any)[field.key];
+            const oldVal = (beforeSnapshotData.settings as any)[field.key];
             const newVal = (data.updatedData.settings as any)[field.key];
             if (oldVal !== newVal) {
               settingsChanges.push({
@@ -1165,9 +1151,115 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
                 </Alert>
               )}
               
-              {/* Before/After Comparison Display - All Data Types */}
+              {/* Before/After Comparison Display - All Data Types with Full Column View */}
               {comparisonData && Object.keys(comparisonData).length > 0 && (
                 <div className="space-y-3">
+                  {/* ALL COLUMNS VIEW SECTION */}
+                  {pendingUpdatedData && (
+                    <Alert className="border-primary/30 bg-primary/5">
+                      <CheckCircle className="h-4 w-4 text-primary" />
+                      <AlertDescription className="mt-2">
+                        <h4 className="font-semibold mb-3 text-primary">Full Data Preview - All Tables & Columns</h4>
+                        <div className="space-y-4 text-xs">
+                          {/* Customers Table - All Columns */}
+                          {pendingUpdatedData.customers && (
+                            <div className="space-y-2">
+                              <h5 className="font-medium text-sm">Customers Table (First 3 rows showing all columns)</h5>
+                              <p className="text-muted-foreground">
+                                Columns: {pendingUpdatedData.customers[0] ? Object.keys(pendingUpdatedData.customers[0]).join(', ') : 'N/A'}
+                              </p>
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <p className="text-xs text-muted-foreground mb-1">Before:</p>
+                                  <pre className="bg-muted p-2 rounded overflow-auto max-h-32 text-xs">
+                                    {JSON.stringify(beforeSnapshot?.customers?.slice(0, 3), null, 2)}
+                                  </pre>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-muted-foreground mb-1">After:</p>
+                                  <pre className="bg-muted p-2 rounded overflow-auto max-h-32 text-xs">
+                                    {JSON.stringify(pendingUpdatedData.customers?.slice(0, 3), null, 2)}
+                                  </pre>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Products Table - All Columns */}
+                          {pendingUpdatedData.products && (
+                            <div className="space-y-2">
+                              <h5 className="font-medium text-sm">Products Table (All products showing all columns)</h5>
+                              <p className="text-muted-foreground">
+                                Columns: {pendingUpdatedData.products[0] ? Object.keys(pendingUpdatedData.products[0]).join(', ') : 'N/A'}
+                              </p>
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <p className="text-xs text-muted-foreground mb-1">Before:</p>
+                                  <pre className="bg-muted p-2 rounded overflow-auto max-h-32 text-xs">
+                                    {JSON.stringify(beforeSnapshot?.products, null, 2)}
+                                  </pre>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-muted-foreground mb-1">After:</p>
+                                  <pre className="bg-muted p-2 rounded overflow-auto max-h-32 text-xs">
+                                    {JSON.stringify(pendingUpdatedData.products, null, 2)}
+                                  </pre>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Existing Sites Table - All Columns */}
+                          {pendingUpdatedData.existingSites && (
+                            <div className="space-y-2">
+                              <h5 className="font-medium text-sm">Existing Sites Table (All sites showing all columns)</h5>
+                              <p className="text-muted-foreground">
+                                Columns: {pendingUpdatedData.existingSites[0] ? Object.keys(pendingUpdatedData.existingSites[0]).join(', ') : 'N/A'}
+                              </p>
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <p className="text-xs text-muted-foreground mb-1">Before:</p>
+                                  <pre className="bg-muted p-2 rounded overflow-auto max-h-32 text-xs">
+                                    {JSON.stringify(beforeSnapshot?.existingSites, null, 2)}
+                                  </pre>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-muted-foreground mb-1">After:</p>
+                                  <pre className="bg-muted p-2 rounded overflow-auto max-h-32 text-xs">
+                                    {JSON.stringify(pendingUpdatedData.existingSites, null, 2)}
+                                  </pre>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Cost Parameters - All Fields */}
+                          {pendingUpdatedData.settings && (
+                            <div className="space-y-2">
+                              <h5 className="font-medium text-sm">Cost Parameters (All fields)</h5>
+                              <p className="text-muted-foreground">
+                                Fields: {Object.keys(pendingUpdatedData.settings).join(', ')}
+                              </p>
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <p className="text-xs text-muted-foreground mb-1">Before:</p>
+                                  <pre className="bg-muted p-2 rounded overflow-auto max-h-32 text-xs">
+                                    {JSON.stringify(beforeSnapshot?.settings, null, 2)}
+                                  </pre>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-muted-foreground mb-1">After:</p>
+                                  <pre className="bg-muted p-2 rounded overflow-auto max-h-32 text-xs">
+                                    {JSON.stringify(pendingUpdatedData.settings, null, 2)}
+                                  </pre>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </AlertDescription>
+                    </Alert>
+                  )}
                   {/* Customer Demand Comparison */}
                   {comparisonData.customerDemand && comparisonData.customerDemand.length > 0 && (
                     <Alert className="border-green-500/30 bg-green-500/5">

@@ -12,11 +12,24 @@ interface TransformationPlan {
 export function executeDataTransformation(plan: TransformationPlan, currentData: any): any {
   const result: any = {};
   
-  // Clone current data to avoid mutations
-  if (currentData.customers) result.customers = JSON.parse(JSON.stringify(currentData.customers));
-  if (currentData.products) result.products = JSON.parse(JSON.stringify(currentData.products));
-  if (currentData.existingSites) result.existingSites = JSON.parse(JSON.stringify(currentData.existingSites));
-  if (currentData.settings) result.settings = JSON.parse(JSON.stringify(currentData.settings));
+  // Clone current data with ALL columns preserved to avoid mutations
+  // Ensure all fields from all tables are visible in transformation results
+  if (currentData.customers) {
+    result.customers = JSON.parse(JSON.stringify(currentData.customers));
+    console.log(`Loaded ${result.customers.length} customers with columns:`, Object.keys(result.customers[0] || {}));
+  }
+  if (currentData.products) {
+    result.products = JSON.parse(JSON.stringify(currentData.products));
+    console.log(`Loaded ${result.products.length} products with columns:`, Object.keys(result.products[0] || {}));
+  }
+  if (currentData.existingSites) {
+    result.existingSites = JSON.parse(JSON.stringify(currentData.existingSites));
+    console.log(`Loaded ${result.existingSites.length} existing sites with columns:`, Object.keys(result.existingSites[0] || {}));
+  }
+  if (currentData.settings) {
+    result.settings = JSON.parse(JSON.stringify(currentData.settings));
+    console.log(`Loaded settings with fields:`, Object.keys(result.settings));
+  }
 
   console.log("Executing transformation plan:", plan);
   console.log("Operations count:", plan.operations.length);
