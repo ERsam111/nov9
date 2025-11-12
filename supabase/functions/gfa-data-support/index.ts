@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { buildComprehensiveContext } from "./data-context-schema.ts";
+import { executeDataTransformation } from "./transformations.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 
 const corsHeaders = {
@@ -13,7 +14,17 @@ serve(async (req) => {
   }
 
   try {
-    const { question, context, model = "gpt-3.5-turbo" } = await req.json();
+    const { question, context, model = "gpt-3.5-turbo", mode = "insights" } = await req.json();
+    
+    // Handle execute-transformation mode
+    if (mode === "execute-transformation") {
+      const { transformationPlan, currentData } = await req.json();
+      const updatedData = executeDataTransformation(transformationPlan, currentData);
+      return new Response(
+        JSON.stringify({ updatedData }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     
     const OPENAI_API_KEY = Deno.env.get("openaiapi");
     if (!OPENAI_API_KEY) {
@@ -31,7 +42,31 @@ serve(async (req) => {
     // This uses the data-context-schema.ts file which documents all columns
     const comprehensiveContext = buildComprehensiveContext(context);
     
-    const systemPrompt = `You are an expert data analyst assistant for a Green Field Analysis (GFA) optimization tool. 
+    const isTransformationMode = mode === "transformation";
+    
+    const systemPrompt = isTransformationMode 
+      ? `You are an expert data transformation assistant for a Green Field Analysis (GFA) optimization tool.
+
+Your role is to help users transform their input data. When users request data changes, you must:
+
+1. Analyze the request and understand what data needs to be changed
+2. Generate a transformation plan using the generate_transformation_plan tool
+3. Be specific about what will change and how
+
+${comprehensiveContext}
+
+IMPORTANT: Always use the generate_transformation_plan tool to create a structured transformation plan that includes:
+- A clear description of what will be transformed
+- Specific operations to be performed (e.g., "UPDATE customers SET demand = demand * 1.10 WHERE country = 'Germany'")
+- List of affected data types (customers, products, existingSites, settings)
+
+Example transformations:
+- "Increase all customer demand by 10%" → UPDATE all customer demand values by multiplying by 1.10
+- "Add 5 new customers in Germany" → INSERT 5 new customer records with Germany as country
+- "Change demand for product X by 20%" → UPDATE customers where product = X, multiply demand by 1.20
+- "Add existing site in Paris" → INSERT new existing site record with Paris location
+- "Update unit conversion for product Y" → UPDATE product Y's unit conversion factors`
+      : `You are an expert data analyst assistant for a Green Field Analysis (GFA) optimization tool.
 
 CRITICAL INSTRUCTION: You have been provided with SUMMARIZED data and pre-calculated statistics. DO NOT recalculate or recount anything - use the EXACT numbers provided in the summaries.
 
@@ -96,6 +131,72 @@ IMPORTANT: When providing city data, always mention that this is based on extern
 
 If asked about visualizations, acknowledge that visualization features will be added later but provide the complete data that would be visualized in a structured format.`;
 
+    const tools = isTransformationMode ? [
+      {
+        type: "function",
+        function: {
+          name: "generate_transformation_plan",
+          description: "Generate a structured transformation plan for modifying GFA input data based on user request",
+          parameters: {
+            type: "object",
+            properties: {
+              description: {
+                type: "string",
+                description: "A clear description of what will be transformed"
+              },
+              operations: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    type: {
+                      type: "string",
+                      description: "The type of operation (e.g., 'UPDATE', 'INSERT', 'DELETE', 'MULTIPLY', 'ADD')"
+                    },
+                    details: {
+                      type: "string",
+                      description: "Detailed description of the operation in SQL-like or plain English format"
+                    }
+                  },
+                  required: ["type", "details"]
+                }
+              },
+              affectedData: {
+                type: "array",
+                items: {
+                  type: "string"
+                },
+                description: "List of data types affected (e.g., 'customers', 'products', 'existingSites', 'settings')"
+              }
+            },
+            required: ["description", "operations", "affectedData"]
+          }
+        }
+      }
+    ] : [
+      {
+        type: "function",
+        function: {
+          name: "web_search",
+          description: "Search the web for real-time information about cities, including population, real estate rates, traffic, infrastructure, weather, and economic data. Use this when users ask about city-specific information.",
+          parameters: {
+            type: "object",
+            properties: {
+              query: {
+                type: "string",
+                description: "The search query to find information (e.g., 'New York City population 2025', 'London commercial real estate price per square foot')"
+              },
+              city: {
+                type: "string",
+                description: "The city name being queried"
+              }
+            },
+            required: ["query", "city"]
+          }
+        }
+      }
+    ];
+
     const requestBody: any = {
       model,
       messages: [
@@ -104,30 +205,8 @@ If asked about visualizations, acknowledge that visualization features will be a
       ],
       max_tokens: 4000,
       temperature: 0.7,
-      tools: [
-        {
-          type: "function",
-          function: {
-            name: "web_search",
-            description: "Search the web for real-time information about cities, including population, real estate rates, traffic, infrastructure, weather, and economic data. Use this when users ask about city-specific information.",
-            parameters: {
-              type: "object",
-              properties: {
-                query: {
-                  type: "string",
-                  description: "The search query to find information (e.g., 'New York City population 2025', 'London commercial real estate price per square foot')"
-                },
-                city: {
-                  type: "string",
-                  description: "The city name being queried"
-                }
-              },
-              required: ["query", "city"]
-            }
-          }
-        }
-      ],
-      tool_choice: "auto"
+      tools,
+      tool_choice: isTransformationMode ? { type: "function", function: { name: "generate_transformation_plan" } } : "auto"
     };
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -164,7 +243,24 @@ If asked about visualizations, acknowledge that visualization features will be a
     if (message.tool_calls && message.tool_calls.length > 0) {
       console.log(`AI requested ${message.tool_calls.length} tool call(s)`);
       
-      // Handle all tool calls
+      // Handle transformation plan generation
+      if (isTransformationMode) {
+        const toolCall = message.tool_calls[0];
+        if (toolCall.function.name === "generate_transformation_plan") {
+          const transformationPlan = JSON.parse(toolCall.function.arguments);
+          console.log("Generated transformation plan:", transformationPlan);
+          
+          return new Response(
+            JSON.stringify({ 
+              answer: "I've prepared a transformation plan for your request. Please review the operations below and click 'Run Transformation' to apply the changes.",
+              transformationPlan 
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+      
+      // Handle all tool calls for insights mode
       const toolResponses = [];
       
       for (const toolCall of message.tool_calls) {

@@ -4,16 +4,27 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Bot, User, Loader2, Trash2, Mic, MicOff } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Send, Bot, User, Loader2, Trash2, Mic, MicOff, Sparkles, Database, Play, CheckCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Customer, Product, DistributionCenter, OptimizationSettings } from "@/types/gfa";
+import { Customer, Product, DistributionCenter, OptimizationSettings, ExistingSite } from "@/types/gfa";
 import { useScenarios } from "@/contexts/ScenarioContext";
 import { getSoundEffects } from "@/utils/soundEffects";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
+}
+
+interface TransformationPlan {
+  description: string;
+  operations: Array<{
+    type: string;
+    details: string;
+  }>;
+  affectedData: string[];
 }
 
 interface DataSupportPanelProps {
@@ -21,22 +32,32 @@ interface DataSupportPanelProps {
   products: Product[];
   dcs: DistributionCenter[];
   settings: OptimizationSettings;
+  existingSites?: ExistingSite[];
   costBreakdown?: {
     totalCost: number;
     transportationCost: number;
     facilityCost: number;
     numSites: number;
   };
+  onDataUpdate?: (updatedData: {
+    customers?: Customer[];
+    products?: Product[];
+    existingSites?: ExistingSite[];
+    settings?: OptimizationSettings;
+  }) => void;
 }
 
-export function DataSupportPanel({ customers, products, dcs, settings, costBreakdown }: DataSupportPanelProps) {
+export function DataSupportPanel({ customers, products, dcs, settings, existingSites = [], costBreakdown, onDataUpdate }: DataSupportPanelProps) {
   const { currentScenario } = useScenarios();
+  const [activeTab, setActiveTab] = useState<"insights" | "transformation">("insights");
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [selectedModel, setSelectedModel] = useState("gpt-4o-mini");
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [transformationPlan, setTransformationPlan] = useState<TransformationPlan | null>(null);
+  const [isExecuting, setIsExecuting] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -108,6 +129,11 @@ export function DataSupportPanel({ customers, products, dcs, settings, costBreak
     setInput("");
     setIsLoading(true);
 
+    // Clear any previous transformation plan when in transformation mode
+    if (activeTab === "transformation") {
+      setTransformationPlan(null);
+    }
+
     try {
       // Save user message to database
       const { error: saveUserError } = await (supabase as any).from("data_support_messages").insert({
@@ -125,10 +151,12 @@ export function DataSupportPanel({ customers, products, dcs, settings, costBreak
             customers,
             products,
             dcs,
+            existingSites,
             settings,
             costBreakdown,
           },
           model: selectedModel,
+          mode: activeTab, // "insights" or "transformation"
         },
       });
 
@@ -162,11 +190,21 @@ export function DataSupportPanel({ customers, products, dcs, settings, costBreak
         throw new Error(data.error);
       }
 
-      const assistantMessage: Message = {
-        role: "assistant",
-        content: data.answer,
-      };
-      setMessages((prev) => [...prev, assistantMessage]);
+      // Handle transformation mode response
+      if (activeTab === "transformation" && data.transformationPlan) {
+        setTransformationPlan(data.transformationPlan);
+        const assistantMessage: Message = {
+          role: "assistant",
+          content: data.answer || "I've prepared a transformation plan for your request. Please review it below.",
+        };
+        setMessages((prev) => [...prev, assistantMessage]);
+      } else {
+        const assistantMessage: Message = {
+          role: "assistant",
+          content: data.answer,
+        };
+        setMessages((prev) => [...prev, assistantMessage]);
+      }
 
       // Play received sound
       try {
@@ -179,7 +217,7 @@ export function DataSupportPanel({ customers, products, dcs, settings, costBreak
       await (supabase as any).from("data_support_messages").insert({
         scenario_id: currentScenario.id,
         role: "assistant",
-        content: assistantMessage.content,
+        content: data.answer || "Transformation plan generated",
       });
     } catch (error) {
       console.error("Error:", error);
@@ -188,6 +226,64 @@ export function DataSupportPanel({ customers, products, dcs, settings, costBreak
       setMessages((prev) => prev.slice(0, -1));
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const executeTransformation = async () => {
+    if (!transformationPlan || !onDataUpdate) return;
+
+    setIsExecuting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("gfa-data-support", {
+        body: {
+          mode: "execute-transformation",
+          transformationPlan,
+          currentData: {
+            customers,
+            products,
+            existingSites,
+            settings,
+          },
+        },
+      });
+
+      if (error || data?.error) {
+        throw new Error(data?.error || "Failed to execute transformation");
+      }
+
+      // Update the data in parent component
+      if (data.updatedData) {
+        onDataUpdate(data.updatedData);
+        
+        // Add success message
+        const successMessage: Message = {
+          role: "assistant",
+          content: "✅ Transformation completed successfully! The input data has been updated.",
+        };
+        setMessages((prev) => [...prev, successMessage]);
+
+        // Save to database
+        await (supabase as any).from("data_support_messages").insert({
+          scenario_id: currentScenario?.id,
+          role: "assistant",
+          content: successMessage.content,
+        });
+
+        toast.success("Data transformation completed!");
+        setTransformationPlan(null);
+
+        // Play success sound
+        try {
+          getSoundEffects().playSuccessSound();
+        } catch (error) {
+          console.log("Could not play sound:", error);
+        }
+      }
+    } catch (error) {
+      console.error("Error executing transformation:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to execute transformation");
+    } finally {
+      setIsExecuting(false);
     }
   };
 
@@ -433,7 +529,7 @@ export function DataSupportPanel({ customers, products, dcs, settings, costBreak
               Data Support Assistant
             </CardTitle>
             <CardDescription className="mt-1">
-              Ask questions about your data, optimization results, and city information
+              Get insights or transform your data with AI assistance
             </CardDescription>
           </div>
           <div className="flex items-center gap-3">
@@ -458,6 +554,20 @@ export function DataSupportPanel({ customers, products, dcs, settings, costBreak
             </Select>
           </div>
         </div>
+        
+        {/* Tabs for Insights and Transformation */}
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "insights" | "transformation")} className="mt-4">
+          <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsTrigger value="insights" className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4" />
+              Insights
+            </TabsTrigger>
+            <TabsTrigger value="transformation" className="flex items-center gap-2">
+              <Database className="h-4 w-4" />
+              Transformation
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
       </CardHeader>
 
       <CardContent className="flex-1 flex flex-col p-0 overflow-hidden">
@@ -467,14 +577,27 @@ export function DataSupportPanel({ customers, products, dcs, settings, costBreak
             <div className="h-full flex flex-col items-center justify-center text-center p-8">
               <Bot className="h-16 w-16 text-muted-foreground/30 mb-4" />
               <h3 className="text-lg font-semibold mb-2">Start a conversation</h3>
-              <p className="text-sm text-muted-foreground max-w-md">Ask questions like:</p>
+              <p className="text-sm text-muted-foreground max-w-md">
+                {activeTab === "insights" ? "Ask questions like:" : "Request data transformations like:"}
+              </p>
               <ul className="text-sm text-muted-foreground mt-3 space-y-1 max-w-md">
-                <li>• How many customers do I have?</li>
-                <li>• What's the total demand across all products?</li>
-                <li>• Which country has the most customers?</li>
-                <li>• Show me the cost breakdown</li>
-                <li>• What's the population of [nearest city]?</li>
-                <li>• What are the real estate rates in [city]?</li>
+                {activeTab === "insights" ? (
+                  <>
+                    <li>• How many customers do I have?</li>
+                    <li>• What's the total demand across all products?</li>
+                    <li>• Which country has the most customers?</li>
+                    <li>• Show me the cost breakdown</li>
+                    <li>• What's the population of [nearest city]?</li>
+                  </>
+                ) : (
+                  <>
+                    <li>• Increase demand for all customers by 10%</li>
+                    <li>• Add 5 new customers in Germany</li>
+                    <li>• Change the demand for product X by 20%</li>
+                    <li>• Add an existing site in Paris</li>
+                    <li>• Update unit conversion for product Y</li>
+                  </>
+                )}
               </ul>
             </div>
           ) : (
@@ -500,6 +623,59 @@ export function DataSupportPanel({ customers, products, dcs, settings, costBreak
                   )}
                 </div>
               ))}
+              
+              {/* Transformation Plan Display */}
+              {transformationPlan && (
+                <Alert className="border-primary/30 bg-primary/5">
+                  <Database className="h-4 w-4" />
+                  <AlertDescription className="mt-2 space-y-3">
+                    <div>
+                      <h4 className="font-semibold mb-2">Transformation Plan:</h4>
+                      <p className="text-sm text-muted-foreground mb-3">{transformationPlan.description}</p>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <h5 className="text-sm font-medium">Operations to be performed:</h5>
+                      {transformationPlan.operations.map((op, idx) => (
+                        <div key={idx} className="bg-background/50 p-3 rounded border">
+                          <p className="text-sm font-mono text-primary mb-1">{op.type}</p>
+                          <p className="text-xs text-muted-foreground">{op.details}</p>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    <div>
+                      <h5 className="text-sm font-medium mb-2">Affected Data:</h5>
+                      <div className="flex flex-wrap gap-2">
+                        {transformationPlan.affectedData.map((data, idx) => (
+                          <span key={idx} className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">
+                            {data}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    <Button 
+                      onClick={executeTransformation} 
+                      disabled={isExecuting}
+                      className="w-full mt-3"
+                    >
+                      {isExecuting ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Executing Transformation...
+                        </>
+                      ) : (
+                        <>
+                          <Play className="h-4 w-4 mr-2" />
+                          Run Transformation
+                        </>
+                      )}
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              )}
+              
               {isLoading && (
                 <div className="flex gap-3 justify-start">
                   <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
