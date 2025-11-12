@@ -168,17 +168,20 @@ export function executeDataTransformation(plan: TransformationPlan, currentData:
             }
           }
           
-          // Handle unit changes
-          const unitMatch = details.match(/unit[:\s]+['"]?([^'"\s]+)['"]?/i);
-          if (unitMatch) {
-            const unit = unitMatch[1].toLowerCase();
-            if (details.toLowerCase().includes("distance")) {
+          // Handle unit changes - only if explicitly changing unit fields with assignment
+          // Match patterns like "distanceUnit = km" or "costUnit: USD" but NOT "transportationCostPerMilePerUnit"
+          const explicitUnitMatch = details.match(/(distanceUnit|capacityUnit|costUnit)\s*[=:]\s*['"]?([^'"\s]+)['"]?/i);
+          if (explicitUnitMatch) {
+            const fieldName = explicitUnitMatch[1].toLowerCase();
+            const unit = explicitUnitMatch[2].toLowerCase();
+            
+            if (fieldName === 'distanceunit') {
               result.settings.distanceUnit = unit;
               console.log(`Updated distance unit to ${unit}`);
-            } else if (details.toLowerCase().includes("capacity")) {
+            } else if (fieldName === 'capacityunit') {
               result.settings.capacityUnit = unit;
               console.log(`Updated capacity unit to ${unit}`);
-            } else if (details.toLowerCase().includes("cost")) {
+            } else if (fieldName === 'costunit') {
               result.settings.costUnit = unit;
               console.log(`Updated cost unit to ${unit}`);
             }
