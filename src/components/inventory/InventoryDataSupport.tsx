@@ -8,49 +8,33 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Send, Trash2, Mic, Square, Wand2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { HistoricalDataPoint, ForecastResult, ForecastGranularity } from "@/types/forecasting";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
 }
 
-interface ForecastingDataSupportProps {
-  historicalData: HistoricalDataPoint[];
-  forecastResults: ForecastResult[];
-  selectedProduct: string;
-  selectedCustomer: string;
-  granularity: ForecastGranularity;
-  forecastPeriods: number;
-  modelParams: Record<string, any>;
+interface InventoryDataSupportProps {
+  scenarioData: any;
+  inputData: any;
+  results: any;
   currentScenario: any;
-  outlierAnalysis?: {
-    count: number;
-    method: string;
-    lowerThreshold: number;
-    upperThreshold: number;
-  };
 }
 
-export function ForecastingDataSupport({
-  historicalData,
-  forecastResults,
-  selectedProduct,
-  selectedCustomer,
-  granularity,
-  forecastPeriods,
-  modelParams,
-  currentScenario,
-  outlierAnalysis
-}: ForecastingDataSupportProps) {
+export function InventoryDataSupport({
+  scenarioData,
+  inputData,
+  results,
+  currentScenario
+}: InventoryDataSupportProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [model, setModel] = useState("google/gemini-2.5-flash");
+  const [model, setModel] = useState("gpt-4o-mini");
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [activeTab, setActiveTab] = useState<string>(() => {
-    return localStorage.getItem('forecasting-data-support-tab') || 'chat';
+    return localStorage.getItem('inventory-data-support-tab') || 'chat';
   });
   const { toast } = useToast();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -58,7 +42,7 @@ export function ForecastingDataSupport({
   const audioChunksRef = useRef<Blob[]>([]);
 
   useEffect(() => {
-    localStorage.setItem('forecasting-data-support-tab', activeTab);
+    localStorage.setItem('inventory-data-support-tab', activeTab);
   }, [activeTab]);
 
   useEffect(() => {
@@ -88,108 +72,6 @@ export function ForecastingDataSupport({
     }
   };
 
-  const buildComprehensiveContext = () => {
-    const uniqueCustomers = Array.from(new Set(historicalData.map(d => d.customer)));
-    const uniqueProducts = Array.from(new Set(historicalData.map(d => d.product)));
-    
-    const dates = historicalData.map(d => d.date).sort((a, b) => a.getTime() - b.getTime());
-    const startDate = dates[0]?.toISOString().split('T')[0];
-    const endDate = dates[dates.length - 1]?.toISOString().split('T')[0];
-
-    const demandByMonth = new Map<string, number>();
-    historicalData.forEach(d => {
-      const monthKey = `${d.date.getFullYear()}-${String(d.date.getMonth() + 1).padStart(2, '0')}`;
-      demandByMonth.set(monthKey, (demandByMonth.get(monthKey) || 0) + d.demand);
-    });
-
-    const monthlyDemands = Array.from(demandByMonth.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-    const maxDemandMonth = monthlyDemands.reduce((max, curr) => curr[1] > max[1] ? curr : max, ['', 0]);
-    const minDemandMonth = monthlyDemands.reduce((min, curr) => curr[1] < min[1] ? curr : min, ['', Infinity]);
-
-    const productDemand = new Map<string, number>();
-    historicalData.forEach(d => {
-      productDemand.set(d.product, (productDemand.get(d.product) || 0) + d.demand);
-    });
-
-    const totalDemand = historicalData.reduce((sum, d) => sum + d.demand, 0);
-    const avgDemand = totalDemand / historicalData.length;
-
-    let context = `# DEMAND FORECASTING DATA CONTEXT\n\n`;
-    
-    context += `## INPUT DATA SUMMARY\n`;
-    context += `- **Total Data Points**: ${historicalData.length}\n`;
-    context += `- **Number of Customers**: ${uniqueCustomers.length}\n`;
-    context += `- **Number of Products**: ${uniqueProducts.length}\n`;
-    context += `- **Date Range**: ${startDate} to ${endDate}\n`;
-    context += `- **Total Demand**: ${Math.round(totalDemand)}\n`;
-    context += `- **Average Demand per Data Point**: ${Math.round(avgDemand)}\n\n`;
-
-    context += `### Customers:\n${uniqueCustomers.map(c => `- ${c}`).join('\n')}\n\n`;
-    context += `### Products:\n${uniqueProducts.map(p => `- ${p}`).join('\n')}\n\n`;
-
-    context += `### Demand by Product:\n`;
-    productDemand.forEach((demand, product) => {
-      context += `- **${product}**: ${Math.round(demand)} units (${((demand/totalDemand)*100).toFixed(1)}% of total)\n`;
-    });
-
-    context += `\n### Monthly Demand Trends:\n`;
-    context += `- **Highest Demand Month**: ${maxDemandMonth[0]} with ${Math.round(maxDemandMonth[1])} units\n`;
-    context += `- **Lowest Demand Month**: ${minDemandMonth[0]} with ${Math.round(minDemandMonth[1])} units\n\n`;
-
-    if (outlierAnalysis) {
-      context += `## OUTLIER ANALYSIS\n`;
-      context += `- **Detection Method**: ${outlierAnalysis.method}\n`;
-      context += `- **Outliers Detected**: ${outlierAnalysis.count} data points\n`;
-      context += `- **Lower Threshold**: ${Math.round(outlierAnalysis.lowerThreshold)}\n`;
-      context += `- **Upper Threshold**: ${Math.round(outlierAnalysis.upperThreshold)}\n\n`;
-    }
-
-    context += `## CURRENT CONFIGURATION\n`;
-    context += `- **Selected Product**: ${selectedProduct || 'Not selected'}\n`;
-    context += `- **Selected Customer**: ${selectedCustomer === 'all' ? 'All Customers' : selectedCustomer}\n`;
-    context += `- **Forecast Granularity**: ${granularity}\n`;
-    context += `- **Forecast Horizon**: ${forecastPeriods} ${granularity === 'daily' ? 'days' : granularity === 'weekly' ? 'weeks' : 'months'}\n\n`;
-
-    if (forecastResults.length > 0) {
-      context += `## FORECASTING MODELS & RESULTS\n\n`;
-      
-      forecastResults.forEach(result => {
-        context += `### ${result.modelName}\n`;
-        context += `- **Model ID**: ${result.modelId}\n`;
-        context += `- **MAPE (Mean Absolute Percentage Error)**: ${result.mape.toFixed(2)}%\n`;
-        context += `- **Recommended**: ${result.isRecommended ? 'Yes ⭐' : 'No'}\n`;
-        
-        const params = modelParams[result.modelId];
-        if (params) {
-          context += `- **Parameters**:\n`;
-          Object.entries(params).forEach(([key, value]) => {
-            context += `  - ${key}: ${value}\n`;
-          });
-        }
-
-        const avgForecast = result.predictions.reduce((sum, p) => sum + p.predicted, 0) / result.predictions.length;
-        context += `- **Average Forecast Value**: ${Math.round(avgForecast)}\n`;
-        context += `- **First 3 Predictions**: ${result.predictions.slice(0, 3).map(p => Math.round(p.predicted)).join(', ')}\n`;
-        context += `- **Last 3 Predictions**: ${result.predictions.slice(-3).map(p => Math.round(p.predicted)).join(', ')}\n\n`;
-      });
-
-      const bestModel = forecastResults.reduce((best, curr) => curr.mape < best.mape ? curr : best);
-      context += `### Best Model (Lowest MAPE)\n`;
-      context += `- **${bestModel.modelName}** with ${bestModel.mape.toFixed(2)}% MAPE\n\n`;
-    }
-
-    context += `## AVAILABLE MODELS INFORMATION\n`;
-    context += `1. **Moving Average**: Simple average of recent periods. Window parameter controls how many periods to average.\n`;
-    context += `2. **Exponential Smoothing**: Weighted average giving more weight to recent observations. Alpha parameter controls smoothing level (0-1).\n`;
-    context += `3. **Weighted Moving Average**: Similar to moving average but with different weights for each period.\n`;
-    context += `4. **Seasonal Naive**: Uses historical seasonal patterns. Season length parameter defines the seasonality cycle.\n`;
-    context += `5. **Holt-Winters**: Advanced method handling trend and seasonality. Alpha, beta, gamma parameters control level, trend, and seasonality smoothing.\n`;
-    context += `6. **Random Forest**: Machine learning ensemble method. Number of trees and window size affect prediction accuracy.\n`;
-    context += `7. **ARIMA**: Statistical method using AutoRegressive Integrated Moving Average. p, d, q parameters control model complexity.\n\n`;
-
-    return context;
-  };
-
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
     if (messages.length >= 100) {
@@ -213,12 +95,18 @@ export function ForecastingDataSupport({
     }
 
     try {
-      const context = buildComprehensiveContext();
+      const context = {
+        scenarioName: scenarioData?.name,
+        scenarioDescription: scenarioData?.description,
+        settings: scenarioData?.settings,
+        inputData,
+        results
+      };
       
-      const { data, error } = await supabase.functions.invoke('forecasting-data-support', {
+      const { data, error } = await supabase.functions.invoke('inventory-data-support', {
         body: {
           question: userMessage,
-          context: { comprehensiveContext: context },
+          context,
           model
         }
       });
@@ -322,8 +210,8 @@ export function ForecastingDataSupport({
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <CardTitle className="text-lg">Forecasting Data Assistant</CardTitle>
-            <CardDescription>Ask questions or transform your forecasting data</CardDescription>
+            <CardTitle className="text-lg">Inventory Data Assistant</CardTitle>
+            <CardDescription>Ask questions or transform your inventory data</CardDescription>
           </div>
           <div className="flex gap-2">
             <Button variant="ghost" size="sm" onClick={handleClearChat}>
@@ -334,10 +222,8 @@ export function ForecastingDataSupport({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="google/gemini-2.5-flash">Gemini 2.5 Flash</SelectItem>
-                <SelectItem value="google/gemini-2.5-pro">Gemini 2.5 Pro</SelectItem>
-                <SelectItem value="openai/gpt-5-mini">GPT-5 Mini</SelectItem>
-                <SelectItem value="openai/gpt-5">GPT-5</SelectItem>
+                <SelectItem value="gpt-4o-mini">GPT-4o Mini</SelectItem>
+                <SelectItem value="gpt-4o">GPT-4o</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -388,7 +274,7 @@ export function ForecastingDataSupport({
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
-                placeholder="Ask about your data, models, or results..."
+                placeholder="Ask about your inventory data, simulation results..."
                 disabled={isLoading || isTranscribing || messages.length >= 100}
                 className="flex-1"
               />
@@ -433,7 +319,7 @@ export function ForecastingDataSupport({
               <div className="p-4 bg-muted/50 rounded-lg">
                 <h4 className="text-sm font-semibold mb-2">Data Transformation</h4>
                 <p className="text-xs text-muted-foreground mb-4">
-                  Coming soon: Transform your historical demand data with natural language commands
+                  Coming soon: Transform your inventory data with natural language commands
                 </p>
               </div>
             </div>
