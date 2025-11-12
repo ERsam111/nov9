@@ -272,12 +272,15 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
 
       // Update the data in parent component
       if (data?.updatedData) {
+        console.log("=== EDGE FUNCTION RETURNED UPDATED DATA ===");
         console.log("Received updated data:", {
           customersCount: data.updatedData.customers?.length || 0,
           productsCount: data.updatedData.products?.length || 0,
           existingSitesCount: data.updatedData.existingSites?.length || 0
         });
+        console.log("First 3 customers from response:", data.updatedData.customers?.slice(0, 3).map((c: any) => ({ name: c.name, demand: c.demand })));
         
+        // Call the update handler
         onDataUpdate(data.updatedData);
         
         // Add success message
@@ -296,7 +299,7 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
           });
         }
 
-        toast.success("Data transformation completed! Check the Input Data tab.");
+        toast.success("Transformation complete! Switching to Input Data tab...");
         setTransformationPlan(null);
 
         // Play success sound
@@ -306,6 +309,7 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
           console.log("Could not play sound:", error);
         }
       } else {
+        console.error("No updated data in response:", data);
         throw new Error("No updated data received from transformation");
       }
     } catch (error) {

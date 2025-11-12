@@ -146,7 +146,9 @@ const GFA = () => {
           settings
         }, true); // Background save, non-blocking
       };
-      saveData();
+      // Add a small delay to prevent overwriting manual updates
+      const timeoutId = setTimeout(saveData, 500);
+      return () => clearTimeout(timeoutId);
     }
   }, [customers, products, existingSites, settings, currentScenario?.id]);
 
@@ -394,29 +396,40 @@ const GFA = () => {
     existingSites?: ExistingSite[];
     settings?: OptimizationSettings;
   }) => {
-    console.log("Applying data transformation:", updatedData);
+    console.log("=== APPLYING DATA TRANSFORMATION ===");
+    console.log("Received updated data:", {
+      customersCount: updatedData.customers?.length,
+      productsCount: updatedData.products?.length,
+      existingSitesCount: updatedData.existingSites?.length
+    });
     
+    // Update all state at once
     if (updatedData.customers) {
+      console.log("Setting customers:", updatedData.customers.length, "items");
+      console.log("First 3 customers demand:", updatedData.customers.slice(0, 3).map(c => ({ name: c.name, demand: c.demand })));
       setCustomers(updatedData.customers);
-      console.log("Updated customers:", updatedData.customers.length);
     }
     if (updatedData.products) {
+      console.log("Setting products:", updatedData.products.length);
       setProducts(updatedData.products);
-      console.log("Updated products:", updatedData.products.length);
     }
     if (updatedData.existingSites) {
+      console.log("Setting existing sites:", updatedData.existingSites.length);
       setExistingSites(updatedData.existingSites);
-      console.log("Updated existing sites:", updatedData.existingSites.length);
     }
     if (updatedData.settings) {
+      console.log("Setting settings");
       setSettings(updatedData.settings);
-      console.log("Updated settings:", updatedData.settings);
     }
     
-    // Switch to input tab to show the updated data
-    setActiveTab("input");
+    // Force a re-render by switching tabs
+    setActiveTab("data-support");
+    setTimeout(() => {
+      console.log("Switching to input tab to show updated data");
+      setActiveTab("input");
+    }, 100);
     
-    toast.success("Data transformation completed successfully!");
+    toast.success("Data updated! Check the Input Data tab to see changes.");
   };
 
   return (
