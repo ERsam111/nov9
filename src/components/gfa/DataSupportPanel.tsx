@@ -1004,6 +1004,48 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
                       </p>
                     </div>
                     
+                    {/* Table and Column Reference */}
+                    <div className="bg-background/80 border rounded-lg p-3 text-xs space-y-2">
+                      <p className="font-semibold text-muted-foreground">Available Tables & Columns:</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <p className="font-medium text-primary mb-1">customers table:</p>
+                          <ul className="text-muted-foreground space-y-0.5 ml-2">
+                            <li>• demand (number)</li>
+                            <li>• city (text)</li>
+                            <li>• country (text)</li>
+                            <li>• latitude (number)</li>
+                            <li>• longitude (number)</li>
+                          </ul>
+                        </div>
+                        <div>
+                          <p className="font-medium text-primary mb-1">products table:</p>
+                          <ul className="text-muted-foreground space-y-0.5 ml-2">
+                            <li>• sellingPrice (number)</li>
+                            <li>• baseUnit (text)</li>
+                            <li>• name (text)</li>
+                          </ul>
+                        </div>
+                        <div>
+                          <p className="font-medium text-primary mb-1">settings table:</p>
+                          <ul className="text-muted-foreground space-y-0.5 ml-2">
+                            <li>• dcCapacity (number)</li>
+                            <li>• numDCs (number)</li>
+                            <li>• transportationCostPerMilePerUnit</li>
+                            <li>• facilityCost (number)</li>
+                          </ul>
+                        </div>
+                        <div>
+                          <p className="font-medium text-primary mb-1">Examples:</p>
+                          <ul className="text-muted-foreground space-y-0.5 ml-2">
+                            <li>• UPDATE customers SET demand = demand * 1.5</li>
+                            <li>• UPDATE products SET sellingPrice = 10</li>
+                            <li>• UPDATE settings SET facilityCost = 50000</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                    
                     <Textarea
                       value={editableQuery}
                       onChange={(e) => setEditableQuery(e.target.value)}
@@ -1025,7 +1067,7 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
                         ) : (
                           <>
                             <Play className="h-4 w-4 mr-2" />
-                            Apply Transformation
+                            Execute & Preview Changes
                           </>
                         )}
                       </Button>
