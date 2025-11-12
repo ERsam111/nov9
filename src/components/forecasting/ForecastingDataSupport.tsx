@@ -9,6 +9,7 @@ import { Send, Trash2, Mic, Square, Wand2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { HistoricalDataPoint, ForecastResult, ForecastGranularity } from "@/types/forecasting";
+import { ForecastingTransformation } from "./ForecastingTransformation";
 
 interface Message {
   role: "user" | "assistant";
@@ -30,6 +31,7 @@ interface ForecastingDataSupportProps {
     lowerThreshold: number;
     upperThreshold: number;
   };
+  onDataUpdate?: (updatedData: { historicalData: HistoricalDataPoint[] }) => void;
 }
 
 export function ForecastingDataSupport({
@@ -41,7 +43,8 @@ export function ForecastingDataSupport({
   forecastPeriods,
   modelParams,
   currentScenario,
-  outlierAnalysis
+  outlierAnalysis,
+  onDataUpdate
 }: ForecastingDataSupportProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -429,14 +432,11 @@ export function ForecastingDataSupport({
           </TabsContent>
 
           <TabsContent value="transform" className="flex-1 overflow-auto mt-3">
-            <div className="space-y-4">
-              <div className="p-4 bg-muted/50 rounded-lg">
-                <h4 className="text-sm font-semibold mb-2">Data Transformation</h4>
-                <p className="text-xs text-muted-foreground mb-4">
-                  Coming soon: Transform your historical demand data with natural language commands
-                </p>
-              </div>
-            </div>
+            <ForecastingTransformation
+              historicalData={historicalData}
+              onDataUpdate={onDataUpdate}
+              model={model}
+            />
           </TabsContent>
         </Tabs>
       </CardContent>

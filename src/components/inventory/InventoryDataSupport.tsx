@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Send, Trash2, Mic, Square, Wand2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { InventoryTransformation } from "./InventoryTransformation";
 
 interface Message {
   role: "user" | "assistant";
@@ -19,13 +20,15 @@ interface InventoryDataSupportProps {
   inputData: any;
   results: any;
   currentScenario: any;
+  onDataUpdate?: (updatedData: any) => void;
 }
 
 export function InventoryDataSupport({
   scenarioData,
   inputData,
   results,
-  currentScenario
+  currentScenario,
+  onDataUpdate
 }: InventoryDataSupportProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -315,14 +318,11 @@ export function InventoryDataSupport({
           </TabsContent>
 
           <TabsContent value="transform" className="flex-1 overflow-auto mt-3">
-            <div className="space-y-4">
-              <div className="p-4 bg-muted/50 rounded-lg">
-                <h4 className="text-sm font-semibold mb-2">Data Transformation</h4>
-                <p className="text-xs text-muted-foreground mb-4">
-                  Coming soon: Transform your inventory data with natural language commands
-                </p>
-              </div>
-            </div>
+            <InventoryTransformation
+              inputData={inputData}
+              onDataUpdate={onDataUpdate}
+              model={model}
+            />
           </TabsContent>
         </Tabs>
       </CardContent>

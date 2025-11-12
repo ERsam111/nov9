@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { executeDataTransformation } from "./transformations.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,9 +12,89 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { question, context, model = "gpt-4o-mini" } = await req.json();
+    const { question, context, model = "gpt-4o-mini", action, transformationPlan, currentData } = await req.json();
     const openaiApiKey = Deno.env.get("openaiapi");
+    
+    // Handle transformation execution
+    if (action === 'executeTransformation' && transformationPlan && currentData) {
+      console.log("Executing transformation with plan:", transformationPlan);
+      
+      try {
+        const updatedData = executeDataTransformation(transformationPlan, currentData);
+        
+        console.log("Transformation complete");
+        
+        return new Response(
+          JSON.stringify({ updatedData }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (error) {
+        console.error("Transformation error:", error);
+        return new Response(
+          JSON.stringify({ error: error instanceof Error ? error.message : "Transformation failed" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+    
+    // Handle transformation plan generation
+    if (action === 'generateTransformationPlan') {
+      if (!openaiApiKey) {
+        throw new Error("OpenAI API key not configured");
+      }
 
+      console.log("Generating transformation plan for:", question);
+      
+      const planPrompt = `You are a data transformation specialist. Generate a transformation plan for inventory optimization data.
+
+AVAILABLE TABLES:
+- customerData, facilityData, productData, customerFulfillmentData, replenishmentData
+- productionData, inventoryPolicyData, warehousingData, orderFulfillmentData
+- transportationData, transportationModeData, customerOrderData, bomData, settings
+
+USER REQUEST: ${question}
+
+Generate a JSON transformation plan with this structure:
+{
+  "description": "Brief description of what will change",
+  "operations": [
+    { "type": "UPDATE", "details": "UPDATE customerData SET demand = demand * 1.5" }
+  ],
+  "affectedData": ["customerData"]
+}
+
+Use SQL UPDATE syntax. Support WHERE clauses for filtering.
+Return ONLY valid JSON, no other text.`;
+
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${openaiApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: model,
+          messages: [{ role: "user", content: planPrompt }],
+          temperature: 0.7,
+          max_tokens: 1000,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`OpenAI API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const planText = data.choices[0].message.content;
+      const jsonMatch = planText.match(/\{[\s\S]*\}/);
+      const plan = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(planText);
+
+      return new Response(
+        JSON.stringify({ plan }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
     if (!openaiApiKey) {
       throw new Error("OpenAI API key not configured");
     }
@@ -23,7 +104,7 @@ Deno.serve(async (req) => {
     console.log("Inventory Data Support - Context keys:", Object.keys(context));
 
     // Build comprehensive context about the inventory optimization
-    const systemPrompt = `You are an expert inventory optimization assistant analyzing simulation-based multi-echelon supply chain data. 
+    const systemPrompt = `You are an expert inventory optimization assistant analyzing simulation-based multi-echelon supply chain data.
 
 SCENARIO INFORMATION:
 - Scenario Name: ${context.scenarioName || "N/A"}
