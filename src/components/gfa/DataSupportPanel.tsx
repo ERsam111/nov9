@@ -29,13 +29,30 @@ interface TransformationPlan {
 }
 
 interface ComparisonData {
-  customers: Array<{
+  customers?: Array<{
     name: string;
     oldDemand: number;
     newDemand: number;
     change: number;
     changePercent: number;
   }>;
+  products?: Array<{
+    name: string;
+    oldBaseUnit: string;
+    newBaseUnit: string;
+    changed: boolean;
+  }>;
+  existingSites?: Array<{
+    name: string;
+    action: 'added' | 'removed';
+  }>;
+  settings?: {
+    changes: Array<{
+      field: string;
+      oldValue: any;
+      newValue: any;
+    }>;
+  };
 }
 
 interface DataSupportPanelProps {
@@ -256,11 +273,13 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
       existingSites: existingSites.length
     });
     
-    // Capture "before" snapshot of customer demands
-    const beforeSnapshot = customers.map(c => ({
-      name: c.name,
-      demand: c.demand
-    }));
+    // Capture "before" snapshots of all data
+    const beforeSnapshot = {
+      customers: customers.map(c => ({ name: c.name, demand: c.demand })),
+      products: products.map(p => ({ name: p.name, baseUnit: p.baseUnit })),
+      existingSites: existingSites.map(s => ({ name: s.name, city: s.city })),
+      settings: { ...settings }
+    };
     
     try {
       const { data, error } = await supabase.functions.invoke("gfa-data-support", {
@@ -299,31 +318,135 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
         });
         console.log("First 3 customers from response:", data.updatedData.customers?.slice(0, 3).map((c: any) => ({ name: c.name, demand: c.demand })));
         
-        // Generate comparison data
+        // Generate comparison data for all affected data types
+        const comparison: ComparisonData = {};
+        
+        // Customer comparison
         if (data.updatedData.customers) {
-          const comparison: ComparisonData = {
-            customers: beforeSnapshot.map(before => {
-              const after = data.updatedData.customers.find((c: Customer) => c.name === before.name);
-              if (after) {
-                const change = after.demand - before.demand;
-                const changePercent = before.demand !== 0 ? ((change / before.demand) * 100) : 0;
-                return {
-                  name: before.name,
-                  oldDemand: before.demand,
-                  newDemand: after.demand,
-                  change,
-                  changePercent
-                };
-              }
+          const customerChanges = beforeSnapshot.customers.map(before => {
+            const after = data.updatedData.customers.find((c: Customer) => c.name === before.name);
+            if (after) {
+              const change = after.demand - before.demand;
+              const changePercent = before.demand !== 0 ? ((change / before.demand) * 100) : 0;
               return {
                 name: before.name,
                 oldDemand: before.demand,
-                newDemand: before.demand,
-                change: 0,
-                changePercent: 0
+                newDemand: after.demand,
+                change,
+                changePercent
               };
-            }).filter(c => c.change !== 0) // Only show rows with changes
-          };
+            }
+            return {
+              name: before.name,
+              oldDemand: before.demand,
+              newDemand: before.demand,
+              change: 0,
+              changePercent: 0
+            };
+          }).filter(c => c.change !== 0);
+          
+          if (customerChanges.length > 0) {
+            comparison.customers = customerChanges;
+          }
+        }
+        
+        // Product comparison
+        if (data.updatedData.products) {
+          const productChanges = [];
+          
+          // Check for modified products
+          for (const before of beforeSnapshot.products) {
+            const after = data.updatedData.products.find((p: Product) => p.name === before.name);
+            if (after && after.baseUnit !== before.baseUnit) {
+              productChanges.push({
+                name: before.name,
+                oldBaseUnit: before.baseUnit,
+                newBaseUnit: after.baseUnit,
+                changed: true
+              });
+            }
+          }
+          
+          // Check for new products
+          for (const after of data.updatedData.products) {
+            const before = beforeSnapshot.products.find(p => p.name === after.name);
+            if (!before) {
+              productChanges.push({
+                name: after.name,
+                oldBaseUnit: "(new)",
+                newBaseUnit: after.baseUnit,
+                changed: true
+              });
+            }
+          }
+          
+          if (productChanges.length > 0) {
+            comparison.products = productChanges;
+          }
+        }
+        
+        // Existing sites comparison
+        if (data.updatedData.existingSites) {
+          const siteChanges = [];
+          
+          // Check for new sites
+          for (const after of data.updatedData.existingSites) {
+            const before = beforeSnapshot.existingSites.find(s => s.name === after.name);
+            if (!before) {
+              siteChanges.push({
+                name: after.name || after.city,
+                action: 'added' as const
+              });
+            }
+          }
+          
+          // Check for removed sites
+          for (const before of beforeSnapshot.existingSites) {
+            const after = data.updatedData.existingSites.find((s: ExistingSite) => s.name === before.name);
+            if (!after) {
+              siteChanges.push({
+                name: before.name,
+                action: 'removed' as const
+              });
+            }
+          }
+          
+          if (siteChanges.length > 0) {
+            comparison.existingSites = siteChanges;
+          }
+        }
+        
+        // Settings comparison
+        if (data.updatedData.settings) {
+          const settingsChanges = [];
+          const fieldsToCheck = [
+            { key: 'dcCapacity', label: 'DC Capacity' },
+            { key: 'numDCs', label: 'Number of DCs' },
+            { key: 'transportationCostPerMilePerUnit', label: 'Transportation Cost' },
+            { key: 'facilityCost', label: 'Facility Cost' },
+            { key: 'distanceUnit', label: 'Distance Unit' },
+            { key: 'capacityUnit', label: 'Capacity Unit' },
+            { key: 'costUnit', label: 'Cost Unit' }
+          ];
+          
+          for (const field of fieldsToCheck) {
+            const oldVal = (beforeSnapshot.settings as any)[field.key];
+            const newVal = (data.updatedData.settings as any)[field.key];
+            if (oldVal !== newVal) {
+              settingsChanges.push({
+                field: field.label,
+                oldValue: oldVal,
+                newValue: newVal
+              });
+            }
+          }
+          
+          if (settingsChanges.length > 0) {
+            comparison.settings = { changes: settingsChanges };
+          }
+        }
+        
+        if (Object.keys(comparison).length > 0) {
           setComparisonData(comparison);
         }
         
@@ -763,59 +886,164 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
                 </Alert>
               )}
               
-              {/* Before/After Comparison Display */}
-              {comparisonData && comparisonData.customers.length > 0 && (
-                <Alert className="border-green-500/30 bg-green-500/5">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                  <AlertDescription className="mt-2">
-                    <h4 className="font-semibold mb-3 text-green-600">Transformation Complete - Before/After Comparison</h4>
-                    <div className="bg-background rounded-lg border overflow-hidden">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="w-[30%]">Customer</TableHead>
-                            <TableHead className="text-right">Old Demand</TableHead>
-                            <TableHead className="w-10 text-center"></TableHead>
-                            <TableHead className="text-right">New Demand</TableHead>
-                            <TableHead className="text-right">Change</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {comparisonData.customers.slice(0, 10).map((row, idx) => (
-                            <TableRow key={idx}>
-                              <TableCell className="font-medium">{row.name}</TableCell>
-                              <TableCell className="text-right text-muted-foreground">
-                                {row.oldDemand.toFixed(2)}
-                              </TableCell>
-                              <TableCell className="text-center">
-                                <ArrowRight className="h-4 w-4 text-primary mx-auto" />
-                              </TableCell>
-                              <TableCell className="text-right font-semibold">
-                                {row.newDemand.toFixed(2)}
-                              </TableCell>
-                              <TableCell className={`text-right font-medium ${row.change > 0 ? 'text-green-600' : row.change < 0 ? 'text-red-600' : ''}`}>
-                                {row.change > 0 ? '+' : ''}{row.change.toFixed(2)} ({row.changePercent > 0 ? '+' : ''}{row.changePercent.toFixed(1)}%)
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                      {comparisonData.customers.length > 10 && (
-                        <div className="text-xs text-muted-foreground text-center py-2 bg-muted/30">
-                          Showing 10 of {comparisonData.customers.length} changed customers
+              {/* Before/After Comparison Display - All Data Types */}
+              {comparisonData && Object.keys(comparisonData).length > 0 && (
+                <div className="space-y-3">
+                  {/* Customer Demand Comparison */}
+                  {comparisonData.customers && comparisonData.customers.length > 0 && (
+                    <Alert className="border-green-500/30 bg-green-500/5">
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      <AlertDescription className="mt-2">
+                        <h4 className="font-semibold mb-3 text-green-600">Customer Demand Changes</h4>
+                        <div className="bg-background rounded-lg border overflow-hidden">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="w-[30%]">Customer</TableHead>
+                                <TableHead className="text-right">Old Demand</TableHead>
+                                <TableHead className="w-10 text-center"></TableHead>
+                                <TableHead className="text-right">New Demand</TableHead>
+                                <TableHead className="text-right">Change</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {comparisonData.customers.slice(0, 10).map((row, idx) => (
+                                <TableRow key={idx}>
+                                  <TableCell className="font-medium">{row.name}</TableCell>
+                                  <TableCell className="text-right text-muted-foreground">
+                                    {row.oldDemand.toFixed(2)}
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    <ArrowRight className="h-4 w-4 text-primary mx-auto" />
+                                  </TableCell>
+                                  <TableCell className="text-right font-semibold">
+                                    {row.newDemand.toFixed(2)}
+                                  </TableCell>
+                                  <TableCell className={`text-right font-medium ${row.change > 0 ? 'text-green-600' : row.change < 0 ? 'text-red-600' : ''}`}>
+                                    {row.change > 0 ? '+' : ''}{row.change.toFixed(2)} ({row.changePercent > 0 ? '+' : ''}{row.changePercent.toFixed(1)}%)
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                          {comparisonData.customers.length > 10 && (
+                            <div className="text-xs text-muted-foreground text-center py-2 bg-muted/30">
+                              Showing 10 of {comparisonData.customers.length} changed customers
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setComparisonData(null)}
-                      className="w-full mt-3"
-                    >
-                      Dismiss Comparison
-                    </Button>
-                  </AlertDescription>
-                </Alert>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {/* Product Changes */}
+                  {comparisonData.products && comparisonData.products.length > 0 && (
+                    <Alert className="border-blue-500/30 bg-blue-500/5">
+                      <CheckCircle className="h-4 w-4 text-blue-600" />
+                      <AlertDescription className="mt-2">
+                        <h4 className="font-semibold mb-3 text-blue-600">Product Changes</h4>
+                        <div className="bg-background rounded-lg border overflow-hidden">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Product Name</TableHead>
+                                <TableHead>Old Base Unit</TableHead>
+                                <TableHead className="w-10 text-center"></TableHead>
+                                <TableHead>New Base Unit</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {comparisonData.products.map((row, idx) => (
+                                <TableRow key={idx}>
+                                  <TableCell className="font-medium">{row.name}</TableCell>
+                                  <TableCell className="text-muted-foreground">{row.oldBaseUnit}</TableCell>
+                                  <TableCell className="text-center">
+                                    <ArrowRight className="h-4 w-4 text-primary mx-auto" />
+                                  </TableCell>
+                                  <TableCell className="font-semibold text-blue-600">{row.newBaseUnit}</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {/* Existing Sites Changes */}
+                  {comparisonData.existingSites && comparisonData.existingSites.length > 0 && (
+                    <Alert className="border-purple-500/30 bg-purple-500/5">
+                      <CheckCircle className="h-4 w-4 text-purple-600" />
+                      <AlertDescription className="mt-2">
+                        <h4 className="font-semibold mb-3 text-purple-600">Existing Sites Changes</h4>
+                        <div className="bg-background rounded-lg border overflow-hidden">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Site Name</TableHead>
+                                <TableHead>Action</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {comparisonData.existingSites.map((row, idx) => (
+                                <TableRow key={idx}>
+                                  <TableCell className="font-medium">{row.name}</TableCell>
+                                  <TableCell className={row.action === 'added' ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
+                                    {row.action === 'added' ? '✓ Added' : '✗ Removed'}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {/* Cost Parameters Changes */}
+                  {comparisonData.settings && comparisonData.settings.changes.length > 0 && (
+                    <Alert className="border-orange-500/30 bg-orange-500/5">
+                      <CheckCircle className="h-4 w-4 text-orange-600" />
+                      <AlertDescription className="mt-2">
+                        <h4 className="font-semibold mb-3 text-orange-600">Cost Parameters Changes</h4>
+                        <div className="bg-background rounded-lg border overflow-hidden">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Parameter</TableHead>
+                                <TableHead>Old Value</TableHead>
+                                <TableHead className="w-10 text-center"></TableHead>
+                                <TableHead>New Value</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {comparisonData.settings.changes.map((row, idx) => (
+                                <TableRow key={idx}>
+                                  <TableCell className="font-medium">{row.field}</TableCell>
+                                  <TableCell className="text-muted-foreground">{String(row.oldValue)}</TableCell>
+                                  <TableCell className="text-center">
+                                    <ArrowRight className="h-4 w-4 text-primary mx-auto" />
+                                  </TableCell>
+                                  <TableCell className="font-semibold text-orange-600">{String(row.newValue)}</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {/* Dismiss Button */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setComparisonData(null)}
+                    className="w-full"
+                  >
+                    Dismiss All Comparisons
+                  </Button>
+                </div>
               )}
               
               {isLoading && (

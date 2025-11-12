@@ -119,17 +119,49 @@ export function executeDataTransformation(plan: TransformationPlan, currentData:
           });
         }
       }
-      // Handle settings updates
-      else if (details.toLowerCase().includes("capacity") || details.toLowerCase().includes("setting")) {
-        const numberMatch = details.match(/(\d+\.?\d*)/);
-        if (numberMatch && result.settings) {
-          const value = parseFloat(numberMatch[0]);
-          if (details.toLowerCase().includes("capacity")) {
+      // Handle settings/cost parameters updates
+      else if (details.toLowerCase().includes("capacity") || 
+               details.toLowerCase().includes("transportation") || 
+               details.toLowerCase().includes("facility") ||
+               details.toLowerCase().includes("cost") ||
+               details.toLowerCase().includes("setting")) {
+        
+        if (result.settings) {
+          // Extract numeric value
+          const numberMatch = details.match(/(\d+\.?\d*)/);
+          const value = numberMatch ? parseFloat(numberMatch[0]) : null;
+          
+          if (details.toLowerCase().includes("capacity") && value !== null) {
             result.settings.dcCapacity = value;
             console.log(`Updated DC capacity to ${value}`);
-          } else if (details.toLowerCase().includes("numdc") || details.toLowerCase().includes("number of")) {
+          } 
+          else if ((details.toLowerCase().includes("numdc") || details.toLowerCase().includes("number of")) && value !== null) {
             result.settings.numDCs = Math.floor(value);
             console.log(`Updated number of DCs to ${value}`);
+          }
+          else if (details.toLowerCase().includes("transportation") && details.toLowerCase().includes("cost") && value !== null) {
+            result.settings.transportationCostPerMilePerUnit = value;
+            console.log(`Updated transportation cost to ${value}`);
+          }
+          else if (details.toLowerCase().includes("facility") && details.toLowerCase().includes("cost") && value !== null) {
+            result.settings.facilityCost = value;
+            console.log(`Updated facility cost to ${value}`);
+          }
+          
+          // Handle unit changes
+          const unitMatch = details.match(/unit[:\s]+['"]?([^'"\s]+)['"]?/i);
+          if (unitMatch) {
+            const unit = unitMatch[1].toLowerCase();
+            if (details.toLowerCase().includes("distance")) {
+              result.settings.distanceUnit = unit;
+              console.log(`Updated distance unit to ${unit}`);
+            } else if (details.toLowerCase().includes("capacity")) {
+              result.settings.capacityUnit = unit;
+              console.log(`Updated capacity unit to ${unit}`);
+            } else if (details.toLowerCase().includes("cost")) {
+              result.settings.costUnit = unit;
+              console.log(`Updated cost unit to ${unit}`);
+            }
           }
         }
       }
@@ -168,45 +200,83 @@ export function executeDataTransformation(plan: TransformationPlan, currentData:
         }
       }
       
-      // Handle adding existing sites
-      else if (details.toLowerCase().includes("existing site") || details.toLowerCase().includes("site")) {
+      // Handle adding existing sites - parse SQL INSERT or natural language
+      else if (details.toLowerCase().includes("existing") && details.toLowerCase().includes("site")) {
         if (!result.existingSites) result.existingSites = [];
         
-        const cityMatch = details.match(/in\s+([A-Z][a-z]+)/i) || details.match(/city[:\s]+([A-Z][a-z]+)/i);
-        
-        if (cityMatch) {
-          const city = cityMatch[1];
+        // Try SQL INSERT pattern: INSERT INTO existingSites (lat, lng, city, country) VALUES (lat, lng, 'city', 'country')
+        const sqlMatch = details.match(/VALUES\s*\(\s*([-\d.]+)\s*,\s*([-\d.]+)\s*,\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]+)['"]\s*\)/i);
+        if (sqlMatch) {
+          const [_, lat, lng, city, country] = sqlMatch;
           const newSite = {
             id: `new-site-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             name: `${city} Site`,
             city: city,
-            country: "To Be Determined",
-            latitude: 0,
-            longitude: 0,
+            country: country,
+            latitude: parseFloat(lat),
+            longitude: parseFloat(lng),
             capacity: result.settings?.dcCapacity || 1000,
             capacityUnit: result.settings?.capacityUnit || "m3"
           };
           result.existingSites.push(newSite);
-          console.log(`Added existing site in ${city}`);
+          console.log(`Added existing site: ${city}, ${country} at (${lat}, ${lng})`);
+        } else {
+          // Fallback: natural language pattern
+          const cityMatch = details.match(/in\s+([A-Z][a-z]+)/i) || details.match(/city[:\s]+([A-Z][a-z]+)/i);
+          const latMatch = details.match(/lat(?:itude)?[:\s]+([-\d.]+)/i);
+          const lngMatch = details.match(/lon(?:g|gitude)?[:\s]+([-\d.]+)/i);
+          
+          if (cityMatch) {
+            const city = cityMatch[1];
+            const newSite = {
+              id: `new-site-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              name: `${city} Site`,
+              city: city,
+              country: "To Be Determined",
+              latitude: latMatch ? parseFloat(latMatch[1]) : 0,
+              longitude: lngMatch ? parseFloat(lngMatch[1]) : 0,
+              capacity: result.settings?.dcCapacity || 1000,
+              capacityUnit: result.settings?.capacityUnit || "m3"
+            };
+            result.existingSites.push(newSite);
+            console.log(`Added existing site in ${city}`);
+          }
         }
       }
       
-      // Handle adding products
+      // Handle adding products - parse SQL INSERT or natural language
       else if (details.toLowerCase().includes("product")) {
         if (!result.products) result.products = [];
         
-        const nameMatch = details.match(/product\s+['"]?([^'"]+?)['"]?/i);
-        
-        if (nameMatch) {
-          const productName = nameMatch[1].trim();
+        // Try SQL INSERT pattern: INSERT INTO products (name, baseUnit) VALUES ('name', 'unit')
+        const sqlMatch = details.match(/VALUES\s*\(\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]+)['"]\s*\)/i);
+        if (sqlMatch) {
+          const [_, name, baseUnit] = sqlMatch;
           const newProduct = {
-            name: productName,
-            baseUnit: "unit",
+            name: name,
+            baseUnit: baseUnit,
             sellingPrice: 100,
             unitConversions: {}
           };
           result.products.push(newProduct);
-          console.log(`Added product: ${productName}`);
+          console.log(`Added product: ${name} with base unit ${baseUnit}`);
+        } else {
+          // Fallback: extract product name
+          const nameMatch = details.match(/product\s+['"]?([^'"]+?)['"]?/i);
+          const unitMatch = details.match(/unit[:\s]+['"]?([^'"\s]+)['"]?/i);
+          
+          if (nameMatch) {
+            const productName = nameMatch[1].trim();
+            const baseUnit = unitMatch ? unitMatch[1].trim() : "unit";
+            const newProduct = {
+              name: productName,
+              baseUnit: baseUnit,
+              sellingPrice: 100,
+              unitConversions: {}
+            };
+            result.products.push(newProduct);
+            console.log(`Added product: ${productName} with unit ${baseUnit}`);
+          }
         }
       }
     }
