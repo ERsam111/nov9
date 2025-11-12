@@ -1023,7 +1023,8 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         {/* Customers Table */}
                         <div className="border-l-2 border-primary/30 pl-3">
-                          <p className="font-semibold text-primary mb-1.5">🧑‍💼 customers table (ALL columns):</p>
+                          <p className="font-semibold text-primary mb-1.5">🧑‍💼 Table Name: <code className="bg-muted px-2 py-0.5 rounded text-xs">customers</code></p>
+                          <p className="text-[10px] text-muted-foreground mb-1">Use in queries: <code className="bg-muted px-1 py-0.5 rounded">UPDATE customers SET ...</code></p>
                           <ul className="text-muted-foreground space-y-0.5 ml-2 text-[11px]">
                             <li>• <span className="font-medium">id</span> (text) - Unique customer ID</li>
                             <li>• <span className="font-medium">name</span> (text) - Customer name</li>
@@ -1040,7 +1041,8 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
 
                         {/* Products Table */}
                         <div className="border-l-2 border-blue-500/30 pl-3">
-                          <p className="font-semibold text-blue-600 mb-1.5">📦 products table (ALL columns):</p>
+                          <p className="font-semibold text-blue-600 mb-1.5">📦 Table Name: <code className="bg-muted px-2 py-0.5 rounded text-xs">products</code></p>
+                          <p className="text-[10px] text-muted-foreground mb-1">Use in queries: <code className="bg-muted px-1 py-0.5 rounded">UPDATE products SET ...</code></p>
                           <ul className="text-muted-foreground space-y-0.5 ml-2 text-[11px]">
                             <li>• <span className="font-medium">name</span> (text) - Product name</li>
                             <li>• <span className="font-medium">baseUnit</span> (text) - Base unit (kg, lbs, etc) ✏️</li>
@@ -1051,7 +1053,8 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
 
                         {/* Existing Sites Table */}
                         <div className="border-l-2 border-purple-500/30 pl-3">
-                          <p className="font-semibold text-purple-600 mb-1.5">🏭 existingSites table (ALL columns):</p>
+                          <p className="font-semibold text-purple-600 mb-1.5">🏭 Table Name: <code className="bg-muted px-2 py-0.5 rounded text-xs">existingSites</code></p>
+                          <p className="text-[10px] text-muted-foreground mb-1">Use in queries: <code className="bg-muted px-1 py-0.5 rounded">UPDATE existingSites SET ...</code></p>
                           <ul className="text-muted-foreground space-y-0.5 ml-2 text-[11px]">
                             <li>• <span className="font-medium">id</span> (text) - Site ID</li>
                             <li>• <span className="font-medium">name</span> (text) - Site name ✏️</li>
@@ -1066,7 +1069,8 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
 
                         {/* Settings/Cost Parameters */}
                         <div className="border-l-2 border-orange-500/30 pl-3">
-                          <p className="font-semibold text-orange-600 mb-1.5">⚙️ settings (Cost Parameters - ALL fields):</p>
+                          <p className="font-semibold text-orange-600 mb-1.5">⚙️ Table Name: <code className="bg-muted px-2 py-0.5 rounded text-xs">settings</code></p>
+                          <p className="text-[10px] text-muted-foreground mb-1">Use in queries: <code className="bg-muted px-1 py-0.5 rounded">UPDATE settings SET ...</code></p>
                           <ul className="text-muted-foreground space-y-0.5 ml-2 text-[11px]">
                             <li>• <span className="font-medium">mode</span> (text) - Optimization mode ✏️</li>
                             <li>• <span className="font-medium">numDCs</span> (number) - Number of DCs ✏️</li>
