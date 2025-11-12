@@ -311,7 +311,7 @@ export function GFAEditableTable({
                                     </SelectItem>
                                   ))
                                 ) : (
-                                  <SelectItem value="" disabled>
+                                  <SelectItem value="no-products" disabled>
                                     No products available
                                   </SelectItem>
                                 )}

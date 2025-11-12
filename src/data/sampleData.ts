@@ -14,10 +14,10 @@ export const sampleGFACustomers: Customer[] = [
 ];
 
 export const sampleGFAProducts: Product[] = [
-  { name: "Laptop", baseUnit: "units", sellingPrice: 1200, unitConversions: { to_m3: 0.05, to_kg: 2.5 } },
-  { name: "Smartphone", baseUnit: "units", sellingPrice: 800, unitConversions: { to_m3: 0.001, to_kg: 0.2 } },
-  { name: "Tablet", baseUnit: "units", sellingPrice: 600, unitConversions: { to_m3: 0.002, to_kg: 0.5 } },
-  { name: "Monitor", baseUnit: "units", sellingPrice: 400, unitConversions: { to_m3: 0.08, to_kg: 5.0 } },
+  { name: "Laptop", baseUnit: "Units", sellingPrice: 1200, unitConversions: { to_m3: 0.05, to_kg: 2.5 } },
+  { name: "Smartphone", baseUnit: "Units", sellingPrice: 800, unitConversions: { to_m3: 0.001, to_kg: 0.2 } },
+  { name: "Tablet", baseUnit: "Units", sellingPrice: 600, unitConversions: { to_m3: 0.002, to_kg: 0.5 } },
+  { name: "Monitor", baseUnit: "Units", sellingPrice: 400, unitConversions: { to_m3: 0.08, to_kg: 5.0 } },
 ];
 
 export const sampleGFAExistingSites: ExistingSite[] = [
@@ -98,39 +98,42 @@ export const sampleForecastingData: HistoricalDataPoint[] = [
 // Inventory Optimization Sample Data
 export const sampleInventoryData = {
   customerData: [
-    { 'Customer ID': 'C001', 'Customer Name': 'TechMart Boston', 'Latitude': 42.3601, 'Longitude': -71.0589, 'Region': 'Northeast' },
-    { 'Customer ID': 'C002', 'Customer Name': 'ElectroStore NYC', 'Latitude': 40.7128, 'Longitude': -74.0060, 'Region': 'Northeast' },
-    { 'Customer ID': 'C003', 'Customer Name': 'GadgetHub Philadelphia', 'Latitude': 39.9526, 'Longitude': -75.1652, 'Region': 'Mid-Atlantic' },
-    { 'Customer ID': 'C004', 'Customer Name': 'DeviceWorld Washington', 'Latitude': 38.9072, 'Longitude': -77.0369, 'Region': 'Mid-Atlantic' },
+    { 'Customer Name': 'C001', 'Status': 'Include', 'Address': '100 Tech St', 'City': 'Boston', 'Region': 'MA', 'Postal Code': '02101', 'Country': 'USA', 'Latitude': 42.3601, 'Longitude': -71.0589, 'Single Source': '', 'Single Source Orders': 'false', 'Single Source Line Items': 'false', 'Allow Backorders': 'true', 'Backorder Time Limit': 7, 'Backorder Time UOM': 'DAY', 'Allow Partial Fill Orders': 'true', 'Allow Partial Fill Line Items': 'true', 'Allow Direct Ship': '', 'Notes': 'Northeast customer', 'Queue Priority': '' },
+    { 'Customer Name': 'C002', 'Status': 'Include', 'Address': '200 Store Ave', 'City': 'New York', 'Region': 'NY', 'Postal Code': '10001', 'Country': 'USA', 'Latitude': 40.7128, 'Longitude': -74.0060, 'Single Source': '', 'Single Source Orders': 'false', 'Single Source Line Items': 'false', 'Allow Backorders': 'true', 'Backorder Time Limit': 7, 'Backorder Time UOM': 'DAY', 'Allow Partial Fill Orders': 'true', 'Allow Partial Fill Line Items': 'true', 'Allow Direct Ship': '', 'Notes': 'Major NYC customer', 'Queue Priority': '' },
+    { 'Customer Name': 'C003', 'Status': 'Include', 'Address': '300 Hub Blvd', 'City': 'Philadelphia', 'Region': 'PA', 'Postal Code': '19101', 'Country': 'USA', 'Latitude': 39.9526, 'Longitude': -75.1652, 'Single Source': '', 'Single Source Orders': 'false', 'Single Source Line Items': 'false', 'Allow Backorders': 'true', 'Backorder Time Limit': 7, 'Backorder Time UOM': 'DAY', 'Allow Partial Fill Orders': 'true', 'Allow Partial Fill Line Items': 'true', 'Allow Direct Ship': '', 'Notes': 'Mid-Atlantic customer', 'Queue Priority': '' },
+    { 'Customer Name': 'C004', 'Status': 'Include', 'Address': '400 Capital Way', 'City': 'Washington', 'Region': 'DC', 'Postal Code': '20001', 'Country': 'USA', 'Latitude': 38.9072, 'Longitude': -77.0369, 'Single Source': '', 'Single Source Orders': 'false', 'Single Source Line Items': 'false', 'Allow Backorders': 'true', 'Backorder Time Limit': 7, 'Backorder Time UOM': 'DAY', 'Allow Partial Fill Orders': 'true', 'Allow Partial Fill Line Items': 'true', 'Allow Direct Ship': '', 'Notes': 'DC customer', 'Queue Priority': '' },
   ],
   facilityData: [
-    { 'Facility ID': 'F001', 'Facility Name': 'Northeast Distribution Center', 'Latitude': 42.3601, 'Longitude': -71.0589, 'Type': 'DC', 'Capacity': 50000 },
-    { 'Facility ID': 'F002', 'Facility Name': 'Manufacturing Plant 1', 'Latitude': 40.7128, 'Longitude': -74.0060, 'Type': 'Plant', 'Production Capacity': 30000 },
-    { 'Facility ID': 'F003', 'Facility Name': 'Mid-Atlantic Warehouse', 'Latitude': 39.9526, 'Longitude': -75.1652, 'Type': 'Warehouse', 'Capacity': 40000 },
+    { 'Facility Name': 'DC1', 'Status': 'Include', 'Type': 'DC', 'Facility Status': 'Open', 'Initial State': 'Existing', 'Organization': 'Tech Corp', 'Address': '123 Distribution Pkwy', 'City': 'Boston', 'Region': 'MA', 'Postal Code': '02101', 'Country': 'USA', 'Latitude': 42.3601, 'Longitude': -71.0589, 'Fixed Startup Cost': 250000 },
+    { 'Facility Name': 'Plant1', 'Status': 'Include', 'Type': 'Factory', 'Facility Status': 'Open', 'Initial State': 'Existing', 'Organization': 'Tech Corp', 'Address': '456 Manufacturing Dr', 'City': 'New York', 'Region': 'NY', 'Postal Code': '10001', 'Country': 'USA', 'Latitude': 40.7128, 'Longitude': -74.0060, 'Fixed Startup Cost': 500000 },
+    { 'Facility Name': 'Warehouse1', 'Status': 'Include', 'Type': 'Warehouse', 'Facility Status': 'Open', 'Initial State': 'Existing', 'Organization': 'Tech Corp', 'Address': '789 Storage Rd', 'City': 'Philadelphia', 'Region': 'PA', 'Postal Code': '19101', 'Country': 'USA', 'Latitude': 39.9526, 'Longitude': -75.1652, 'Fixed Startup Cost': 150000 },
+    { 'Facility Name': 'Supplier1', 'Status': 'Include', 'Type': 'Supplier', 'Facility Status': 'Open', 'Initial State': 'Existing', 'Organization': 'Parts Supplier Inc', 'Address': '999 Supply Chain Ave', 'City': 'Baltimore', 'Region': 'MD', 'Postal Code': '21201', 'Country': 'USA', 'Latitude': 39.2904, 'Longitude': -76.6122, 'Fixed Startup Cost': 0 },
   ],
   productData: [
-    { 'Product ID': 'P001', 'Product Name': 'Laptop Model X', 'Unit Cost': 500, 'Selling Price': 1200, 'Volume': 0.05, 'Weight': 2.5 },
-    { 'Product ID': 'P002', 'Product Name': 'Smartphone Pro', 'Unit Cost': 350, 'Selling Price': 800, 'Volume': 0.001, 'Weight': 0.2 },
-    { 'Product ID': 'P003', 'Product Name': 'Tablet Ultra', 'Unit Cost': 280, 'Selling Price': 600, 'Volume': 0.002, 'Weight': 0.5 },
+    { 'Product Name': 'Laptop_X', 'Status': 'Include', 'Product Type': 'Finished Goods', 'Unit Value': 500, 'Unit Value UOM': 'EA', 'Unit Price': 1200, 'Unit Price UOM': 'EA', 'Unit Volume': 0.05, 'Unit Volume UOM': 'CFT', 'Unit Weight': 2.5, 'Unit Weight UOM': 'LB' },
+    { 'Product Name': 'Smartphone_Pro', 'Status': 'Include', 'Product Type': 'Finished Goods', 'Unit Value': 350, 'Unit Value UOM': 'EA', 'Unit Price': 800, 'Unit Price UOM': 'EA', 'Unit Volume': 0.001, 'Unit Volume UOM': 'CFT', 'Unit Weight': 0.2, 'Unit Weight UOM': 'LB' },
+    { 'Product Name': 'Tablet_Ultra', 'Status': 'Include', 'Product Type': 'Finished Goods', 'Unit Value': 280, 'Unit Value UOM': 'EA', 'Unit Price': 600, 'Unit Price UOM': 'EA', 'Unit Volume': 0.002, 'Unit Volume UOM': 'CFT', 'Unit Weight': 0.5, 'Unit Weight UOM': 'LB' },
+    { 'Product Name': 'Screen_Component', 'Status': 'Include', 'Product Type': 'Raw Material', 'Unit Value': 150, 'Unit Value UOM': 'EA', 'Unit Price': 180, 'Unit Price UOM': 'EA', 'Unit Volume': 0.01, 'Unit Volume UOM': 'CFT', 'Unit Weight': 0.8, 'Unit Weight UOM': 'LB' },
+    { 'Product Name': 'Processor_Component', 'Status': 'Include', 'Product Type': 'Raw Material', 'Unit Value': 200, 'Unit Value UOM': 'EA', 'Unit Price': 240, 'Unit Price UOM': 'EA', 'Unit Volume': 0.005, 'Unit Volume UOM': 'CFT', 'Unit Weight': 0.1, 'Unit Weight UOM': 'LB' },
   ],
   demandData: [
-    { 'Product ID': 'P001', 'Customer ID': 'C001', 'Mean Demand': 150, 'Std Dev': 25, 'Distribution': 'Normal' },
-    { 'Product ID': 'P001', 'Customer ID': 'C002', 'Mean Demand': 200, 'Std Dev': 35, 'Distribution': 'Normal' },
-    { 'Product ID': 'P002', 'Customer ID': 'C001', 'Mean Demand': 300, 'Std Dev': 50, 'Distribution': 'Normal' },
-    { 'Product ID': 'P002', 'Customer ID': 'C002', 'Mean Demand': 400, 'Std Dev': 65, 'Distribution': 'Normal' },
-    { 'Product ID': 'P003', 'Customer ID': 'C003', 'Mean Demand': 180, 'Std Dev': 30, 'Distribution': 'Normal' },
+    { 'Customer Name': 'C001', 'Product Name': 'Laptop_X', 'Source Name': 'DC1', 'Optimization Policy': 'Minimize Cost', 'Optimization Policy Value': 1, 'Simulation Policy': 'By Preference', 'Simulation Policy Value': 1, 'Status': 'Include', 'Unit Cost': 0.5 },
+    { 'Customer Name': 'C002', 'Product Name': 'Laptop_X', 'Source Name': 'DC1', 'Optimization Policy': 'Minimize Cost', 'Optimization Policy Value': 1, 'Simulation Policy': 'By Preference', 'Simulation Policy Value': 1, 'Status': 'Include', 'Unit Cost': 0.7 },
+    { 'Customer Name': 'C001', 'Product Name': 'Smartphone_Pro', 'Source Name': 'DC1', 'Optimization Policy': 'Minimize Cost', 'Optimization Policy Value': 1, 'Simulation Policy': 'By Preference', 'Simulation Policy Value': 1, 'Status': 'Include', 'Unit Cost': 0.4 },
+    { 'Customer Name': 'C002', 'Product Name': 'Smartphone_Pro', 'Source Name': 'DC1', 'Optimization Policy': 'Minimize Cost', 'Optimization Policy Value': 1, 'Simulation Policy': 'By Preference', 'Simulation Policy Value': 1, 'Status': 'Include', 'Unit Cost': 0.6 },
+    { 'Customer Name': 'C003', 'Product Name': 'Tablet_Ultra', 'Source Name': 'Warehouse1', 'Optimization Policy': 'Minimize Cost', 'Optimization Policy Value': 1, 'Simulation Policy': 'By Preference', 'Simulation Policy Value': 1, 'Status': 'Include', 'Unit Cost': 0.45 },
   ],
   transitTimeData: [
-    { 'From Facility': 'F001', 'To Facility': 'C001', 'Transit Time (days)': 1, 'Transit Cost': 50 },
-    { 'From Facility': 'F001', 'To Facility': 'C002', 'Transit Time (days)': 2, 'Transit Cost': 75 },
-    { 'From Facility': 'F002', 'To Facility': 'F001', 'Transit Time (days)': 3, 'Transit Cost': 120 },
-    { 'From Facility': 'F003', 'To Facility': 'C003', 'Transit Time (days)': 1, 'Transit Cost': 45 },
+    { 'Facility Name': 'DC1', 'Product Name': 'Laptop_X', 'Source Name': 'Plant1', 'Optimization Policy': 'Minimize Cost', 'Optimization Policy Value': 1, 'Simulation Policy': 'By Preference', 'Simulation Policy Value': 1, 'Status': 'Include', 'Unit Cost': 1.0 },
+    { 'Facility Name': 'DC1', 'Product Name': 'Smartphone_Pro', 'Source Name': 'Plant1', 'Optimization Policy': 'Minimize Cost', 'Optimization Policy Value': 1, 'Simulation Policy': 'By Preference', 'Simulation Policy Value': 1, 'Status': 'Include', 'Unit Cost': 0.8 },
+    { 'Facility Name': 'Warehouse1', 'Product Name': 'Tablet_Ultra', 'Source Name': 'Plant1', 'Optimization Policy': 'Minimize Cost', 'Optimization Policy Value': 1, 'Simulation Policy': 'By Preference', 'Simulation Policy Value': 1, 'Status': 'Include', 'Unit Cost': 0.9 },
+    { 'Facility Name': 'Plant1', 'Product Name': 'Screen_Component', 'Source Name': 'Supplier1', 'Optimization Policy': 'Minimize Cost', 'Optimization Policy Value': 1, 'Simulation Policy': 'By Preference', 'Simulation Policy Value': 1, 'Status': 'Include', 'Unit Cost': 0.3 },
+    { 'Facility Name': 'Plant1', 'Product Name': 'Processor_Component', 'Source Name': 'Supplier1', 'Optimization Policy': 'Minimize Cost', 'Optimization Policy Value': 1, 'Simulation Policy': 'By Preference', 'Simulation Policy Value': 1, 'Status': 'Include', 'Unit Cost': 0.4 },
   ],
   billOfMaterialsData: [
-    { 'Product ID': 'P001', 'Component': 'Screen', 'Quantity': 1, 'Lead Time (days)': 5 },
-    { 'Product ID': 'P001', 'Component': 'Processor', 'Quantity': 1, 'Lead Time (days)': 7 },
-    { 'Product ID': 'P002', 'Component': 'Display', 'Quantity': 1, 'Lead Time (days)': 4 },
-    { 'Product ID': 'P002', 'Component': 'Battery', 'Quantity': 1, 'Lead Time (days)': 3 },
+    { 'BOM ID': 'BOM_Laptop', 'End Product': 'Laptop_X', 'End Product Quantity': 1, 'Raw Materials': 'Screen_Component(1), Processor_Component(1)' },
+    { 'BOM ID': 'BOM_Smartphone', 'End Product': 'Smartphone_Pro', 'End Product Quantity': 1, 'Raw Materials': 'Screen_Component(1)' },
+    { 'BOM ID': 'BOM_Tablet', 'End Product': 'Tablet_Ultra', 'End Product Quantity': 1, 'Raw Materials': 'Screen_Component(1)' },
   ],
   settings: {
     'Simulation Time': 365,
