@@ -1017,45 +1017,82 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
                       </p>
                     </div>
                     
-                    {/* Table and Column Reference */}
-                    <div className="bg-background/80 border rounded-lg p-3 text-xs space-y-2">
-                      <p className="font-semibold text-muted-foreground">Available Tables & Columns:</p>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <p className="font-medium text-primary mb-1">customers table:</p>
-                          <ul className="text-muted-foreground space-y-0.5 ml-2">
-                            <li>• demand (number)</li>
-                            <li>• city (text)</li>
-                            <li>• country (text)</li>
-                            <li>• latitude (number)</li>
-                            <li>• longitude (number)</li>
+                    {/* Table and Column Reference - ALL COLUMNS */}
+                    <div className="bg-background/80 border rounded-lg p-3 text-xs space-y-3">
+                      <p className="font-semibold text-primary text-sm">📋 Available Tables & All Columns (All Changeable with Preview):</p>
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        {/* Customers Table */}
+                        <div className="border-l-2 border-primary/30 pl-3">
+                          <p className="font-semibold text-primary mb-1.5">🧑‍💼 customers table (ALL columns):</p>
+                          <ul className="text-muted-foreground space-y-0.5 ml-2 text-[11px]">
+                            <li>• <span className="font-medium">id</span> (text) - Unique customer ID</li>
+                            <li>• <span className="font-medium">name</span> (text) - Customer name</li>
+                            <li>• <span className="font-medium">product</span> (text) - Product ordered</li>
+                            <li>• <span className="font-medium">demand</span> (number) - Quantity demanded ✏️</li>
+                            <li>• <span className="font-medium">city</span> (text) - Customer city ✏️</li>
+                            <li>• <span className="font-medium">country</span> (text) - Customer country ✏️</li>
+                            <li>• <span className="font-medium">latitude</span> (number) - Latitude coordinate ✏️</li>
+                            <li>• <span className="font-medium">longitude</span> (number) - Longitude coordinate ✏️</li>
+                            <li>• <span className="font-medium">unitOfMeasure</span> (text) - Unit of measure</li>
+                            <li>• <span className="font-medium">conversionFactor</span> (number) - Conversion factor</li>
                           </ul>
                         </div>
-                        <div>
-                          <p className="font-medium text-primary mb-1">products table:</p>
-                          <ul className="text-muted-foreground space-y-0.5 ml-2">
-                            <li>• sellingPrice (number)</li>
-                            <li>• baseUnit (text)</li>
-                            <li>• name (text)</li>
+
+                        {/* Products Table */}
+                        <div className="border-l-2 border-blue-500/30 pl-3">
+                          <p className="font-semibold text-blue-600 mb-1.5">📦 products table (ALL columns):</p>
+                          <ul className="text-muted-foreground space-y-0.5 ml-2 text-[11px]">
+                            <li>• <span className="font-medium">name</span> (text) - Product name</li>
+                            <li>• <span className="font-medium">baseUnit</span> (text) - Base unit (kg, lbs, etc) ✏️</li>
+                            <li>• <span className="font-medium">sellingPrice</span> (number) - Price per unit ✏️</li>
+                            <li>• <span className="font-medium">unitConversions</span> (object) - Unit conversion factors ✏️</li>
                           </ul>
                         </div>
-                        <div>
-                          <p className="font-medium text-primary mb-1">settings table:</p>
-                          <ul className="text-muted-foreground space-y-0.5 ml-2">
-                            <li>• dcCapacity (number)</li>
-                            <li>• numDCs (number)</li>
-                            <li>• transportationCostPerMilePerUnit</li>
-                            <li>• facilityCost (number)</li>
+
+                        {/* Existing Sites Table */}
+                        <div className="border-l-2 border-purple-500/30 pl-3">
+                          <p className="font-semibold text-purple-600 mb-1.5">🏭 existingSites table (ALL columns):</p>
+                          <ul className="text-muted-foreground space-y-0.5 ml-2 text-[11px]">
+                            <li>• <span className="font-medium">id</span> (text) - Site ID</li>
+                            <li>• <span className="font-medium">name</span> (text) - Site name ✏️</li>
+                            <li>• <span className="font-medium">city</span> (text) - Site city ✏️</li>
+                            <li>• <span className="font-medium">country</span> (text) - Site country ✏️</li>
+                            <li>• <span className="font-medium">latitude</span> (number) - Latitude ✏️</li>
+                            <li>• <span className="font-medium">longitude</span> (number) - Longitude ✏️</li>
+                            <li>• <span className="font-medium">capacity</span> (number) - Site capacity ✏️</li>
+                            <li>• <span className="font-medium">capacityUnit</span> (text) - Capacity unit ✏️</li>
                           </ul>
                         </div>
-                        <div>
-                          <p className="font-medium text-primary mb-1">Examples:</p>
-                          <ul className="text-muted-foreground space-y-0.5 ml-2">
-                            <li>• UPDATE customers SET demand = demand * 1.5</li>
-                            <li>• UPDATE products SET sellingPrice = 10</li>
-                            <li>• UPDATE settings SET facilityCost = 50000</li>
+
+                        {/* Settings/Cost Parameters */}
+                        <div className="border-l-2 border-orange-500/30 pl-3">
+                          <p className="font-semibold text-orange-600 mb-1.5">⚙️ settings (Cost Parameters - ALL fields):</p>
+                          <ul className="text-muted-foreground space-y-0.5 ml-2 text-[11px]">
+                            <li>• <span className="font-medium">mode</span> (text) - Optimization mode ✏️</li>
+                            <li>• <span className="font-medium">numDCs</span> (number) - Number of DCs ✏️</li>
+                            <li>• <span className="font-medium">dcCapacity</span> (number) - DC capacity ✏️</li>
+                            <li>• <span className="font-medium">maxRadius</span> (number) - Max service radius ✏️</li>
+                            <li>• <span className="font-medium">demandPercentage</span> (number) - Demand % to cover ✏️</li>
+                            <li>• <span className="font-medium">transportationCostPerMilePerUnit</span> (number) - Transport cost ✏️</li>
+                            <li>• <span className="font-medium">facilityCost</span> (number) - Facility opening cost ✏️</li>
+                            <li>• <span className="font-medium">distanceUnit</span> (text) - km or mile ✏️</li>
+                            <li>• <span className="font-medium">capacityUnit</span> (text) - Capacity unit ✏️</li>
+                            <li>• <span className="font-medium">costUnit</span> (text) - Cost calculation unit ✏️</li>
                           </ul>
                         </div>
+                      </div>
+                      
+                      {/* Examples Section */}
+                      <div className="bg-muted/50 rounded p-2 mt-3">
+                        <p className="font-semibold text-primary mb-1.5">💡 Example Transformations:</p>
+                        <ul className="text-muted-foreground space-y-0.5 ml-2 font-mono text-[10px]">
+                          <li>• UPDATE customers SET demand = demand * 1.5</li>
+                          <li>• UPDATE customers SET city = 'New York' WHERE country = 'USA'</li>
+                          <li>• UPDATE products SET sellingPrice = 100 WHERE name = 'Product A'</li>
+                          <li>• UPDATE settings SET facilityCost = 3000000</li>
+                          <li>• UPDATE settings SET transportationCostPerMilePerUnit = 2.5</li>
+                          <li>• UPDATE existingSites SET capacity = 50000 WHERE city = 'Chicago'</li>
+                        </ul>
                       </div>
                     </div>
                     
