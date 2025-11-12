@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Send, Bot, User, Loader2, Trash2, Mic, MicOff, Sparkles, Database, Play, CheckCircle } from "lucide-react";
+import { Send, Bot, User, Loader2, Trash2, Mic, MicOff, Sparkles, Database, Play, CheckCircle, ArrowRight } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Customer, Product, DistributionCenter, OptimizationSettings, ExistingSite } from "@/types/gfa";
@@ -25,6 +26,16 @@ interface TransformationPlan {
     details: string;
   }>;
   affectedData: string[];
+}
+
+interface ComparisonData {
+  customers: Array<{
+    name: string;
+    oldDemand: number;
+    newDemand: number;
+    change: number;
+    changePercent: number;
+  }>;
 }
 
 interface DataSupportPanelProps {
@@ -58,6 +69,7 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [transformationPlan, setTransformationPlan] = useState<TransformationPlan | null>(null);
   const [isExecuting, setIsExecuting] = useState(false);
+  const [comparisonData, setComparisonData] = useState<ComparisonData | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -132,6 +144,7 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
     // Clear any previous transformation plan when in transformation mode
     if (activeTab === "transformation") {
       setTransformationPlan(null);
+      setComparisonData(null);
     }
 
     try {
@@ -243,6 +256,12 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
       existingSites: existingSites.length
     });
     
+    // Capture "before" snapshot of customer demands
+    const beforeSnapshot = customers.map(c => ({
+      name: c.name,
+      demand: c.demand
+    }));
+    
     try {
       const { data, error } = await supabase.functions.invoke("gfa-data-support", {
         body: {
@@ -280,13 +299,41 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
         });
         console.log("First 3 customers from response:", data.updatedData.customers?.slice(0, 3).map((c: any) => ({ name: c.name, demand: c.demand })));
         
+        // Generate comparison data
+        if (data.updatedData.customers) {
+          const comparison: ComparisonData = {
+            customers: beforeSnapshot.map(before => {
+              const after = data.updatedData.customers.find((c: Customer) => c.name === before.name);
+              if (after) {
+                const change = after.demand - before.demand;
+                const changePercent = before.demand !== 0 ? ((change / before.demand) * 100) : 0;
+                return {
+                  name: before.name,
+                  oldDemand: before.demand,
+                  newDemand: after.demand,
+                  change,
+                  changePercent
+                };
+              }
+              return {
+                name: before.name,
+                oldDemand: before.demand,
+                newDemand: before.demand,
+                change: 0,
+                changePercent: 0
+              };
+            }).filter(c => c.change !== 0) // Only show rows with changes
+          };
+          setComparisonData(comparison);
+        }
+        
         // Call the update handler
         onDataUpdate(data.updatedData);
         
         // Add success message
         const successMessage: Message = {
           role: "assistant",
-          content: "✅ Transformation completed successfully! The input data has been updated. Check the Input Data tab to see the changes.",
+          content: "✅ Transformation completed successfully! Check the comparison table below to see before/after demand values.",
         };
         setMessages((prev) => [...prev, successMessage]);
 
@@ -299,7 +346,7 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
           });
         }
 
-        toast.success("Transformation complete! Switching to Input Data tab...");
+        toast.success("Transformation complete!");
         setTransformationPlan(null);
 
         // Play success sound
@@ -711,6 +758,61 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
                           Run Transformation
                         </>
                       )}
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              )}
+              
+              {/* Before/After Comparison Display */}
+              {comparisonData && comparisonData.customers.length > 0 && (
+                <Alert className="border-green-500/30 bg-green-500/5">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <AlertDescription className="mt-2">
+                    <h4 className="font-semibold mb-3 text-green-600">Transformation Complete - Before/After Comparison</h4>
+                    <div className="bg-background rounded-lg border overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-[30%]">Customer</TableHead>
+                            <TableHead className="text-right">Old Demand</TableHead>
+                            <TableHead className="w-10 text-center"></TableHead>
+                            <TableHead className="text-right">New Demand</TableHead>
+                            <TableHead className="text-right">Change</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {comparisonData.customers.slice(0, 10).map((row, idx) => (
+                            <TableRow key={idx}>
+                              <TableCell className="font-medium">{row.name}</TableCell>
+                              <TableCell className="text-right text-muted-foreground">
+                                {row.oldDemand.toFixed(2)}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <ArrowRight className="h-4 w-4 text-primary mx-auto" />
+                              </TableCell>
+                              <TableCell className="text-right font-semibold">
+                                {row.newDemand.toFixed(2)}
+                              </TableCell>
+                              <TableCell className={`text-right font-medium ${row.change > 0 ? 'text-green-600' : row.change < 0 ? 'text-red-600' : ''}`}>
+                                {row.change > 0 ? '+' : ''}{row.change.toFixed(2)} ({row.changePercent > 0 ? '+' : ''}{row.changePercent.toFixed(1)}%)
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                      {comparisonData.customers.length > 10 && (
+                        <div className="text-xs text-muted-foreground text-center py-2 bg-muted/30">
+                          Showing 10 of {comparisonData.customers.length} changed customers
+                        </div>
+                      )}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setComparisonData(null)}
+                      className="w-full mt-3"
+                    >
+                      Dismiss Comparison
                     </Button>
                   </AlertDescription>
                 </Alert>
