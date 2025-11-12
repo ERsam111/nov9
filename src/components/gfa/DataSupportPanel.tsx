@@ -871,7 +871,9 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
                     <li>• Rename product 'Widget' to 'SuperWidget'</li>
                     <li>• Change transportation cost to 5 per mile</li>
                     <li>• Update DC capacity to 2000 units</li>
-                    <li>• Delete all customers</li>
+                    <li>• Decrease demand by 50%</li>
+                    <li>• Change facility cost to $150,000</li>
+                    <li>• Update distance unit to miles</li>
                   </>
                 )}
               </ul>

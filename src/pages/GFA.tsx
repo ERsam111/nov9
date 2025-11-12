@@ -152,29 +152,7 @@ const GFA = () => {
     }
   }, [customers, products, existingSites, settings, currentScenario?.id]);
 
-  // Extract unique products from customers - auto-populate
-  useEffect(() => {
-    if (customers.length === 0) {
-      setProducts([]);
-      return;
-    }
-    setProducts(prevProducts => {
-      const productMap = new Map<string, Product>();
-      customers.forEach(customer => {
-        const productName = customer.product;
-        if (productName && !productMap.has(productName)) {
-          const existingProduct = prevProducts.find(p => p.name === productName);
-          productMap.set(productName, {
-            name: productName,
-            baseUnit: customer.unitOfMeasure || "",
-            unitConversions: existingProduct?.unitConversions || {},
-            sellingPrice: existingProduct?.sellingPrice
-          });
-        }
-      });
-      return Array.from(productMap.values());
-    });
-  }, [customers]);
+  // Products are managed separately - not auto-populated from customers
   const handleOptimize = async () => {
     if (customers.length === 0) {
       toast.error("Add at least one customer before optimizing");
