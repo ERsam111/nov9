@@ -28,6 +28,21 @@ export function executeDataTransformation(plan: TransformationPlan, currentData:
     
     // Handle demand multiplication and updates
     if (type === "MULTIPLY" || type === "UPDATE") {
+      // Handle SETTING demand to a fixed value (not multiplying)
+      if (details.toLowerCase().includes("set") || details.toLowerCase().includes("demand = ")) {
+        const demandMatch = details.match(/demand\s*=\s*(\d+\.?\d*)/i);
+        if (demandMatch && result.customers) {
+          const fixedDemand = parseFloat(demandMatch[1]);
+          console.log(`Setting all customer demand to fixed value: ${fixedDemand}`);
+          result.customers = result.customers.map((c: any) => ({
+            ...c,
+            demand: fixedDemand
+          }));
+          console.log(`Set demand to ${fixedDemand} for ${result.customers.length} customers`);
+          continue; // Skip to next operation
+        }
+      }
+      
       // Handle ALL customer demand multiplication (most common case)
       if (details.toLowerCase().includes("all") && details.toLowerCase().includes("customer") && details.toLowerCase().includes("demand")) {
         const percentMatch = details.match(/(\d+\.?\d*)%/);
