@@ -282,25 +282,96 @@ export function executeDataTransformation(plan: TransformationPlan, currentData:
     }
     
     else if (type === "DELETE" || type === "REMOVE") {
-      // Handle removing customers
-      if (details.toLowerCase().includes("customer") && result.customers) {
+      const lowerDetails = details.toLowerCase();
+      
+      // Handle removing ALL customers
+      if (lowerDetails.includes("customer") && result.customers) {
         const initialCount = result.customers.length;
-        const idMatch = details.match(/id[:\s]+['"]?([^'"\s]+)['"]?/i);
-        const cityMatch = details.match(/city[:\s]+['"]?([^'"\s]+)['"]?/i);
-        const countryMatch = details.match(/country[:\s]+['"]?([^'"\s]+)['"]?/i);
         
-        if (idMatch) {
-          result.customers = result.customers.filter((c: any) => c.id !== idMatch[1]);
-        } else if (cityMatch) {
-          result.customers = result.customers.filter((c: any) => 
-            !c.city.toLowerCase().includes(cityMatch[1].toLowerCase())
-          );
-        } else if (countryMatch) {
-          result.customers = result.customers.filter((c: any) => 
-            !c.country.toLowerCase().includes(countryMatch[1].toLowerCase())
-          );
+        // Check for "delete all" or "DELETE FROM customers" patterns
+        if (lowerDetails.includes("all") || lowerDetails.match(/delete\s+from\s+customers/i)) {
+          result.customers = [];
+          console.log(`Removed all ${initialCount} customers`);
+        } else {
+          // Handle specific deletions
+          const idMatch = details.match(/id[:\s]+['"]?([^'"\s]+)['"]?/i);
+          const cityMatch = details.match(/city[:\s]+['"]?([^'"\s]+)['"]?/i);
+          const countryMatch = details.match(/country[:\s]+['"]?([^'"\s]+)['"]?/i);
+          
+          if (idMatch) {
+            result.customers = result.customers.filter((c: any) => c.id !== idMatch[1]);
+          } else if (cityMatch) {
+            result.customers = result.customers.filter((c: any) => 
+              !c.city.toLowerCase().includes(cityMatch[1].toLowerCase())
+            );
+          } else if (countryMatch) {
+            result.customers = result.customers.filter((c: any) => 
+              !c.country.toLowerCase().includes(countryMatch[1].toLowerCase())
+            );
+          }
+          console.log(`Removed ${initialCount - result.customers.length} customers`);
         }
-        console.log(`Removed ${initialCount - result.customers.length} customers`);
+      }
+      
+      // Handle removing products
+      else if (lowerDetails.includes("product") && result.products) {
+        const initialCount = result.products.length;
+        
+        if (lowerDetails.includes("all") || lowerDetails.match(/delete\s+from\s+products/i)) {
+          result.products = [];
+          console.log(`Removed all ${initialCount} products`);
+        } else {
+          const nameMatch = details.match(/product\s+['"]?([^'"]+?)['"]?/i);
+          if (nameMatch) {
+            const productName = nameMatch[1].trim();
+            result.products = result.products.filter((p: any) => 
+              !p.name.toLowerCase().includes(productName.toLowerCase())
+            );
+            console.log(`Removed products matching "${productName}"`);
+          }
+        }
+      }
+      
+      // Handle removing existing sites
+      else if (lowerDetails.includes("existing") && lowerDetails.includes("site") && result.existingSites) {
+        const initialCount = result.existingSites.length;
+        
+        if (lowerDetails.includes("all") || lowerDetails.match(/delete\s+from\s+existingsites/i)) {
+          result.existingSites = [];
+          console.log(`Removed all ${initialCount} existing sites`);
+        } else {
+          const cityMatch = details.match(/city[:\s]+['"]?([^'"\s]+)['"]?/i);
+          if (cityMatch) {
+            result.existingSites = result.existingSites.filter((s: any) => 
+              !s.city.toLowerCase().includes(cityMatch[1].toLowerCase())
+            );
+            console.log(`Removed existing sites in ${cityMatch[1]}`);
+          }
+        }
+      }
+    }
+    
+    // Handle renaming/updating product names
+    else if (type === "RENAME" || (type === "UPDATE" && details.toLowerCase().includes("product") && details.toLowerCase().includes("name"))) {
+      if (result.products) {
+        // Pattern: UPDATE products SET name = 'newName' WHERE name = 'oldName'
+        // Or: Rename product 'oldName' to 'newName'
+        const sqlMatch = details.match(/name\s*=\s*['"]([^'"]+)['"]\s+WHERE\s+name\s*=\s*['"]([^'"]+)['"]/i);
+        const naturalMatch = details.match(/rename\s+product\s+['"]?([^'"]+?)['"]?\s+to\s+['"]?([^'"]+?)['"]?/i);
+        
+        if (sqlMatch) {
+          const [_, newName, oldName] = sqlMatch;
+          result.products = result.products.map((p: any) => 
+            p.name.toLowerCase() === oldName.toLowerCase() ? { ...p, name: newName } : p
+          );
+          console.log(`Renamed product "${oldName}" to "${newName}"`);
+        } else if (naturalMatch) {
+          const [_, oldName, newName] = naturalMatch;
+          result.products = result.products.map((p: any) => 
+            p.name.toLowerCase() === oldName.toLowerCase() ? { ...p, name: newName } : p
+          );
+          console.log(`Renamed product "${oldName}" to "${newName}"`);
+        }
       }
     }
   }

@@ -448,6 +448,11 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
         
         if (Object.keys(comparison).length > 0) {
           setComparisonData(comparison);
+          
+          // Auto-dismiss comparison after 10 seconds
+          setTimeout(() => {
+            setComparisonData(null);
+          }, 10000);
         }
         
         // Call the update handler
@@ -802,10 +807,11 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
                 ) : (
                   <>
                     <li>• Increase demand for all customers by 10%</li>
-                    <li>• Add 5 new customers in Germany</li>
-                    <li>• Change the demand for product X by 20%</li>
-                    <li>• Add an existing site in Paris</li>
-                    <li>• Update unit conversion for product Y</li>
+                    <li>• Change demand for product Electronics by 20%</li>
+                    <li>• Rename product 'Widget' to 'SuperWidget'</li>
+                    <li>• Change transportation cost to 5 per mile</li>
+                    <li>• Update DC capacity to 2000 units</li>
+                    <li>• Delete all customers</li>
                   </>
                 )}
               </ul>
