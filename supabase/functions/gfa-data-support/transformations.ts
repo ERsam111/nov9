@@ -165,19 +165,24 @@ export function executeDataTransformation(plan: TransformationPlan, currentData:
           }
         }
       }
-      // Handle product selling price updates
-      else if (details.toLowerCase().includes("selling") && details.toLowerCase().includes("price") && result.products) {
-        const priceMatch = details.match(/(\d+\.?\d*)/);
-        const productMatch = details.match(/product\s+['"]?([^'"]+?)['"]?\s/i);
+      // Handle product selling price updates - match both "selling price" and "sellingPrice"
+      else if ((details.toLowerCase().includes("sellingprice") || 
+                (details.toLowerCase().includes("selling") && details.toLowerCase().includes("price"))) && 
+               result.products) {
         
-        if (priceMatch) {
-          const price = parseFloat(priceMatch[0]);
+        // Try SQL pattern first: "SET sellingPrice = 10" or "sellingPrice = 10"
+        const sqlPriceMatch = details.match(/sellingPrice\s*=\s*(\d+\.?\d*)/i);
+        // Try WHERE clause for specific product: "WHERE name = 'ProductName'"
+        const whereNameMatch = details.match(/WHERE\s+name\s*=\s*['"]([^'"]+)['"]/i);
+        
+        if (sqlPriceMatch) {
+          const price = parseFloat(sqlPriceMatch[1]);
           
-          if (productMatch) {
-            // Update specific product
-            const productName = productMatch[1].trim();
+          if (whereNameMatch) {
+            // Update specific product by exact name match
+            const productName = whereNameMatch[1].trim();
             result.products = result.products.map((p: any) => 
-              p.name.toLowerCase().includes(productName.toLowerCase()) 
+              p.name.toLowerCase() === productName.toLowerCase()
                 ? { ...p, sellingPrice: price } 
                 : p
             );
@@ -186,6 +191,27 @@ export function executeDataTransformation(plan: TransformationPlan, currentData:
             // Update all products
             result.products = result.products.map((p: any) => ({ ...p, sellingPrice: price }));
             console.log(`Updated selling price for all products to ${price}`);
+          }
+        } else {
+          // Fall back to natural language pattern
+          const priceMatch = details.match(/(\d+\.?\d*)/);
+          const productMatch = details.match(/product\s+['"]?([^'"]+?)['"]?\s/i);
+          
+          if (priceMatch) {
+            const price = parseFloat(priceMatch[0]);
+            
+            if (productMatch) {
+              const productName = productMatch[1].trim();
+              result.products = result.products.map((p: any) => 
+                p.name.toLowerCase().includes(productName.toLowerCase()) 
+                  ? { ...p, sellingPrice: price } 
+                  : p
+              );
+              console.log(`Updated selling price for product "${productName}" to ${price}`);
+            } else {
+              result.products = result.products.map((p: any) => ({ ...p, sellingPrice: price }));
+              console.log(`Updated selling price for all products to ${price}`);
+            }
           }
         }
       }
