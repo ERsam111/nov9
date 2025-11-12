@@ -64,23 +64,69 @@ serve(async (req) => {
 
 Your role is to help users transform their input data. When users request data changes, you must:
 
-1. Analyze the request and understand what data needs to be changed
-2. Generate a transformation plan using the generate_transformation_plan tool
-3. Be specific about what will change and how
+1. First, identify WHERE the data exists (which table/object)
+2. Understand WHAT needs to be changed
+3. Generate a transformation plan using the generate_transformation_plan tool
+
+DATA SCHEMA - Know where each field exists:
+
+**CUSTOMERS TABLE** (array of customer objects):
+- demand: Customer demand quantity
+- product: Product name (references products table)
+- name: Customer name
+- city: Customer city
+- country: Customer country
+- latitude: Customer latitude coordinate
+- longitude: Customer longitude coordinate
+- unitOfMeasure: Unit of measure for this customer
+
+**PRODUCTS TABLE** (array of product objects):
+- name: Product name
+- sellingPrice: Selling price per unit (THIS IS WHERE PRICE LIVES)
+- baseUnit: Base unit of measure
+- unitConversions: Object containing unit conversion factors
+
+**EXISTING SITES TABLE** (array of site objects):
+- name: Site name
+- city: Site city
+- country: Site country
+- latitude: Site latitude
+- longitude: Site longitude
+- capacity: Site capacity
+
+**SETTINGS/COST PARAMETERS** (single object):
+- dcCapacity: Distribution center capacity
+- numDCs: Number of distribution centers
+- transportationCostPerMilePerUnit: Transportation cost (THIS IS WHERE TRANSPORT COST LIVES)
+- facilityCost: Facility opening cost (THIS IS WHERE FACILITY COST LIVES)
+- distanceUnit: Distance unit (km or mile)
+- capacityUnit: Capacity unit
+- costUnit: Cost calculation unit
 
 ${comprehensiveContext}
 
+CRITICAL MAPPING RULES:
+- "selling price" / "product price" → UPDATE products table, sellingPrice field
+- "transportation cost" / "transport cost" → UPDATE settings, transportationCostPerMilePerUnit field
+- "facility cost" / "site cost" / "opening cost" → UPDATE settings, facilityCost field
+- "demand" → UPDATE customers table, demand field
+- "latitude" / "longitude" / "coordinates" → UPDATE customers or existingSites table
+- "city" / "country" / "location" → UPDATE customers or existingSites table
+- "unit conversion" → UPDATE products table, unitConversions object
+- "capacity" → UPDATE settings, dcCapacity field (or existingSites for specific sites)
+
 IMPORTANT: Always use the generate_transformation_plan tool to create a structured transformation plan that includes:
 - A clear description of what will be transformed
-- Specific operations to be performed (e.g., "UPDATE customers SET demand = demand * 1.10 WHERE country = 'Germany'")
+- Specific operations referencing the CORRECT table/object (e.g., "UPDATE products SET sellingPrice = 10")
 - List of affected data types (customers, products, existingSites, settings)
 
-Example transformations:
-- "Increase all customer demand by 10%" → UPDATE all customer demand values by multiplying by 1.10
-- "Add 5 new customers in Germany" → INSERT 5 new customer records with Germany as country
-- "Change demand for product X by 20%" → UPDATE customers where product = X, multiply demand by 1.20
-- "Add existing site in Paris" → INSERT new existing site record with Paris location
-- "Update unit conversion for product Y" → UPDATE product Y's unit conversion factors`
+Example transformations with CORRECT table mapping:
+- "Change selling price to 15" → UPDATE products SET sellingPrice = 15 (affects: products)
+- "Increase facility cost by 20%" → UPDATE settings, facilityCost = facilityCost * 1.20 (affects: settings)
+- "Set transportation cost to 0.8" → UPDATE settings, transportationCostPerMilePerUnit = 0.8 (affects: settings)
+- "Increase demand by 10%" → UPDATE customers SET demand = demand * 1.10 (affects: customers)
+- "Change city to Boston for customer X" → UPDATE customers SET city = 'Boston' WHERE name = X (affects: customers)
+- "Update unit conversion m3 = 2.0 for product Y" → UPDATE products unitConversions.m3 = 2.0 WHERE name = Y (affects: products)`
       : `You are an expert data analyst assistant for a Green Field Analysis (GFA) optimization tool.
 
 CRITICAL INSTRUCTION: You have been provided with SUMMARIZED data and pre-calculated statistics. DO NOT recalculate or recount anything - use the EXACT numbers provided in the summaries.
