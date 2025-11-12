@@ -1,4 +1,4 @@
-// Data transformation execution logic
+// Generic SQL UPDATE parser and executor for all tables and columns
 
 interface TransformationPlan {
   description: string;
@@ -7,6 +7,101 @@ interface TransformationPlan {
     details: string;
   }>;
   affectedData: string[];
+}
+
+interface Calculation {
+  type: 'calculation';
+  operation: string;
+  value: number;
+}
+
+// Generic SQL UPDATE parser
+function parseSQLUpdate(sql: string): { table: string; updates: any; where?: any } | null {
+  // Parse: UPDATE <table> SET <field>=<value>[, <field>=<value>] [WHERE <condition>]
+  const updateMatch = sql.match(/UPDATE\s+(\w+)\s+SET\s+(.+?)(?:\s+WHERE\s+(.+))?$/i);
+  
+  if (!updateMatch) return null;
+  
+  const table = updateMatch[1];
+  const setClause = updateMatch[2];
+  const whereClause = updateMatch[3];
+  
+  // Parse SET clause: field1 = value1, field2 = value2
+  const updates: any = {};
+  const setPattern = /(\w+)\s*=\s*([^,]+?)(?:,|$)/g;
+  let match;
+  
+  while ((match = setPattern.exec(setClause)) !== null) {
+    const field = match[1].trim();
+    let value = match[2].trim();
+    
+    // Remove quotes if present
+    if ((value.startsWith("'") && value.endsWith("'")) || 
+        (value.startsWith('"') && value.endsWith('"'))) {
+      value = value.slice(1, -1);
+    }
+    
+    // Check if it's a calculation (e.g., demand * 1.5)
+    const calcMatch = value.match(/(\w+)\s*([\+\-\*\/])\s*(\d+\.?\d*)/);
+    if (calcMatch) {
+      updates[field] = {
+        type: 'calculation',
+        operation: calcMatch[2],
+        value: parseFloat(calcMatch[3])
+      };
+    } else if (!isNaN(parseFloat(value))) {
+      updates[field] = parseFloat(value);
+    } else {
+      updates[field] = value;
+    }
+  }
+  
+  // Parse WHERE clause if present
+  let whereCondition = null;
+  if (whereClause) {
+    const whereMatch = whereClause.match(/(\w+)\s*=\s*['"]?([^'"]+)['"]?/i);
+    if (whereMatch) {
+      whereCondition = {
+        field: whereMatch[1].trim(),
+        value: whereMatch[2].trim()
+      };
+    }
+  }
+  
+  return { table, updates, where: whereCondition };
+}
+
+// Apply updates to data array
+function applyUpdates(dataArray: any[], updates: any, whereCondition?: any): any[] {
+  return dataArray.map(item => {
+    // Check WHERE condition if present
+    if (whereCondition) {
+      const fieldValue = String(item[whereCondition.field] || '').toLowerCase();
+      const targetValue = String(whereCondition.value).toLowerCase();
+      if (fieldValue !== targetValue) {
+        return item; // Skip this item
+      }
+    }
+    
+    // Apply all updates
+    const updatedItem = { ...item };
+    for (const [field, value] of Object.entries(updates)) {
+      if (typeof value === 'object' && value !== null && 'type' in value && value.type === 'calculation') {
+        // Handle calculations like demand * 1.5
+        const calc = value as unknown as Calculation;
+        const currentValue = parseFloat(updatedItem[field]) || 0;
+        switch (calc.operation) {
+          case '*': updatedItem[field] = currentValue * calc.value; break;
+          case '/': updatedItem[field] = currentValue / calc.value; break;
+          case '+': updatedItem[field] = currentValue + calc.value; break;
+          case '-': updatedItem[field] = currentValue - calc.value; break;
+        }
+      } else {
+        updatedItem[field] = value;
+      }
+    }
+    return updatedItem;
+  });
 }
 
 export function executeDataTransformation(plan: TransformationPlan, currentData: any): any {
@@ -39,6 +134,48 @@ export function executeDataTransformation(plan: TransformationPlan, currentData:
     const { type, details } = operation;
     console.log(`Executing operation: ${type} - ${details}`);
     
+    // Try to parse as SQL UPDATE statement first
+    const sqlUpdate = parseSQLUpdate(details);
+    
+    if (sqlUpdate) {
+      const { table, updates, where } = sqlUpdate;
+      console.log(`Parsed SQL UPDATE for table: ${table}`, { updates, where });
+      
+      // Apply to the appropriate table
+      if (table.toLowerCase() === 'customers' && result.customers) {
+        result.customers = applyUpdates(result.customers, updates, where);
+        console.log(`Updated ${result.customers.length} customers`);
+        continue;
+      } else if (table.toLowerCase() === 'products' && result.products) {
+        result.products = applyUpdates(result.products, updates, where);
+        console.log(`Updated ${result.products.length} products`);
+        continue;
+      } else if (table.toLowerCase() === 'existingsites' && result.existingSites) {
+        result.existingSites = applyUpdates(result.existingSites, updates, where);
+        console.log(`Updated ${result.existingSites.length} existing sites`);
+        continue;
+      } else if (table.toLowerCase() === 'settings' && result.settings) {
+        // For settings, apply updates directly (it's a single object)
+        for (const [field, value] of Object.entries(updates)) {
+          if (typeof value === 'object' && value !== null && 'type' in value && value.type === 'calculation') {
+            const calc = value as unknown as Calculation;
+            const currentValue = parseFloat(result.settings[field]) || 0;
+            switch (calc.operation) {
+              case '*': result.settings[field] = currentValue * calc.value; break;
+              case '/': result.settings[field] = currentValue / calc.value; break;
+              case '+': result.settings[field] = currentValue + calc.value; break;
+              case '-': result.settings[field] = currentValue - calc.value; break;
+            }
+          } else {
+            result.settings[field] = value;
+          }
+        }
+        console.log(`Updated settings:`, updates);
+        continue;
+      }
+    }
+    
+    // Fallback to legacy pattern matching for backward compatibility
     // Handle demand multiplication and updates
     if (type === "MULTIPLY" || type === "UPDATE") {
       const lowerDetails = details.toLowerCase();

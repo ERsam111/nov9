@@ -1088,15 +1088,22 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
                       
                       {/* Examples Section */}
                       <div className="bg-muted/50 rounded p-2 mt-3">
-                        <p className="font-semibold text-primary mb-1.5">💡 Example Transformations:</p>
+                        <p className="font-semibold text-primary mb-1.5">💡 SQL UPDATE Examples (All Columns Editable):</p>
                         <ul className="text-muted-foreground space-y-0.5 ml-2 font-mono text-[10px]">
                           <li>• UPDATE customers SET demand = demand * 1.5</li>
-                          <li>• UPDATE customers SET city = 'New York' WHERE country = 'USA'</li>
+                          <li>• UPDATE customers SET city = 'New York' WHERE name = 'Customer A'</li>
+                          <li>• UPDATE customers SET latitude = 40.7128, longitude = -74.0060</li>
                           <li>• UPDATE products SET sellingPrice = 100 WHERE name = 'Product A'</li>
+                          <li>• UPDATE products SET baseUnit = 'kg'</li>
+                          <li>• UPDATE existingSites SET capacity = 50000 WHERE city = 'Chicago'</li>
+                          <li>• UPDATE existingSites SET name = 'Warehouse 1', city = 'Boston'</li>
                           <li>• UPDATE settings SET facilityCost = 3000000</li>
                           <li>• UPDATE settings SET transportationCostPerMilePerUnit = 2.5</li>
-                          <li>• UPDATE existingSites SET capacity = 50000 WHERE city = 'Chicago'</li>
+                          <li>• UPDATE settings SET distanceUnit = 'km', capacityUnit = 'tons'</li>
                         </ul>
+                        <p className="text-[10px] text-muted-foreground mt-2 italic">
+                          ✨ Any column from any table can be updated! Use exact table names: customers, products, existingSites, settings
+                        </p>
                       </div>
                     </div>
                     
