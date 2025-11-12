@@ -127,25 +127,45 @@ export function executeDataTransformation(plan: TransformationPlan, currentData:
                details.toLowerCase().includes("setting")) {
         
         if (result.settings) {
-          // Extract numeric value
-          const numberMatch = details.match(/(\d+\.?\d*)/);
-          const value = numberMatch ? parseFloat(numberMatch[0]) : null;
+          // Check for multiplication pattern: "field = field * X" or "field * X"
+          const multiplyMatch = details.match(/(capacity|transportationCostPerMilePerUnit|facilityCost|numDCs)\s*(?:=\s*\1\s*)?\*\s*(\d+\.?\d*)/i);
           
-          if (details.toLowerCase().includes("capacity") && value !== null) {
-            result.settings.dcCapacity = value;
-            console.log(`Updated DC capacity to ${value}`);
-          } 
-          else if ((details.toLowerCase().includes("numdc") || details.toLowerCase().includes("number of")) && value !== null) {
-            result.settings.numDCs = Math.floor(value);
-            console.log(`Updated number of DCs to ${value}`);
-          }
-          else if (details.toLowerCase().includes("transportation") && details.toLowerCase().includes("cost") && value !== null) {
-            result.settings.transportationCostPerMilePerUnit = value;
-            console.log(`Updated transportation cost to ${value}`);
-          }
-          else if (details.toLowerCase().includes("facility") && details.toLowerCase().includes("cost") && value !== null) {
-            result.settings.facilityCost = value;
-            console.log(`Updated facility cost to ${value}`);
+          if (multiplyMatch) {
+            const field = multiplyMatch[1];
+            const multiplier = parseFloat(multiplyMatch[2]);
+            
+            if (field.toLowerCase().includes('capacity') && result.settings.dcCapacity !== undefined) {
+              result.settings.dcCapacity *= multiplier;
+              console.log(`Multiplied DC capacity by ${multiplier}, new value: ${result.settings.dcCapacity}`);
+            } else if (field.toLowerCase().includes('transportation') && result.settings.transportationCostPerMilePerUnit !== undefined) {
+              result.settings.transportationCostPerMilePerUnit *= multiplier;
+              console.log(`Multiplied transportation cost by ${multiplier}, new value: ${result.settings.transportationCostPerMilePerUnit}`);
+            } else if (field.toLowerCase().includes('facility') && result.settings.facilityCost !== undefined) {
+              result.settings.facilityCost *= multiplier;
+              console.log(`Multiplied facility cost by ${multiplier}, new value: ${result.settings.facilityCost}`);
+            }
+          } else {
+            // Handle direct value assignment: "field = X"
+            const assignMatch = details.match(/(capacity|transportationCostPerMilePerUnit|facilityCost|numDCs)\s*=\s*(\d+\.?\d*)/i);
+            
+            if (assignMatch) {
+              const field = assignMatch[1];
+              const value = parseFloat(assignMatch[2]);
+              
+              if (field.toLowerCase().includes('capacity')) {
+                result.settings.dcCapacity = value;
+                console.log(`Set DC capacity to ${value}`);
+              } else if (field.toLowerCase().includes('transportation')) {
+                result.settings.transportationCostPerMilePerUnit = value;
+                console.log(`Set transportation cost to ${value}`);
+              } else if (field.toLowerCase().includes('facility')) {
+                result.settings.facilityCost = value;
+                console.log(`Set facility cost to ${value}`);
+              } else if (field.toLowerCase().includes('numdc')) {
+                result.settings.numDCs = Math.floor(value);
+                console.log(`Set number of DCs to ${value}`);
+              }
+            }
           }
           
           // Handle unit changes

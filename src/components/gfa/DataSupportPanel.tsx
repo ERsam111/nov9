@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { Send, Bot, User, Loader2, Trash2, Mic, MicOff, Sparkles, Database, Play, CheckCircle, ArrowRight } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
@@ -94,6 +95,8 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
   const [isExecuting, setIsExecuting] = useState(false);
   const [comparisonData, setComparisonData] = useState<ComparisonData | null>(null);
   const [pendingUpdatedData, setPendingUpdatedData] = useState<any>(null);
+  const [editableQuery, setEditableQuery] = useState<string>("");
+  const [showQueryEditor, setShowQueryEditor] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -230,10 +233,17 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
 
       // Handle transformation mode response
       if (activeTab === "transformation" && data.transformationPlan) {
+        // Show query editor for user to review/edit
+        const queryText = data.transformationPlan.operations
+          .map((op: any) => op.details)
+          .join('\n');
+        setEditableQuery(queryText);
         setTransformationPlan(data.transformationPlan);
+        setShowQueryEditor(true);
+        
         const assistantMessage: Message = {
           role: "assistant",
-          content: data.answer || "I've prepared a transformation plan for your request. Please review it below.",
+          content: data.answer || "I've prepared a transformation plan for your request. Please review and edit it below.",
         };
         setMessages((prev) => [...prev, assistantMessage]);
       } else {
@@ -267,8 +277,37 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
     }
   };
 
-  const executeTransformation = async () => {
+  const applyEditedTransformation = async () => {
     if (!transformationPlan || !onDataUpdate) {
+      toast.error("Cannot execute transformation: missing plan or update handler");
+      return;
+    }
+    
+    setShowQueryEditor(false);
+    
+    // Update the transformation plan with edited queries
+    const editedOperations = editableQuery.split('\n')
+      .filter(line => line.trim())
+      .map(detail => ({
+        type: "UPDATE",
+        details: detail.trim()
+      }));
+    
+    const updatedPlan = {
+      ...transformationPlan,
+      operations: editedOperations
+    };
+    
+    setTransformationPlan(updatedPlan);
+    
+    // Now execute with updated plan
+    executeTransformation(updatedPlan);
+  };
+
+  const executeTransformation = async (planToExecute?: TransformationPlan) => {
+    const plan = planToExecute || transformationPlan;
+    
+    if (!plan || !onDataUpdate) {
       toast.error("Cannot execute transformation: missing plan or update handler");
       return;
     }
@@ -311,7 +350,7 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
       const { data, error } = await supabase.functions.invoke("gfa-data-support", {
         body: {
           mode: "execute-transformation",
-          transformationPlan,
+          transformationPlan: plan,
           currentData: {
             customers,
             products,
@@ -950,8 +989,63 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
                 </div>
               ))}
               
+              {/* Query Editor */}
+              {showQueryEditor && transformationPlan && (
+                <Alert className="border-primary/30 bg-primary/5">
+                  <Database className="h-4 w-4" />
+                  <AlertDescription className="mt-2 space-y-3">
+                    <div>
+                      <h4 className="font-semibold mb-2">Review & Edit Transformation</h4>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        {transformationPlan.description}
+                      </p>
+                      <p className="text-xs text-muted-foreground mb-3">
+                        Review and edit the SQL-like operations before executing. Each line represents one operation.
+                      </p>
+                    </div>
+                    
+                    <Textarea
+                      value={editableQuery}
+                      onChange={(e) => setEditableQuery(e.target.value)}
+                      className="font-mono text-sm min-h-[120px] bg-background"
+                      placeholder="UPDATE customers SET demand = demand * 1.5"
+                    />
+                    
+                    <div className="flex gap-2">
+                      <Button 
+                        onClick={applyEditedTransformation} 
+                        disabled={isExecuting || !editableQuery.trim()}
+                        className="flex-1"
+                      >
+                        {isExecuting ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Executing...
+                          </>
+                        ) : (
+                          <>
+                            <Play className="h-4 w-4 mr-2" />
+                            Apply Transformation
+                          </>
+                        )}
+                      </Button>
+                      <Button 
+                        onClick={() => {
+                          setShowQueryEditor(false);
+                          setTransformationPlan(null);
+                        }} 
+                        variant="outline"
+                        disabled={isExecuting}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              )}
+              
               {/* Transformation Plan Display */}
-              {transformationPlan && (
+              {transformationPlan && !showQueryEditor && (
                 <Alert className="border-primary/30 bg-primary/5">
                   <Database className="h-4 w-4" />
                   <AlertDescription className="mt-2 space-y-3">
@@ -982,7 +1076,7 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
                     </div>
                     
                     <Button 
-                      onClick={executeTransformation} 
+                      onClick={() => executeTransformation()} 
                       disabled={isExecuting}
                       className="w-full mt-3"
                     >
