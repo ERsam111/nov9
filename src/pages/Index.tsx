@@ -269,6 +269,281 @@ const Index = () => {
         </div>
       </section>
 
+      {/* Case Studies Section */}
+      <section className="relative border-t overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-secondary/5" />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 relative">
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
+              <Target className="h-4 w-4" />
+              <span>Real-World Impact</span>
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-bold mb-4">Customer Success Stories</h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              See how leading companies solved complex supply chain challenges with our platform
+            </p>
+          </div>
+
+          <div className="space-y-8">
+            {/* GFA Case Study */}
+            <Card className="border-2 hover:border-primary/30 transition-all overflow-hidden">
+              <div className="absolute top-0 left-0 w-2 h-full bg-gradient-to-b from-gfa-green to-gfa-green/50" />
+              <CardHeader className="bg-gradient-to-r from-gfa-green/5 to-transparent">
+                <div className="flex items-start gap-4">
+                  <div className="p-3 rounded-xl bg-gfa-green/10 text-gfa-green">
+                    <MapPin className="h-6 w-6" />
+                  </div>
+                  <div className="flex-1">
+                    <CardTitle className="text-2xl mb-2">Global Electronics Manufacturer - Distribution Network Redesign</CardTitle>
+                    <CardDescription className="text-base">GFA Module • Facility Location Optimization</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-6">
+                <div className="grid md:grid-cols-3 gap-6">
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-sm text-gfa-green flex items-center gap-2">
+                      <Shield className="h-4 w-4" />
+                      The Challenge
+                    </h4>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      A $2B electronics manufacturer with 150+ customers across North America struggled with high distribution costs and inconsistent service levels. Their 8 regional warehouses were placed based on historical decisions without data-driven optimization.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-sm text-gfa-green flex items-center gap-2">
+                      <Lightbulb className="h-4 w-4" />
+                      The Solution
+                    </h4>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      Using the GFA module, they analyzed customer locations, demand patterns, and transportation costs. The AI assistant identified 3 optimal hub locations that balanced cost-to-serve with service level requirements, revealing $3.2M in potential annual savings.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-sm text-gfa-green flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4" />
+                      The Results
+                    </h4>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      <li className="flex items-start gap-2">
+                        <span className="text-gfa-green mt-0.5">•</span>
+                        <span>27% reduction in total distribution costs</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-gfa-green mt-0.5">•</span>
+                        <span>Consolidated from 8 to 5 strategically placed facilities</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-gfa-green mt-0.5">•</span>
+                        <span>Improved average delivery time from 3.2 to 1.8 days</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-gfa-green mt-0.5">•</span>
+                        <span>ROI achieved within 8 months of implementation</span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Demand Forecasting Case Study */}
+            <Card className="border-2 hover:border-primary/30 transition-all overflow-hidden">
+              <div className="absolute top-0 left-0 w-2 h-full bg-gradient-to-b from-forecasting-purple to-forecasting-purple/50" />
+              <CardHeader className="bg-gradient-to-r from-forecasting-purple/5 to-transparent">
+                <div className="flex items-start gap-4">
+                  <div className="p-3 rounded-xl bg-forecasting-purple/10 text-forecasting-purple">
+                    <TrendingUp className="h-6 w-6" />
+                  </div>
+                  <div className="flex-1">
+                    <CardTitle className="text-2xl mb-2">National Retail Chain - Seasonal Demand Planning</CardTitle>
+                    <CardDescription className="text-base">Demand Forecasting Module • Predictive Analytics</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-6">
+                <div className="grid md:grid-cols-3 gap-6">
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-sm text-forecasting-purple flex items-center gap-2">
+                      <Shield className="h-4 w-4" />
+                      The Challenge
+                    </h4>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      A regional retail chain with 45 stores faced chronic stockouts during peak seasons and excess inventory during slow periods. Manual forecasting methods resulted in 35% forecast error and $4.5M in lost sales annually from stockouts.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-sm text-forecasting-purple flex items-center gap-2">
+                      <Lightbulb className="h-4 w-4" />
+                      The Solution
+                    </h4>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      Implemented the Demand Forecasting module with 24 months of historical sales data. The system automatically detected seasonal patterns, promotional impacts, and trend changes. AI assistant provided actionable insights on product-level forecasts with confidence intervals.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-sm text-forecasting-purple flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4" />
+                      The Results
+                    </h4>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      <li className="flex items-start gap-2">
+                        <span className="text-forecasting-purple mt-0.5">•</span>
+                        <span>Forecast accuracy improved from 65% to 89%</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-forecasting-purple mt-0.5">•</span>
+                        <span>Stockout incidents reduced by 73%</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-forecasting-purple mt-0.5">•</span>
+                        <span>Excess inventory decreased 42%, freeing $2.8M in working capital</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-forecasting-purple mt-0.5">•</span>
+                        <span>Planning time reduced from 3 days to 4 hours per cycle</span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Inventory Optimization Case Study */}
+            <Card className="border-2 hover:border-primary/30 transition-all overflow-hidden">
+              <div className="absolute top-0 left-0 w-2 h-full bg-gradient-to-b from-inventory-orange to-inventory-orange/50" />
+              <CardHeader className="bg-gradient-to-r from-inventory-orange/5 to-transparent">
+                <div className="flex items-start gap-4">
+                  <div className="p-3 rounded-xl bg-inventory-orange/10 text-inventory-orange">
+                    <Gauge className="h-6 w-6" />
+                  </div>
+                  <div className="flex-1">
+                    <CardTitle className="text-2xl mb-2">Industrial Equipment Distributor - Multi-Echelon Inventory</CardTitle>
+                    <CardDescription className="text-base">Inventory Optimization Module • Monte Carlo Simulation</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-6">
+                <div className="grid md:grid-cols-3 gap-6">
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-sm text-inventory-orange flex items-center gap-2">
+                      <Shield className="h-4 w-4" />
+                      The Challenge
+                    </h4>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      A $500M industrial equipment distributor with 2 DCs and 12 regional warehouses carried $78M in inventory but still experienced 15% service level failures. Their static safety stock calculations didn't account for demand variability and lead time uncertainty.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-sm text-inventory-orange flex items-center gap-2">
+                      <Lightbulb className="h-4 w-4" />
+                      The Solution
+                    </h4>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      Deployed simulation-based inventory optimization analyzing 2,400 SKUs across the network. Monte Carlo simulations modeled demand variability and supplier lead times. The assistant recommended optimized reorder points and safety stock levels for each location-SKU combination.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-sm text-inventory-orange flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4" />
+                      The Results
+                    </h4>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      <li className="flex items-start gap-2">
+                        <span className="text-inventory-orange mt-0.5">•</span>
+                        <span>Total inventory reduced by $18.5M (24% reduction)</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-inventory-orange mt-0.5">•</span>
+                        <span>Service level improved from 85% to 97%</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-inventory-orange mt-0.5">•</span>
+                        <span>Annual carrying cost savings of $3.7M</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-inventory-orange mt-0.5">•</span>
+                        <span>Inventory turns increased from 4.2x to 6.1x annually</span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Network Analysis Case Study */}
+            <Card className="border-2 hover:border-primary/30 transition-all overflow-hidden">
+              <div className="absolute top-0 left-0 w-2 h-full bg-gradient-to-b from-network-blue to-network-blue/50" />
+              <CardHeader className="bg-gradient-to-r from-network-blue/5 to-transparent">
+                <div className="flex items-start gap-4">
+                  <div className="p-3 rounded-xl bg-network-blue/10 text-network-blue">
+                    <Network className="h-6 w-6" />
+                  </div>
+                  <div className="flex-1">
+                    <CardTitle className="text-2xl mb-2">Food & Beverage Company - End-to-End Network Optimization</CardTitle>
+                    <CardDescription className="text-base">Network Analysis Module • Supply Chain Network Design</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-6">
+                <div className="grid md:grid-cols-3 gap-6">
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-sm text-network-blue flex items-center gap-2">
+                      <Shield className="h-4 w-4" />
+                      The Challenge
+                    </h4>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      A regional food distributor with 4 manufacturing plants, 9 distribution centers, and 800+ retail customers faced inefficient product flows resulting in high transportation costs and long lead times. No visibility into end-to-end network performance.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-sm text-network-blue flex items-center gap-2">
+                      <Lightbulb className="h-4 w-4" />
+                      The Solution
+                    </h4>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      Used Network Analysis to map the entire supply chain flow. The platform identified bottlenecks, redundant routes, and optimization opportunities. AI assistant recommended consolidating shipments and reallocating customer assignments to closer DCs.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-sm text-network-blue flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4" />
+                      The Results
+                    </h4>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      <li className="flex items-start gap-2">
+                        <span className="text-network-blue mt-0.5">•</span>
+                        <span>Transportation costs reduced by 19% ($6.2M annually)</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-network-blue mt-0.5">•</span>
+                        <span>Average delivery lead time reduced from 4.1 to 2.3 days</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-network-blue mt-0.5">•</span>
+                        <span>Truck utilization improved from 67% to 88%</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-network-blue mt-0.5">•</span>
+                        <span>Carbon emissions reduced by 15% through route optimization</span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="text-center mt-12">
+            <p className="text-muted-foreground mb-6">Ready to transform your supply chain operations?</p>
+            <Button size="lg" onClick={() => navigate("/auth")} className="shadow-lg">
+              Start Your Success Story
+              <ArrowRight className="ml-2 h-5 w-5" />
+            </Button>
+          </div>
+        </div>
+      </section>
+
       {/* Stats Section */}
       <section className="relative border-t overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-gfa-green/5 via-forecasting-purple/5 to-network-blue/5" />
