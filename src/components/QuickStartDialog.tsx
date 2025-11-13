@@ -2,23 +2,28 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Rocket, CheckCircle2, Play, Book } from "lucide-react";
+import { Rocket, CheckCircle2, Play, Book, Building2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { sampleDataDescriptions } from "@/data/sampleData";
+import { sampleDataDescriptions, gfaIndustryExamples, forecastingIndustryExamples, inventoryIndustryExamples, IndustryExample } from "@/data/sampleData";
 
 interface QuickStartDialogProps {
   module: 'gfa' | 'forecasting' | 'inventory';
-  onLoadSampleData: () => void;
+  onLoadSampleData: (example?: IndustryExample) => void;
   trigger?: React.ReactNode;
 }
 
 export function QuickStartDialog({ module, onLoadSampleData, trigger }: QuickStartDialogProps) {
   const [open, setOpen] = useState(false);
+  const [selectedExample, setSelectedExample] = useState<IndustryExample | null>(null);
   const moduleData = sampleDataDescriptions[module];
+  
+  const examples = module === 'gfa' ? gfaIndustryExamples : 
+                   module === 'forecasting' ? forecastingIndustryExamples : 
+                   inventoryIndustryExamples;
 
-  const handleLoadData = () => {
-    onLoadSampleData();
+  const handleLoadData = (example: IndustryExample) => {
+    onLoadSampleData(example);
     setOpen(false);
   };
 
@@ -44,25 +49,44 @@ export function QuickStartDialog({ module, onLoadSampleData, trigger }: QuickSta
         </DialogHeader>
 
         <div className="space-y-6 py-4">
-          {/* What's Included Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Book className="h-5 w-5" />
-                What's Included
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-2">
-                {moduleData.dataPoints.map((point, index) => (
-                  <li key={index} className="flex items-start gap-2">
-                    <CheckCircle2 className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                    <span className="text-muted-foreground">{point}</span>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
+          {/* Industry Examples */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Building2 className="h-5 w-5" />
+              Choose an Industry Example
+            </h3>
+            <div className="grid gap-3">
+              {examples.map((example) => (
+                <Card 
+                  key={example.id} 
+                  className="cursor-pointer hover:border-primary transition-colors"
+                  onClick={() => handleLoadData(example)}
+                >
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <CardTitle className="text-base">{example.title}</CardTitle>
+                        <Badge variant="secondary" className="mt-2">{example.industry}</Badge>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <p className="text-sm text-muted-foreground">{example.description}</p>
+                    <ul className="space-y-1">
+                      {example.dataPoints.slice(0, 3).map((point, idx) => (
+                        <li key={idx} className="flex items-start gap-2 text-sm">
+                          <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                          <span className="text-muted-foreground">{point}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+
+          <Separator />
 
           {/* Quick Start Workflow */}
           <Card>
@@ -71,12 +95,9 @@ export function QuickStartDialog({ module, onLoadSampleData, trigger }: QuickSta
                 <Play className="h-5 w-5" />
                 Quick Start Workflow
               </CardTitle>
-              <CardDescription>
-                Follow these steps to try the tool with sample data
-              </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {moduleData.workflow.map((step, index) => (
                   <div key={index} className="flex gap-3">
                     <Badge variant="outline" className="h-6 w-6 rounded-full flex items-center justify-center flex-shrink-0">
@@ -89,21 +110,8 @@ export function QuickStartDialog({ module, onLoadSampleData, trigger }: QuickSta
             </CardContent>
           </Card>
 
-          <Separator />
-
-          {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Button onClick={handleLoadData} size="lg" className="flex-1 gap-2">
-              <Rocket className="h-4 w-4" />
-              Load Sample Data & Start
-            </Button>
-            <Button variant="outline" size="lg" onClick={() => setOpen(false)} className="flex-1">
-              Maybe Later
-            </Button>
-          </div>
-
           <p className="text-xs text-center text-muted-foreground">
-            You can load sample data anytime to explore features without preparing your own dataset
+            Select any example above to load realistic sample data and start exploring
           </p>
         </div>
       </DialogContent>
