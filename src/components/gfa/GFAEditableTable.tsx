@@ -244,7 +244,7 @@ export function GFAEditableTable({ tableType, data, onDataChange, onGeocode, pro
         </div>
       </div>
 
-      <div className="flex-1 overflow-x-auto overflow-y-auto p-4">
+      <div className="flex-1 min-h-0 max-w-full h-full overflow-x-scroll overflow-y-scroll p-4">
         <Table className="min-w-max">
           <TableHeader>
             <TableRow>
