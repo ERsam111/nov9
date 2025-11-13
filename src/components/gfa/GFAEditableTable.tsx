@@ -223,7 +223,7 @@ export function GFAEditableTable({ tableType, data, onDataChange, onGeocode, pro
   }
 
   return (
-    <Card className="flex flex-col h-full overflow-hidden max-w-[1600px]">
+    <Card className="flex flex-col overflow-hidden max-w-[1600px] max-h-[calc(100vh-100px)]">
       <div className="p-4 border-b flex items-center justify-between shrink-0">
         <h2 className="text-base font-semibold">{getTableTitle(tableType)}</h2>
         <div className="flex gap-2">
@@ -244,7 +244,7 @@ export function GFAEditableTable({ tableType, data, onDataChange, onGeocode, pro
         </div>
       </div>
 
-      <div className="flex-1 overflow-x-auto overflow-y-auto p-4 min-h-[calc(100vh-200px)]">
+      <div className="flex-1 overflow-x-auto overflow-y-auto p-4">
         <Table className="min-w-max">
           <TableHeader>
             <TableRow>
