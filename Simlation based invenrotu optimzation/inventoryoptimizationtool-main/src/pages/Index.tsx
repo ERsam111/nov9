@@ -37,6 +37,8 @@ import {
 import { downloadTemplate, exportResultsToExcel, importFromExcel } from "../utils/excelExport";
 import { compressData, decompressData, formatBytes } from "../utils/dataCompression";
 import { InventoryDataSupport } from "../components/InventoryDataSupport";
+import { QuickStartDialog } from "@/components/QuickStartDialog";
+import { sampleInventoryData } from "@/data/sampleData";
 
 const Index = ({ currentScenario, updateScenario, saveScenarioOutput, saveScenarioInput, loadScenarioOutput }: any) => {
   const [replications, setReplications] = useState(10);
@@ -742,6 +744,21 @@ const Index = ({ currentScenario, updateScenario, saveScenarioOutput, saveScenar
     }
   };
 
+  const handleLoadSampleData = () => {
+    setCustomerData(sampleInventoryData.customerData as any);
+    setFacilityData(sampleInventoryData.facilityData as any);
+    setProductData(sampleInventoryData.productData as any);
+    setCustomerFulfillmentData(sampleInventoryData.demandData as any);
+    setReplenishmentData(sampleInventoryData.transitTimeData as any);
+    setBomData(sampleInventoryData.billOfMaterialsData as any);
+    Object.entries(sampleInventoryData.settings).forEach(([key, value]) => {
+      const field = inputFactorsData.find((f: any) => f["Factor Name"] === key);
+      if (field) field["Base Value"] = value;
+    });
+    toast("Sample inventory data loaded successfully!");
+    setActiveTab("input");
+  };
+
   return (
     <div className="h-full bg-background">
       <div className="max-w-[1800px] mx-auto w-full px-4 py-2 h-full">
@@ -770,7 +787,11 @@ const Index = ({ currentScenario, updateScenario, saveScenarioOutput, saveScenar
                   <CardDescription className="text-xs">Select a table to edit</CardDescription>
                 </CardHeader>
                 <CardContent className="p-0 flex-1 flex flex-col min-h-0">
-                  <div className="p-3 flex gap-2 border-b">
+                  <div className="p-3 flex flex-col gap-2 border-b">
+                    <QuickStartDialog 
+                      module="inventory"
+                      onLoadSampleData={handleLoadSampleData}
+                    />
                     <Button 
                       onClick={() => {
                         downloadTemplate(tables);

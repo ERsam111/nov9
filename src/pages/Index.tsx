@@ -231,7 +231,7 @@ const Index = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {features.map((feature, index) => {
           const Icon = feature.icon;
-          return <Card key={index} className={`group relative overflow-hidden border-2 transition-all duration-300 bg-card/80 backdrop-blur-sm ${feature.comingSoon ? "opacity-75 cursor-not-allowed" : "hover:border-primary/50 hover:shadow-2xl hover:-translate-y-1 cursor-pointer"}`} onClick={() => !feature.comingSoon && navigate("/auth")}>
+          return <Card key={index} className="group relative overflow-hidden border-2 transition-all duration-300 bg-card/80 backdrop-blur-sm hover:border-primary/50 hover:shadow-2xl">
                 {feature.comingSoon && <div className="absolute top-4 right-4 z-10">
                     <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 backdrop-blur-sm">
                       <Clock className="h-3.5 w-3.5 text-primary" />
@@ -243,10 +243,9 @@ const Index = () => {
 
                 <CardHeader className="relative pb-4">
                   <div className="flex items-start justify-between mb-4">
-                    <div className={`p-4 rounded-xl bg-${feature.color}/10 text-${feature.color} transition-transform duration-300 shadow-sm ${!feature.comingSoon && "group-hover:scale-110"}`}>
+                    <div className={`p-4 rounded-xl bg-${feature.color}/10 text-${feature.color} transition-transform duration-300 shadow-sm group-hover:scale-110`}>
                       <Icon className="h-8 w-8" />
                     </div>
-                    {!feature.comingSoon && <ArrowRight className="h-5 w-5 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300" />}
                   </div>
                   <CardTitle className="text-2xl mb-1">{feature.title}</CardTitle>
                   <CardDescription className="text-base font-medium text-primary/70">
@@ -254,16 +253,16 @@ const Index = () => {
                   </CardDescription>
                 </CardHeader>
 
-                <CardContent className="relative">
-                  <p className="text-sm text-muted-foreground leading-relaxed mb-4">{feature.details}</p>
-                  <div className="flex items-center gap-2 text-xs text-primary/80 mb-6 bg-primary/5 rounded-lg p-3">
-                    
+                <CardContent className="relative space-y-4">
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-semibold text-foreground">What Problems It Solves</h4>
+                    <p className="text-sm text-muted-foreground leading-relaxed">{feature.details}</p>
+                  </div>
+                  
+                  <div className="flex items-center gap-2 text-xs text-primary/80 bg-primary/5 rounded-lg p-3">
+                    <Sparkles className="h-3.5 w-3.5 flex-shrink-0" />
                     <span>{feature.aiFeature}</span>
                   </div>
-                  <Button variant="ghost" className={`w-full justify-between ${feature.comingSoon ? "cursor-not-allowed" : "group-hover:bg-primary/10"} transition-colors`} disabled={feature.comingSoon}>
-                    {feature.comingSoon ? "Coming Soon" : "Launch Tool"}
-                    {!feature.comingSoon && <ArrowRight className="h-4 w-4 ml-2" />}
-                  </Button>
                 </CardContent>
               </Card>;
         })}
