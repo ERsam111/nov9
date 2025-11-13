@@ -207,7 +207,7 @@ export function GFAEditableTable({
     displayRows = applySorting(displayRows, key, direction);
   }
 
-  return <Card className="flex flex-col h-full overflow-hidden max-w-[400px]">
+  return <Card className="flex flex-col h-full overflow-hidden max-w-[600px]">
       <div className="p-4 border-b flex items-center justify-between shrink-0">
         <h2 className="text-base font-semibold">{getTableTitle(tableType)}</h2>
         <div className="flex gap-2">
