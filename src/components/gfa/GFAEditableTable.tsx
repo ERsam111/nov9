@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download, Upload, Plus, Trash2, MapPin } from "lucide-react";
@@ -169,6 +169,7 @@ export function GFAEditableTable({ tableType, data, onDataChange, onGeocode, pro
   const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
     const reader = new FileReader();
     reader.onload = (evt) => {
       try {
@@ -217,7 +218,7 @@ export function GFAEditableTable({ tableType, data, onDataChange, onGeocode, pro
     return numericFields.includes(key) ? "number" : "text";
   };
 
-  // Apply filters and sorting
+  // Apply filters
   let displayRows = rows.filter((row) => {
     return Object.entries(columnFilters).every(([colLabel, filter]) => {
       const key = keyOf(colLabel, tableType);
@@ -233,8 +234,9 @@ export function GFAEditableTable({ tableType, data, onDataChange, onGeocode, pro
     displayRows = applySorting(displayRows, key, direction);
   }
 
-    return (
-    <Card className="flex flex-col w-full max-w-full max-h-[calc(100vh-210px)] overflow-hidden">
+  return (
+    <Card className="flex flex-col w-full max-w-full max-h-[calc(100vh-220px)] overflow-hidden">
+      {/* Header */}
       <div className="p-4 border-b flex items-center justify-between shrink-0">
         <h2 className="text-base font-semibold">{getTableTitle(tableType)}</h2>
         <div className="flex gap-2">
@@ -245,12 +247,7 @@ export function GFAEditableTable({ tableType, data, onDataChange, onGeocode, pro
             <Button variant="outline" size="sm" asChild>
               <label className="cursor-pointer">
                 <Upload className="h-4 w-4 mr-2" /> Import
-                <input
-                  type="file"
-                  className="hidden"
-                  accept=".xlsx,.xls"
-                  onChange={handleExcelUpload}
-                />
+                <input type="file" className="hidden" accept=".xlsx,.xls" onChange={handleExcelUpload} />
               </label>
             </Button>
           )}
@@ -260,17 +257,14 @@ export function GFAEditableTable({ tableType, data, onDataChange, onGeocode, pro
         </div>
       </div>
 
-      {/* TABLE SCROLL AREA */}
+      {/* Scrollable table area */}
       <div className="flex-1 min-h-0 overflow-x-scroll overflow-y-scroll p-4">
         <div className="inline-block min-w-full align-middle">
           <Table className="min-w-max">
             <TableHeader>
               <TableRow>
                 {columns.map((c) => (
-                  <TableHead
-                    key={c}
-                    className="sticky top-0 font-semibold text-sm whitespace-nowrap bg-muted/50 px-2"
-                  >
+                  <TableHead key={c} className="sticky top-0 font-semibold text-sm whitespace-nowrap bg-muted/50 px-2">
                     <TableColumnFilter
                       columnKey={keyOf(c, tableType)}
                       columnLabel={c}
@@ -291,19 +285,13 @@ export function GFAEditableTable({ tableType, data, onDataChange, onGeocode, pro
             <TableBody>
               {rows.length === 0 ? (
                 <TableRow>
-                  <TableCell
-                    colSpan={columns.length + 1}
-                    className="text-center text-muted-foreground py-8"
-                  >
+                  <TableCell colSpan={columns.length + 1} className="text-center text-muted-foreground py-8">
                     No data. Click "Add Row" to begin.
                   </TableCell>
                 </TableRow>
               ) : displayRows.length === 0 ? (
                 <TableRow>
-                  <TableCell
-                    colSpan={columns.length + 1}
-                    className="text-center text-muted-foreground py-8"
-                  >
+                  <TableCell colSpan={columns.length + 1} className="text-center text-muted-foreground py-8">
                     No results match your filters.
                   </TableCell>
                 </TableRow>
@@ -316,6 +304,7 @@ export function GFAEditableTable({ tableType, data, onDataChange, onGeocode, pro
                         const key = keyOf(col, tableType);
                         const val = row[key] ?? "";
 
+                        // Special handling for unit conversion columns in products
                         if (tableType === "products" && key.startsWith("to_")) {
                           const conversions = row.unitConversions || {};
                           const value = conversions[key] || "";
@@ -324,9 +313,7 @@ export function GFAEditableTable({ tableType, data, onDataChange, onGeocode, pro
                               <Input
                                 type="number"
                                 value={value}
-                                onChange={(e) =>
-                                  handleChange(i, col, e.target.value)
-                                }
+                                onChange={(e) => handleChange(i, col, e.target.value)}
                                 placeholder="Factor"
                                 className="h-9 text-sm w-24"
                               />
@@ -334,64 +321,41 @@ export function GFAEditableTable({ tableType, data, onDataChange, onGeocode, pro
                           );
                         }
 
+                        // Base unit dropdown in products
                         if (tableType === "products" && key === "baseUnit") {
                           return (
                             <TableCell key={col}>
-                              <Select
-                                value={String(val)}
-                                onValueChange={(v) => handleChange(i, col, v)}
-                              >
+                              <Select value={String(val)} onValueChange={(v) => handleChange(i, col, v)}>
                                 <SelectTrigger className="w-full h-9 text-sm">
                                   <SelectValue placeholder="Select unit" />
                                 </SelectTrigger>
                                 <SelectContent className="z-50 bg-background">
-                                  <SelectItem value="m3">
-                                    m³ (Cubic Meter)
-                                  </SelectItem>
-                                  <SelectItem value="pallets">
-                                    Pallets
-                                  </SelectItem>
-                                  <SelectItem value="kg">
-                                    kg (Kilogram)
-                                  </SelectItem>
-                                  <SelectItem value="tonnes">
-                                    Tonnes
-                                  </SelectItem>
-                                  <SelectItem value="lbs">
-                                    lbs (Pounds)
-                                  </SelectItem>
-                                  <SelectItem value="ft3">
-                                    ft³ (Cubic Feet)
-                                  </SelectItem>
-                                  <SelectItem value="liters">
-                                    Liters
-                                  </SelectItem>
-                                  <SelectItem value="units">
-                                    Units
-                                  </SelectItem>
+                                  <SelectItem value="m3">m³ (Cubic Meter)</SelectItem>
+                                  <SelectItem value="pallets">Pallets</SelectItem>
+                                  <SelectItem value="kg">kg (Kilogram)</SelectItem>
+                                  <SelectItem value="tonnes">Tonnes</SelectItem>
+                                  <SelectItem value="lbs">lbs (Pounds)</SelectItem>
+                                  <SelectItem value="ft3">ft³ (Cubic Feet)</SelectItem>
+                                  <SelectItem value="liters">Liters</SelectItem>
+                                  <SelectItem value="units">Units</SelectItem>
                                 </SelectContent>
                               </Select>
                             </TableCell>
                           );
                         }
 
+                        // Product dropdown in customers
                         if (tableType === "customers" && key === "product") {
                           return (
                             <TableCell key={col}>
-                              <Select
-                                value={String(val)}
-                                onValueChange={(v) => handleChange(i, col, v)}
-                              >
+                              <Select value={String(val)} onValueChange={(v) => handleChange(i, col, v)}>
                                 <SelectTrigger className="w-full h-9 text-sm">
                                   <SelectValue placeholder="Select product" />
                                 </SelectTrigger>
                                 <SelectContent className="z-50 bg-background">
                                   {products.length > 0 ? (
                                     products.map((product) => (
-                                      <SelectItem
-                                        key={product.name}
-                                        value={product.name}
-                                      >
+                                      <SelectItem key={product.name} value={product.name}>
                                         {product.name}
                                       </SelectItem>
                                     ))
@@ -406,13 +370,11 @@ export function GFAEditableTable({ tableType, data, onDataChange, onGeocode, pro
                           );
                         }
 
+                        // Country dropdown
                         if (key === "country") {
                           return (
                             <TableCell key={col}>
-                              <Select
-                                value={String(val)}
-                                onValueChange={(v) => handleChange(i, col, v)}
-                              >
+                              <Select value={String(val)} onValueChange={(v) => handleChange(i, col, v)}>
                                 <SelectTrigger className="w-full h-9 text-sm">
                                   <SelectValue placeholder="Select country" />
                                 </SelectTrigger>
@@ -421,9 +383,7 @@ export function GFAEditableTable({ tableType, data, onDataChange, onGeocode, pro
                                   <SelectItem value="Canada">Canada</SelectItem>
                                   <SelectItem value="Mexico">Mexico</SelectItem>
                                   <SelectItem value="UK">UK</SelectItem>
-                                  <SelectItem value="Germany">
-                                    Germany
-                                  </SelectItem>
+                                  <SelectItem value="Germany">Germany</SelectItem>
                                   <SelectItem value="France">France</SelectItem>
                                   <SelectItem value="India">India</SelectItem>
                                   <SelectItem value="China">China</SelectItem>
@@ -434,68 +394,39 @@ export function GFAEditableTable({ tableType, data, onDataChange, onGeocode, pro
                           );
                         }
 
-                        if (
-                          tableType === "customers" &&
-                          key === "unitOfMeasure"
-                        ) {
+                        // Unit of measure dropdown in customers
+                        if (tableType === "customers" && key === "unitOfMeasure") {
                           return (
                             <TableCell key={col}>
-                              <Select
-                                value={String(val)}
-                                onValueChange={(v) => handleChange(i, col, v)}
-                              >
+                              <Select value={String(val)} onValueChange={(v) => handleChange(i, col, v)}>
                                 <SelectTrigger className="w-full h-9 text-sm">
                                   <SelectValue placeholder="Select unit" />
                                 </SelectTrigger>
                                 <SelectContent className="z-50 bg-background">
-                                  <SelectItem value="m3">
-                                    m³ (Cubic Meter)
-                                  </SelectItem>
-                                  <SelectItem value="pallets">
-                                    Pallets
-                                  </SelectItem>
-                                  <SelectItem value="kg">
-                                    kg (Kilogram)
-                                  </SelectItem>
-                                  <SelectItem value="tonnes">
-                                    Tonnes
-                                  </SelectItem>
-                                  <SelectItem value="lbs">
-                                    lbs (Pounds)
-                                  </SelectItem>
-                                  <SelectItem value="ft3">
-                                    ft³ (Cubic Feet)
-                                  </SelectItem>
-                                  <SelectItem value="liters">
-                                    Liters
-                                  </SelectItem>
-                                  <SelectItem value="units">
-                                    Units
-                                  </SelectItem>
+                                  <SelectItem value="m3">m³ (Cubic Meter)</SelectItem>
+                                  <SelectItem value="pallets">Pallets</SelectItem>
+                                  <SelectItem value="kg">kg (Kilogram)</SelectItem>
+                                  <SelectItem value="tonnes">Tonnes</SelectItem>
+                                  <SelectItem value="lbs">lbs (Pounds)</SelectItem>
+                                  <SelectItem value="ft3">ft³ (Cubic Feet)</SelectItem>
+                                  <SelectItem value="liters">Liters</SelectItem>
+                                  <SelectItem value="units">Units</SelectItem>
                                 </SelectContent>
                               </Select>
                             </TableCell>
                           );
                         }
 
+                        // Regular input fields
                         return (
                           <TableCell key={col} className="whitespace-nowrap">
                             <Input
-                              value={
-                                val === undefined || val === null
-                                  ? ""
-                                  : String(val)
-                              }
-                              onChange={(e) =>
-                                handleChange(i, col, e.target.value)
-                              }
+                              value={val === undefined || val === null ? "" : String(val)}
+                              onChange={(e) => handleChange(i, col, e.target.value)}
                               placeholder={`Enter ${col}`}
                               className="h-9 text-sm min-w-[120px]"
                               type={
-                                key === "demand" ||
-                                key === "sellingPrice" ||
-                                key === "latitude" ||
-                                key === "longitude"
+                                key === "demand" || key === "sellingPrice" || key === "latitude" || key === "longitude"
                                   ? "number"
                                   : "text"
                               }
@@ -506,21 +437,11 @@ export function GFAEditableTable({ tableType, data, onDataChange, onGeocode, pro
                       <TableCell>
                         <div className="flex items-center gap-1">
                           {tableType === "customers" && onGeocode && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => onGeocode(i)}
-                              className="h-8 w-8 p-0"
-                            >
+                            <Button variant="ghost" size="sm" onClick={() => onGeocode(i)} className="h-8 w-8 p-0">
                               <MapPin className="h-4 w-4 text-primary" />
                             </Button>
                           )}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteRow(i)}
-                            className="h-8 w-8 p-0"
-                          >
+                          <Button variant="ghost" size="sm" onClick={() => handleDeleteRow(i)} className="h-8 w-8 p-0">
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </div>
@@ -535,3 +456,4 @@ export function GFAEditableTable({ tableType, data, onDataChange, onGeocode, pro
       </div>
     </Card>
   );
+}
