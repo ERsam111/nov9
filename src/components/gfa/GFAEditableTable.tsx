@@ -206,107 +206,161 @@ export function GFAEditableTable({
     const key = keyOf(colLabel, tableType);
     displayRows = applySorting(displayRows, key, direction);
   }
+return (
+  <Card className="flex flex-col h-full w-full max-w-full overflow-hidden">
+    <div className="p-4 border-b flex items-center justify-between shrink-0">
+      <h2 className="text-base font-semibold">{getTableTitle(tableType)}</h2>
+      <div className="flex gap-2">
+        <Button variant="outline" size="sm" onClick={handleDownload}>
+          <Download className="h-4 w-4 mr-2" /> Export
+        </Button>
 
-  return <Card className="flex flex-col h-full overflow-hidden">
-      <div className="p-4 border-b flex items-center justify-between shrink-0">
-        <h2 className="text-base font-semibold">{getTableTitle(tableType)}</h2>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleDownload}>
-            <Download className="h-4 w-4 mr-2" /> Export
+        {tableType === "customers" && (
+          <Button variant="outline" size="sm" asChild>
+            <label className="cursor-pointer flex items-center">
+              <Upload className="h-4 w-4 mr-2" />
+              Import
+              <input
+                type="file"
+                className="hidden"
+                accept=".xlsx,.xls"
+                onChange={handleExcelUpload}
+              />
+            </label>
           </Button>
-          {tableType === "customers" && <Button variant="outline" size="sm" asChild>
-              <label className="cursor-pointer">
-                <Upload className="h-4 w-4 mr-2" /> Import
-                <input type="file" className="hidden" accept=".xlsx,.xls" onChange={handleExcelUpload} />
-              </label>
-            </Button>}
-          <Button size="sm" onClick={handleAddRow}>
-            <Plus className="h-4 w-4 mr-2" /> Add Row
-          </Button>
-        </div>
+        )}
+
+        <Button size="sm" onClick={handleAddRow}>
+          <Plus className="h-4 w-4 mr-2" /> Add Row
+        </Button>
       </div>
+    </div>
 
-      <div className="flex-1 overflow-x-auto overflow-y-auto p-4">
+    {/* Scrollable area – stays inside screen, table can scroll horizontally */}
+    <div className="flex-1 min-h-0 max-w-full overflow-x-auto overflow-y-auto p-4">
+      <div className="inline-block min-w-full align-middle">
         <Table className="min-w-max">
-            <TableHeader>
-              <TableRow>
-                {columns.map(c => <TableHead key={c} className="sticky top-0 font-semibold text-sm whitespace-nowrap bg-muted/50 px-2">
-                    <TableColumnFilter
-                      columnKey={keyOf(c, tableType)}
-                      columnLabel={c}
-                      dataType={getColumnDataType(c)}
-                      currentFilter={columnFilters[c]}
-                      currentSort={columnSorts[c] || null}
-                      onFilterChange={(filter) => handleFilterChange(c, filter)}
-                      onSortChange={(sort) => handleSortChange(c, sort)}
-                    />
-                  </TableHead>)}
-                <TableHead className="sticky top-0 bg-muted/50 font-semibold text-sm whitespace-nowrap">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.length === 0 ? <TableRow>
-                  <TableCell colSpan={columns.length + 1} className="text-center text-muted-foreground py-8">
-                    No data. Click "Add Row" to begin.
-                  </TableCell>
-                </TableRow> : displayRows.length === 0 ? <TableRow>
-                  <TableCell colSpan={columns.length + 1} className="text-center text-muted-foreground py-8">
-                    No results match your filters.
-                  </TableCell>
-                </TableRow> : displayRows.map((row, displayIndex) => {
-                const i = rows.indexOf(row);
-                return <TableRow key={i}>
-                    {columns.map(col => {
-              const key = keyOf(col, tableType);
-              const val = row[key] ?? "";
-
-              // Special handling for unit conversion columns in products
-              if (tableType === "products" && key.startsWith("to_")) {
-                const conversions = row.unitConversions || {};
-                const value = conversions[key] || "";
-                return <TableCell key={col}>
-                  <Input 
-                    type="number"
-                    value={value}
-                    onChange={e => handleChange(i, col, e.target.value)}
-                    placeholder="Factor"
-                    className="h-9 text-sm w-24"
+          <TableHeader>
+            <TableRow>
+              {columns.map((c) => (
+                <TableHead
+                  key={c}
+                  className="sticky top-0 font-semibold text-sm whitespace-nowrap bg-muted/50 px-2"
+                >
+                  <TableColumnFilter
+                    columnKey={keyOf(c, tableType)}
+                    columnLabel={c}
+                    dataType={getColumnDataType(c)}
+                    currentFilter={columnFilters[c]}
+                    currentSort={columnSorts[c] || null}
+                    onFilterChange={(filter) => handleFilterChange(c, filter)}
+                    onSortChange={(sort) => handleSortChange(c, sort)}
                   />
-                </TableCell>;
-              }
+                </TableHead>
+              ))}
+              <TableHead className="sticky top-0 bg-muted/50 font-semibold text-sm whitespace-nowrap">
+                Actions
+              </TableHead>
+            </TableRow>
+          </TableHeader>
 
-              // Special handling for base unit dropdown in products
-              if (tableType === "products" && key === "baseUnit") {
-                return <TableCell key={col}>
-                            <Select value={String(val)} onValueChange={v => handleChange(i, col, v)}>
+          <TableBody>
+            {rows.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length + 1}
+                  className="text-center text-muted-foreground py-8"
+                >
+                  No data. Click "Add Row" to begin.
+                </TableCell>
+              </TableRow>
+            ) : displayRows.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length + 1}
+                  className="text-center text-muted-foreground py-8"
+                >
+                  No results match your filters.
+                </TableCell>
+              </TableRow>
+            ) : (
+              displayRows.map((row, displayIndex) => {
+                const i = rows.indexOf(row);
+                return (
+                  <TableRow key={i}>
+                    {columns.map((col) => {
+                      const key = keyOf(col, tableType);
+                      const val = row[key] ?? "";
+
+                      // Special handling for unit conversion columns in products
+                      if (tableType === "products" && key.startsWith("to_")) {
+                        const conversions = row.unitConversions || {};
+                        const value = conversions[key] || "";
+                        return (
+                          <TableCell key={col}>
+                            <Input
+                              type="number"
+                              value={value}
+                              onChange={(e) =>
+                                handleChange(i, col, e.target.value)
+                              }
+                              placeholder="Factor"
+                              className="h-9 text-sm w-24"
+                            />
+                          </TableCell>
+                        );
+                      }
+
+                      // Special handling for base unit dropdown in products
+                      if (tableType === "products" && key === "baseUnit") {
+                        return (
+                          <TableCell key={col}>
+                            <Select
+                              value={String(val)}
+                              onValueChange={(v) => handleChange(i, col, v)}
+                            >
                               <SelectTrigger className="w-full h-9 text-sm">
                                 <SelectValue placeholder="Select unit" />
                               </SelectTrigger>
                               <SelectContent className="z-50 bg-background">
-                                <SelectItem value="m3">m³ (Cubic Meter)</SelectItem>
-                                <SelectItem value="pallets">Pallets</SelectItem>
+                                <SelectItem value="m3">
+                                  m³ (Cubic Meter)
+                                </SelectItem>
+                                <SelectItem value="pallets">
+                                  Pallets
+                                </SelectItem>
                                 <SelectItem value="kg">kg (Kilogram)</SelectItem>
                                 <SelectItem value="tonnes">Tonnes</SelectItem>
                                 <SelectItem value="lbs">lbs (Pounds)</SelectItem>
-                                <SelectItem value="ft3">ft³ (Cubic Feet)</SelectItem>
+                                <SelectItem value="ft3">
+                                  ft³ (Cubic Feet)
+                                </SelectItem>
                                 <SelectItem value="liters">Liters</SelectItem>
                                 <SelectItem value="units">Units</SelectItem>
                               </SelectContent>
                             </Select>
-                          </TableCell>;
-              }
+                          </TableCell>
+                        );
+                      }
 
-              // Special handling for product dropdown in customers
-              if (tableType === "customers" && key === "product") {
-                return <TableCell key={col}>
-                            <Select value={String(val)} onValueChange={v => handleChange(i, col, v)}>
+                      // Special handling for product dropdown in customers
+                      if (tableType === "customers" && key === "product") {
+                        return (
+                          <TableCell key={col}>
+                            <Select
+                              value={String(val)}
+                              onValueChange={(v) => handleChange(i, col, v)}
+                            >
                               <SelectTrigger className="w-full h-9 text-sm">
                                 <SelectValue placeholder="Select product" />
                               </SelectTrigger>
                               <SelectContent className="z-50 bg-background">
                                 {products.length > 0 ? (
                                   products.map((product) => (
-                                    <SelectItem key={product.name} value={product.name}>
+                                    <SelectItem
+                                      key={product.name}
+                                      value={product.name}
+                                    >
                                       {product.name}
                                     </SelectItem>
                                   ))
@@ -317,13 +371,18 @@ export function GFAEditableTable({
                                 )}
                               </SelectContent>
                             </Select>
-                          </TableCell>;
-              }
+                          </TableCell>
+                        );
+                      }
 
-              // Special handling for country dropdown
-              if (key === "country") {
-                return <TableCell key={col}>
-                            <Select value={String(val)} onValueChange={v => handleChange(i, col, v)}>
+                      // Special handling for country dropdown
+                      if (key === "country") {
+                        return (
+                          <TableCell key={col}>
+                            <Select
+                              value={String(val)}
+                              onValueChange={(v) => handleChange(i, col, v)}
+                            >
                               <SelectTrigger className="w-full h-9 text-sm">
                                 <SelectValue placeholder="Select country" />
                               </SelectTrigger>
@@ -339,49 +398,101 @@ export function GFAEditableTable({
                                 <SelectItem value="Japan">Japan</SelectItem>
                               </SelectContent>
                             </Select>
-                          </TableCell>;
-              }
+                          </TableCell>
+                        );
+                      }
 
-              // Special handling for unit of measure dropdown in customers
-              if (tableType === "customers" && key === "unitOfMeasure") {
-                return <TableCell key={col}>
-                            <Select value={String(val)} onValueChange={v => handleChange(i, col, v)}>
+                      // Special handling for unit of measure dropdown in customers
+                      if (
+                        tableType === "customers" &&
+                        key === "unitOfMeasure"
+                      ) {
+                        return (
+                          <TableCell key={col}>
+                            <Select
+                              value={String(val)}
+                              onValueChange={(v) => handleChange(i, col, v)}
+                            >
                               <SelectTrigger className="w-full h-9 text-sm">
                                 <SelectValue placeholder="Select unit" />
                               </SelectTrigger>
                               <SelectContent className="z-50 bg-background">
-                                <SelectItem value="m3">m³ (Cubic Meter)</SelectItem>
-                                <SelectItem value="pallets">Pallets</SelectItem>
+                                <SelectItem value="m3">
+                                  m³ (Cubic Meter)
+                                </SelectItem>
+                                <SelectItem value="pallets">
+                                  Pallets
+                                </SelectItem>
                                 <SelectItem value="kg">kg (Kilogram)</SelectItem>
                                 <SelectItem value="tonnes">Tonnes</SelectItem>
                                 <SelectItem value="lbs">lbs (Pounds)</SelectItem>
-                                <SelectItem value="ft3">ft³ (Cubic Feet)</SelectItem>
+                                <SelectItem value="ft3">
+                                  ft³ (Cubic Feet)
+                                </SelectItem>
                                 <SelectItem value="liters">Liters</SelectItem>
                                 <SelectItem value="units">Units</SelectItem>
                               </SelectContent>
                             </Select>
-                          </TableCell>;
-              }
+                          </TableCell>
+                        );
+                      }
 
-              // Regular input fields
-              return <TableCell key={col} className="whitespace-nowrap">
-                          <Input value={val === undefined || val === null ? "" : String(val)} onChange={e => handleChange(i, col, e.target.value)} placeholder={`Enter ${col}`} className="h-9 text-sm min-w-[120px]" type={key === "demand" || key === "sellingPrice" || key === "latitude" || key === "longitude" ? "number" : "text"} />
-                        </TableCell>;
-            })}
+                      // Regular input fields
+                      return (
+                        <TableCell key={col} className="whitespace-nowrap">
+                          <Input
+                            value={
+                              val === undefined || val === null
+                                ? ""
+                                : String(val)
+                            }
+                            onChange={(e) =>
+                              handleChange(i, col, e.target.value)
+                            }
+                            placeholder={`Enter ${col}`}
+                            className="h-9 text-sm min-w-[120px]"
+                            type={
+                              key === "demand" ||
+                              key === "sellingPrice" ||
+                              key === "latitude" ||
+                              key === "longitude"
+                                ? "number"
+                                : "text"
+                            }
+                          />
+                        </TableCell>
+                      );
+                    })}
+
                     <TableCell>
                       <div className="flex items-center gap-1">
-                        {tableType === "customers" && onGeocode && <Button variant="ghost" size="sm" onClick={() => onGeocode(i)} className="h-8 w-8 p-0">
+                        {tableType === "customers" && onGeocode && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onGeocode(i)}
+                            className="h-8 w-8 p-0"
+                          >
                             <MapPin className="h-4 w-4 text-primary" />
-                          </Button>}
-                        <Button variant="ghost" size="sm" onClick={() => handleDeleteRow(i)} className="h-8 w-8 p-0">
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteRow(i)}
+                          className="h-8 w-8 p-0"
+                        >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
                     </TableCell>
                   </TableRow>
-              })}
-            </TableBody>
+                );
+              })
+            )}
+          </TableBody>
         </Table>
       </div>
-    </Card>;
-}
+    </div>
+  </Card>
+);
