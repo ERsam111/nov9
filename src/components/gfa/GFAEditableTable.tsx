@@ -227,10 +227,10 @@ export function GFAEditableTable({
       </div>
 
       <div className="flex-1 overflow-x-auto overflow-y-auto p-4">
-        <Table className="min-w-max">
+        <Table className="w-full">
             <TableHeader>
               <TableRow>
-                {columns.map(c => <TableHead key={c} className="sticky top-0 font-semibold text-sm whitespace-nowrap bg-muted/50 px-2">
+                {columns.map(c => <TableHead key={c} className="sticky top-0 font-semibold text-xs whitespace-nowrap bg-muted/50 px-2 max-w-[150px]">
                     <TableColumnFilter
                       columnKey={keyOf(c, tableType)}
                       columnLabel={c}
@@ -241,7 +241,7 @@ export function GFAEditableTable({
                       onSortChange={(sort) => handleSortChange(c, sort)}
                     />
                   </TableHead>)}
-                <TableHead className="sticky top-0 bg-muted/50 font-semibold text-sm whitespace-nowrap">Actions</TableHead>
+                <TableHead className="sticky top-0 bg-muted/50 font-semibold text-xs whitespace-nowrap w-[100px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -264,22 +264,22 @@ export function GFAEditableTable({
               if (tableType === "products" && key.startsWith("to_")) {
                 const conversions = row.unitConversions || {};
                 const value = conversions[key] || "";
-                return <TableCell key={col}>
+                return <TableCell key={col} className="max-w-[100px]">
                   <Input 
                     type="number"
                     value={value}
                     onChange={e => handleChange(i, col, e.target.value)}
                     placeholder="Factor"
-                    className="h-9 text-sm w-24"
+                    className="h-8 text-xs w-full min-w-[70px]"
                   />
                 </TableCell>;
               }
 
               // Special handling for base unit dropdown in products
               if (tableType === "products" && key === "baseUnit") {
-                return <TableCell key={col}>
+                return <TableCell key={col} className="max-w-[120px]">
                             <Select value={String(val)} onValueChange={v => handleChange(i, col, v)}>
-                              <SelectTrigger className="w-full h-9 text-sm">
+                              <SelectTrigger className="w-full h-8 text-xs">
                                 <SelectValue placeholder="Select unit" />
                               </SelectTrigger>
                               <SelectContent className="z-50 bg-background">
@@ -298,9 +298,9 @@ export function GFAEditableTable({
 
               // Special handling for product dropdown in customers
               if (tableType === "customers" && key === "product") {
-                return <TableCell key={col}>
+                return <TableCell key={col} className="max-w-[150px]">
                             <Select value={String(val)} onValueChange={v => handleChange(i, col, v)}>
-                              <SelectTrigger className="w-full h-9 text-sm">
+                              <SelectTrigger className="w-full h-8 text-xs">
                                 <SelectValue placeholder="Select product" />
                               </SelectTrigger>
                               <SelectContent className="z-50 bg-background">
@@ -322,9 +322,9 @@ export function GFAEditableTable({
 
               // Special handling for country dropdown
               if (key === "country") {
-                return <TableCell key={col}>
+                return <TableCell key={col} className="max-w-[120px]">
                             <Select value={String(val)} onValueChange={v => handleChange(i, col, v)}>
-                              <SelectTrigger className="w-full h-9 text-sm">
+                              <SelectTrigger className="w-full h-8 text-xs">
                                 <SelectValue placeholder="Select country" />
                               </SelectTrigger>
                               <SelectContent className="z-50 bg-background">
@@ -344,9 +344,9 @@ export function GFAEditableTable({
 
               // Special handling for unit of measure dropdown in customers
               if (tableType === "customers" && key === "unitOfMeasure") {
-                return <TableCell key={col}>
+                return <TableCell key={col} className="max-w-[120px]">
                             <Select value={String(val)} onValueChange={v => handleChange(i, col, v)}>
-                              <SelectTrigger className="w-full h-9 text-sm">
+                              <SelectTrigger className="w-full h-8 text-xs">
                                 <SelectValue placeholder="Select unit" />
                               </SelectTrigger>
                               <SelectContent className="z-50 bg-background">
@@ -364,17 +364,25 @@ export function GFAEditableTable({
               }
 
               // Regular input fields
-              return <TableCell key={col} className="whitespace-nowrap">
-                          <Input value={val === undefined || val === null ? "" : String(val)} onChange={e => handleChange(i, col, e.target.value)} placeholder={`Enter ${col}`} className="h-9 text-sm min-w-[120px]" type={key === "demand" || key === "sellingPrice" || key === "latitude" || key === "longitude" ? "number" : "text"} />
+              const isNameField = key === "name";
+              const isNumeric = ["demand", "sellingPrice", "latitude", "longitude", "capacity"].includes(key);
+              return <TableCell key={col} className={isNameField ? "max-w-[150px]" : "max-w-[120px]"}>
+                          <Input 
+                            value={val === undefined || val === null ? "" : String(val)} 
+                            onChange={e => handleChange(i, col, e.target.value)} 
+                            placeholder={`Enter ${col}`} 
+                            className="h-8 text-xs w-full" 
+                            type={isNumeric ? "number" : "text"} 
+                          />
                         </TableCell>;
             })}
-                    <TableCell>
+                    <TableCell className="w-[100px]">
                       <div className="flex items-center gap-1">
-                        {tableType === "customers" && onGeocode && <Button variant="ghost" size="sm" onClick={() => onGeocode(i)} className="h-8 w-8 p-0">
-                            <MapPin className="h-4 w-4 text-primary" />
+                        {tableType === "customers" && onGeocode && <Button variant="ghost" size="sm" onClick={() => onGeocode(i)} className="h-7 w-7 p-0">
+                            <MapPin className="h-3.5 w-3.5 text-primary" />
                           </Button>}
-                        <Button variant="ghost" size="sm" onClick={() => handleDeleteRow(i)} className="h-8 w-8 p-0">
-                          <Trash2 className="h-4 w-4 text-destructive" />
+                        <Button variant="ghost" size="sm" onClick={() => handleDeleteRow(i)} className="h-7 w-7 p-0">
+                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
                         </Button>
                       </div>
                     </TableCell>
