@@ -207,7 +207,7 @@ export function GFAEditableTable({
     displayRows = applySorting(displayRows, key, direction);
   }
 
-  return <Card className="flex flex-col h-full overflow-hidden">
+  return <Card className="flex flex-col h-full overflow-hidden max-w-[400px]">
       <div className="p-4 border-b flex items-center justify-between shrink-0">
         <h2 className="text-base font-semibold">{getTableTitle(tableType)}</h2>
         <div className="flex gap-2">
@@ -226,8 +226,8 @@ export function GFAEditableTable({
         </div>
       </div>
 
-      <div className="flex-1 overflow-x-auto overflow-y-auto p-4">
-        <Table className="w-full">
+      <div className="flex-1 overflow-x-auto overflow-y-auto p-4 min-h-[calc(100vh-200px)]">
+        <Table className="min-w-max">
             <TableHeader>
               <TableRow>
                 {columns.map(c => <TableHead key={c} className="sticky top-0 font-semibold text-xs whitespace-nowrap bg-muted/50 px-2 max-w-[150px]">
