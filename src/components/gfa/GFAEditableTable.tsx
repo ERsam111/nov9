@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download, Upload, Plus, Trash2, MapPin } from "lucide-react";
@@ -169,7 +169,6 @@ export function GFAEditableTable({ tableType, data, onDataChange, onGeocode, pro
   const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = (evt) => {
       try {
@@ -218,7 +217,7 @@ export function GFAEditableTable({ tableType, data, onDataChange, onGeocode, pro
     return numericFields.includes(key) ? "number" : "text";
   };
 
-  // Apply filters
+  // Apply filters and sorting
   let displayRows = rows.filter((row) => {
     return Object.entries(columnFilters).every(([colLabel, filter]) => {
       const key = keyOf(colLabel, tableType);
@@ -226,7 +225,6 @@ export function GFAEditableTable({ tableType, data, onDataChange, onGeocode, pro
     });
   });
 
-  // Apply sorting
   const sortEntry = Object.entries(columnSorts).find(([_, dir]) => dir !== null);
   if (sortEntry) {
     const [colLabel, direction] = sortEntry;
@@ -235,7 +233,7 @@ export function GFAEditableTable({ tableType, data, onDataChange, onGeocode, pro
   }
 
   return (
-    <Card className="flex flex-col w-full max-w-full max-h-[calc(100vh-220px)] overflow-hidden">
+    <Card className="flex flex-col w-full max-w-full overflow-hidden">
       {/* Header */}
       <div className="p-4 border-b flex items-center justify-between shrink-0">
         <h2 className="text-base font-semibold">{getTableTitle(tableType)}</h2>
@@ -258,7 +256,7 @@ export function GFAEditableTable({ tableType, data, onDataChange, onGeocode, pro
       </div>
 
       {/* Scrollable table area */}
-      <div className="flex-1 min-h-0 overflow-x-scroll overflow-y-scroll p-4">
+      <div className="w-full max-h-[calc(100vh-260px)] overflow-x-auto overflow-y-auto p-4">
         <div className="inline-block min-w-full align-middle">
           <Table className="min-w-max">
             <TableHeader>
@@ -281,7 +279,6 @@ export function GFAEditableTable({ tableType, data, onDataChange, onGeocode, pro
                 </TableHead>
               </TableRow>
             </TableHeader>
-
             <TableBody>
               {rows.length === 0 ? (
                 <TableRow>
@@ -321,7 +318,7 @@ export function GFAEditableTable({ tableType, data, onDataChange, onGeocode, pro
                           );
                         }
 
-                        // Base unit dropdown in products
+                        // Special handling for base unit dropdown in products
                         if (tableType === "products" && key === "baseUnit") {
                           return (
                             <TableCell key={col}>
@@ -344,7 +341,7 @@ export function GFAEditableTable({ tableType, data, onDataChange, onGeocode, pro
                           );
                         }
 
-                        // Product dropdown in customers
+                        // Special handling for product dropdown in customers
                         if (tableType === "customers" && key === "product") {
                           return (
                             <TableCell key={col}>
@@ -370,7 +367,7 @@ export function GFAEditableTable({ tableType, data, onDataChange, onGeocode, pro
                           );
                         }
 
-                        // Country dropdown
+                        // Special handling for country dropdown
                         if (key === "country") {
                           return (
                             <TableCell key={col}>
@@ -394,7 +391,7 @@ export function GFAEditableTable({ tableType, data, onDataChange, onGeocode, pro
                           );
                         }
 
-                        // Unit of measure dropdown in customers
+                        // Special handling for unit of measure dropdown in customers
                         if (tableType === "customers" && key === "unitOfMeasure") {
                           return (
                             <TableCell key={col}>
