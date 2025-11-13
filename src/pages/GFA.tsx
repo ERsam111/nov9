@@ -470,7 +470,7 @@ const GFA = () => {
                 productCount={products.length}
                 existingSiteCount={existingSites.length}
               />
-              <div className="flex-1 min-w-0 flex flex-col gap-4 max-w-[calc(100vw-300px)] overflow-x-hidden">
+              <div className="flex-1 min-w-0 flex flex-col gap-4 max-w-[calc(100vw-500px)]">
                 {/* Compact Upload Section */}
                 <Card className="shadow-sm shrink-0">
                   <CardContent className="p-3">
