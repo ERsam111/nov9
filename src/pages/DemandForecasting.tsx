@@ -25,8 +25,6 @@ import { saveScenario1Results, getScenario1Results } from "@/utils/scenarioStora
 import { ProjectScenarioNav } from "@/components/ProjectScenarioNav";
 import { useProjects, Project } from "@/contexts/ProjectContext";
 import { useScenarios } from "@/contexts/ScenarioContext";
-import { QuickStartDialog } from "@/components/QuickStartDialog";
-import { sampleForecastingData } from "@/data/sampleData";
 
 const DemandForecasting = () => {
   const navigate = useNavigate();
@@ -223,19 +221,6 @@ const DemandForecasting = () => {
     }
   };
 
-  const handleLoadSampleData = () => {
-    const sampleData = sampleForecastingData;
-    setRawHistoricalData(sampleData);
-    setHistoricalData(sampleData);
-    setSelectedProduct('Laptop');
-    setSelectedCustomer('all');
-    toast({
-      title: "Success",
-      description: "Sample forecasting data loaded successfully!",
-    });
-    setActiveTab("input");
-  };
-
   const handleRemoveOutliers = (outlierIndices: number[], method: string, lowerThreshold: number, upperThreshold: number) => {
     const filteredData = historicalData.filter((_, idx) => !outlierIndices.includes(idx));
     setHistoricalData(filteredData);
@@ -425,16 +410,8 @@ const DemandForecasting = () => {
           <TabsContent value="input" className="space-y-6">
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>Data Upload</CardTitle>
-                    <CardDescription>Upload historical demand data to begin forecasting</CardDescription>
-                  </div>
-                  <QuickStartDialog 
-                    module="forecasting"
-                    onLoadSampleData={handleLoadSampleData}
-                  />
-                </div>
+                <CardTitle>Data Upload</CardTitle>
+                <CardDescription>Upload historical demand data to begin forecasting</CardDescription>
               </CardHeader>
               <CardContent>
                 <HistoricalDataUpload onDataUpload={handleDataUpload} />

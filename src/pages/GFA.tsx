@@ -23,9 +23,6 @@ import { useProjects, Project } from "@/contexts/ProjectContext";
 import { ExcelUploadCompact } from "@/components/gfa/ExcelUploadCompact";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Trash2 } from "lucide-react";
-import { QuickStartDialog } from "@/components/QuickStartDialog";
-import { sampleGFACustomers, sampleGFAProducts, sampleGFAExistingSites, sampleGFASettings } from "@/data/sampleData";
-
 const GFA = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -267,15 +264,6 @@ const GFA = () => {
     setSettings(prev => ({ ...prev, ...newSettings }));
   };
 
-  const handleLoadSampleData = () => {
-    setCustomers(sampleGFACustomers);
-    setProducts(sampleGFAProducts);
-    setExistingSites(sampleGFAExistingSites);
-    setSettings(sampleGFASettings);
-    toast.success("Sample data loaded successfully! Ready to optimize.");
-    setActiveTab("input");
-  };
-
   const handleExportCurrentData = () => {
     const workbook = XLSX.utils.book_new();
 
@@ -481,16 +469,6 @@ const GFA = () => {
                         <p className="text-xs text-muted-foreground truncate">Import Excel file to populate customer table</p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <QuickStartDialog 
-                          module="gfa"
-                          onLoadSampleData={handleLoadSampleData}
-                          trigger={
-                            <Button variant="outline" size="sm" className="gap-2">
-                              <Play className="h-4 w-4" />
-                              Quick Start
-                            </Button>
-                          }
-                        />
                         <ExcelUploadCompact 
                           onBulkUpload={handleBulkUpload}
                           onProductsUpload={handleProductsUpload}
