@@ -1,3 +1,7 @@
+console.log('🚀 Starting backend server...');
+console.log('Node version:', process.version);
+console.log('Environment:', process.env.NODE_ENV || 'development');
+
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -6,7 +10,10 @@ import { optimizeNetwork } from './services/network-optimizer.js';
 import { optimizeGFA } from './services/gfa-optimizer.js';
 import { forecastDemand } from './services/forecasting.js';
 
+console.log('✅ All imports loaded successfully');
+
 dotenv.config();
+console.log('✅ Environment variables loaded');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -111,12 +118,24 @@ app.post('/api/forecast-demand', async (req, res) => {
   }
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Optimization service running on port ${PORT}`);
-  console.log(`Memory limit: ${process.env.NODE_OPTIONS || 'default'}`);
+const server = app.listen(PORT, '0.0.0.0', () => {
+  console.log('=================================');
+  console.log('✅ SERVER STARTED SUCCESSFULLY!');
+  console.log('=================================');
+  console.log(`🌐 Listening on: http://0.0.0.0:${PORT}`);
+  console.log(`📊 Memory limit: ${process.env.NODE_OPTIONS || 'default'}`);
+  console.log(`🔗 CORS origin: ${process.env.FRONTEND_URL || '*'}`);
+  console.log('');
   console.log('Available endpoints:');
+  console.log('  GET  /health');
   console.log('  POST /api/optimize-inventory');
   console.log('  POST /api/optimize-network');
   console.log('  POST /api/optimize-gfa');
   console.log('  POST /api/forecast-demand');
+  console.log('=================================');
+});
+
+server.on('error', (error) => {
+  console.error('❌ Server error:', error);
+  process.exit(1);
 });
