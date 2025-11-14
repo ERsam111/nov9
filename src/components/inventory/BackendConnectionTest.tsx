@@ -13,11 +13,14 @@ export function BackendConnectionTest() {
     latency?: number;
     timestamp?: string;
     error?: string;
+    url?: string;
   } | null>(null);
 
   const testConnection = async () => {
     setTesting(true);
     setStatus(null);
+
+    const backendUrl = import.meta.env.VITE_RAILWAY_BACKEND_URL;
 
     try {
       const startTime = Date.now();
@@ -27,29 +30,28 @@ export function BackendConnectionTest() {
       if (health.status === 'disabled') {
         setStatus({
           connected: false,
-          error: 'Render backend is not enabled. Set VITE_USE_RAILWAY_BACKEND=true in .env'
+          url: backendUrl,
+          error: 'Backend is not enabled. Set VITE_USE_RAILWAY_BACKEND=true in .env'
         });
         toast.error("Backend not enabled");
-      } else if (health.status === 'error') {
-        setStatus({
-          connected: false,
-          error: 'Failed to connect to Render backend. Check if the service is running.'
-        });
-        toast.error("Connection failed");
       } else {
         setStatus({
           connected: true,
           latency,
-          timestamp: health.timestamp
+          timestamp: health.timestamp,
+          url: backendUrl
         });
         toast.success(`Connected! Latency: ${latency}ms`);
       }
     } catch (error: any) {
       setStatus({
         connected: false,
+        url: backendUrl,
         error: error.message || "Unknown error occurred"
       });
-      toast.error("Connection test failed");
+      toast.error("Connection failed", {
+        description: error.message
+      });
     } finally {
       setTesting(false);
     }
@@ -106,9 +108,22 @@ export function BackendConnectionTest() {
             )}
 
             {status.error && (
-              <div className="text-sm text-destructive">
+              <div className="text-sm text-destructive space-y-2">
                 <p className="font-medium">Error:</p>
-                <p>{status.error}</p>
+                <p className="break-all">{status.error}</p>
+                {status.url && (
+                  <p className="text-xs">Trying to connect to: {status.url}</p>
+                )}
+                <div className="mt-3 p-3 bg-muted rounded text-xs text-foreground space-y-2">
+                  <p className="font-medium">Troubleshooting steps:</p>
+                  <ol className="list-decimal list-inside space-y-1">
+                    <li>Verify your Render service is deployed and running</li>
+                    <li>Check Render dashboard for service status</li>
+                    <li>Ensure the URL in .env matches your Render service URL</li>
+                    <li>Check Render logs for any startup errors</li>
+                    <li>Verify CORS settings allow your frontend domain</li>
+                  </ol>
+                </div>
               </div>
             )}
 
