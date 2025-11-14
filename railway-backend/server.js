@@ -25,10 +25,15 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '50mb' }));
 
+// Root endpoint
+app.get('/', (req, res) => {
+  res.send('Backend is running');
+});
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({ 
-    status: 'healthy',
+    status: 'ok',
     timestamp: new Date().toISOString(),
     memory: process.memoryUsage()
   });
