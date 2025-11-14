@@ -71,11 +71,35 @@ class RailwayClient {
     }
 
     try {
-      const response = await fetch(`${this.baseUrl}/health`);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+      const response = await fetch(`${this.baseUrl}/health`, {
+        signal: controller.signal,
+        headers: {
+          'Accept': 'application/json',
+        }
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
       return await response.json();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Railway health check failed:', error);
-      return { status: 'error', timestamp: new Date().toISOString() };
+      
+      // Provide more specific error messages
+      if (error.name === 'AbortError') {
+        throw new Error(`Connection timeout - ${this.baseUrl} is not responding`);
+      }
+      if (error.message.includes('Failed to fetch')) {
+        throw new Error(`Cannot reach ${this.baseUrl} - Check if service is deployed and running`);
+      }
+      
+      throw error;
     }
   }
 }
