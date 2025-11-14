@@ -39,6 +39,7 @@ import { compressData, decompressData, formatBytes } from "../utils/dataCompress
 import { InventoryDataSupport } from "../components/InventoryDataSupport";
 import { QuickStartDialog } from "@/components/QuickStartDialog";
 import { sampleInventoryData } from "@/data/sampleData";
+import { BackendConnectionTest } from "@/components/inventory/BackendConnectionTest";
 
 const Index = ({ currentScenario, updateScenario, saveScenarioOutput, saveScenarioInput, loadScenarioOutput }: any) => {
   const [replications, setReplications] = useState(10);
@@ -875,6 +876,8 @@ const Index = ({ currentScenario, updateScenario, saveScenarioOutput, saveScenar
           {/* --- Simulation Config --- */}
           <TabsContent value="simulation" className="mt-6 space-y-6">
             <TimeComponentInfo />
+            
+            <BackendConnectionTest />
             
             <Card className="border-border shadow-lg">
               <CardHeader>
