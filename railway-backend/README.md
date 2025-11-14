@@ -39,6 +39,9 @@ Body: {
   tableData: { demand: [...], transport: [...], policy: [...] },
   config: { simulationDays: 365, numReplications: 100 }
 }
+Response: {
+  results: [{ policyId, optimalReorderPoint, optimalOrderUpToLevel, ... }]
+}
 ```
 
 ### Network Optimization
@@ -47,6 +50,33 @@ POST /api/optimize-network
 Body: {
   data: { suppliers: [...], facilities: [...], customers: [...], ... },
   settings: { objectiveType: 'cost' }
+}
+Response: {
+  flows: [...], objectiveValue, iterations, status
+}
+```
+
+### GFA Optimization
+```
+POST /api/optimize-gfa
+Body: {
+  data: { customers: [...], facilities: [...], products: [...] },
+  settings: { transportCostPerKm: 0.5, fixedCostPerFacility: 10000 }
+}
+Response: {
+  allocation: [...], kpis: {...}, summary: {...}
+}
+```
+
+### Demand Forecasting
+```
+POST /api/forecast-demand
+Body: {
+  historicalData: [{ period, date, value }, ...],
+  settings: { preferredModel: 'linear', forecastPeriods: 12 }
+}
+Response: {
+  modelComparison: {...}, bestModel, futureForecast: [...], summary: {...}
 }
 ```
 

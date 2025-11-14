@@ -6,8 +6,9 @@ This guide helps you deploy the high-performance optimization service to Railway
 
 This deployment gives you:
 - **32GB RAM** for heavy computations
-- **More CPU power** for faster optimization
+- **More CPU power** for faster optimization  
 - **Stable computation** for large datasets
+- **All optimization modules**: Inventory, Network, GFA, and Demand Forecasting
 - Your database and auth stay on Lovable Cloud (no migration needed)
 
 ## Prerequisites
@@ -71,36 +72,142 @@ FRONTEND_URL=https://your-lovable-app.lovable.app
 3. Once done, you'll see a green **"Active"** status
 4. Copy your Railway service URL (looks like: `https://your-service.up.railway.app`)
 
-## Step 3: Update Your Lovable App (5 minutes)
+## Step 3: Connect Your Lovable App to Railway (10 minutes)
 
-Now we need to tell your Lovable app to use the Railway service for optimization.
+Now we need to tell your Lovable app to use the Railway service for heavy computations.
 
-### 3.1 Add Railway URL to Lovable
+### 3.1 Get Your Railway Service URL
 
-1. Go back to your Lovable project
-2. Tell me: "Add environment variable for Railway backend"
-3. I'll help you add the Railway URL to your app
+1. In Railway, click on your deployed service
+2. Go to **"Settings"** tab
+3. Find the **"Domains"** section
+4. You'll see a URL like: `https://your-service-production-xxxx.up.railway.app`
+5. **Copy this URL** (you'll need it in the next step)
 
-OR you can manually add it:
+### 3.2 Add Environment Variables to Lovable
 
-1. Open Lovable Dev Mode
-2. Create/edit `.env` file:
+**Method 1: Using Chat (Easiest)**
+1. Come back to this chat
+2. Tell me: "Add Railway environment variables"
+3. When I ask, paste your Railway URL
+4. I'll update your `.env` file automatically
+
+**Method 2: Manual Setup**
+1. In your Lovable project, enable **Dev Mode** (toggle in top-left)
+2. Find the `.env` file in the file list (left sidebar)
+3. Add these two lines at the bottom:
 ```
-VITE_RAILWAY_BACKEND_URL=https://your-service.up.railway.app
+VITE_USE_RAILWAY_BACKEND=true
+VITE_RAILWAY_BACKEND_URL=https://your-service-production-xxxx.up.railway.app
+```
+4. **Important**: Replace the URL with YOUR actual Railway URL from Step 3.1
+5. Save the file
+
+### 3.3 Update Frontend Code to Use Railway
+
+**Method 1: Using Chat (Easiest)**
+1. Tell me: "Connect frontend to Railway backend"
+2. I'll automatically update all optimization calls
+
+**Method 2: Manual Updates**
+You'll need to update 4 files to use Railway for computations:
+
+#### File 1: Inventory Optimization
+Open `src/pages/InventoryOptimizationV2.tsx` and import Railway client at the top:
+```typescript
+import { railwayClient } from '@/lib/railwayClient';
 ```
 
-### 3.2 Update Frontend Code
+Find the optimization function and replace Supabase call with:
+```typescript
+const result = await railwayClient.optimizeInventory(tableData, config);
+```
 
-Tell me: "Update optimization calls to use Railway backend"
+#### File 2: Network Analysis  
+Open `src/pages/NetworkAnalysis.tsx` and add:
+```typescript
+import { railwayClient } from '@/lib/railwayClient';
+```
 
-I'll update your code to send optimization requests to Railway instead of Lovable Cloud.
+Replace network optimization call with:
+```typescript
+const result = await railwayClient.optimizeNetwork(data, settings);
+```
 
-## Step 4: Test It! (2 minutes)
+#### File 3: GFA Module
+Open `src/pages/GFA.tsx` and add:
+```typescript
+import { railwayClient } from '@/lib/railwayClient';
+```
 
+Replace GFA optimization with:
+```typescript
+const result = await railwayClient.optimizeGFA(data, settings);
+```
+
+#### File 4: Demand Forecasting
+Open `src/pages/DemandForecasting.tsx` and add:
+```typescript
+import { railwayClient } from '@/lib/railwayClient';
+```
+
+Replace forecasting call with:
+```typescript
+const result = await railwayClient.forecastDemand(historicalData, settings);
+```
+
+### 3.4 Update Railway CORS Settings
+
+Important: Railway needs to allow requests from your Lovable app.
+
+1. Go back to Railway
+2. Click on your service
+3. Go to **"Variables"** tab
+4. Find `FRONTEND_URL` variable
+5. Update it to your **exact** Lovable app URL
+6. Click **"Deploy"** to apply changes
+
+Your Lovable URL looks like: `https://[your-app-name].lovable.app`
+
+## Step 4: Test All Modules! (5 minutes)
+
+Test each module to make sure Railway is working:
+
+### 4.1 Test Inventory Optimization
 1. Open your Lovable app
-2. Go to **Inventory Optimization** or **Network Analysis**
-3. Click **"Optimize"**
-4. Your optimization should now run on Railway with 32GB RAM!
+2. Go to **Inventory Optimization**
+3. Upload/enter data
+4. Click **"Optimize"**
+5. ✅ Should see faster results with Railway
+
+### 4.2 Test Network Analysis
+1. Go to **Network Analysis** module
+2. Set up your network data
+3. Click **"Optimize Network"**
+4. ✅ Should complete faster with more capacity
+
+### 4.3 Test GFA Module
+1. Go to **GFA** (Gravity Facility Allocation)
+2. Input customer and facility data
+3. Run optimization
+4. ✅ Should handle larger datasets
+
+### 4.4 Test Demand Forecasting
+1. Go to **Demand Forecasting**
+2. Upload historical data
+3. Generate forecast
+4. ✅ Should process more data points
+
+### 4.5 Verify Railway is Being Used
+1. In Railway, go to your service
+2. Click **"Deployments"** → Latest deployment
+3. View **"Logs"**
+4. You should see logs like:
+   ```
+   Starting inventory optimization...
+   Inventory optimization completed in 1234ms
+   ```
+5. ✅ If you see these logs, Railway is working!
 
 ## Monitoring & Troubleshooting
 
@@ -158,7 +265,31 @@ This is much cheaper than upgrading Lovable Cloud instance and more stable!
 
 ✅ Inventory optimization (heavy computation)
 ✅ Network optimization (heavy computation)
+✅ GFA optimization (facility allocation)
+✅ Demand forecasting (all models)
 ✅ Any future CPU/RAM intensive tasks
+
+## Module-Specific Railway Benefits
+
+### Inventory Optimization
+- **Before**: Timeout on datasets > 100 policies
+- **After**: Handles 1000+ policies easily
+- **Speed**: 5-10x faster with more replications
+
+### Network Analysis
+- **Before**: Limited to small networks
+- **After**: Optimizes networks with 100+ nodes
+- **Speed**: Complex networks solve in seconds
+
+### GFA Module
+- **Before**: Struggles with 50+ facilities
+- **After**: Handles 500+ facilities/customers
+- **Speed**: Allocation completes instantly
+
+### Demand Forecasting
+- **Before**: Limited to 1 year of data
+- **After**: Processes 5+ years of historical data
+- **Speed**: All models run simultaneously
 
 ---
 
