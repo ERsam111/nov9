@@ -81,71 +81,57 @@ function transformFromBackendFormat(backendResults: any, input: SimulationInput)
   if (backendResults && Array.isArray(backendResults)) {
     backendResults.forEach((result: any, index: number) => {
       const replications = result.replications || [];
-      const costs = replications.map((r: any) => r.totalCost);
-      const serviceLevels = replications.map((r: any) => r.serviceLevel);
+      const costs = replications.map((r: any) => r.totalCost || 0);
+      const serviceLevels = replications.map((r: any) => (r.serviceLevel || 0.95));
       
-      const costMean = costs.length > 0 ? costs.reduce((a: number, b: number) => a + b, 0) / costs.length : result.expectedAnnualCost || 0;
-      const costSD = costs.length > 1 ? Math.sqrt(costs.map((x: number) => Math.pow(x - costMean, 2)).reduce((a: number, b: number) => a + b, 0) / costs.length) : costMean * 0.05;
+      const costMean = costs.length > 0 ? costs.reduce((a, b) => a + b, 0) / costs.length : 0;
+      const costMin = costs.length > 0 ? Math.min(...costs) : 0;
+      const costMax = costs.length > 0 ? Math.max(...costs) : 0;
+      const costSD = costs.length > 1 ? Math.sqrt(costs.map(x => Math.pow(x - costMean, 2)).reduce((a, b) => a + b, 0) / costs.length) : 0;
       
-      const serviceLevelMean = serviceLevels.length > 0 ? serviceLevels.reduce((a: number, b: number) => a + b, 0) / serviceLevels.length : result.achievedServiceLevel || 0.95;
-      const serviceLevelSD = serviceLevels.length > 1 ? Math.sqrt(serviceLevels.map((x: number) => Math.pow(x - serviceLevelMean, 2)).reduce((a: number, b: number) => a + b, 0) / serviceLevels.length) : 0.02;
-      
-      const inventoryLevels = replications.map((r: any) => r.avgInventory || 0);
-      const orders = replications.map((r: any) => r.orders || 0);
-      
-      const avgInventory = inventoryLevels.length > 0 ? inventoryLevels.reduce((a: number, b: number) => a + b, 0) / inventoryLevels.length : 0;
-      const avgOrders = orders.length > 0 ? orders.reduce((a: number, b: number) => a + b, 0) / orders.length : 0;
-      
-      const holdingCostPerUnit = result.holdingCost || 0;
-      const orderCostPerOrder = result.orderingCost || 0;
-      const totalHoldingCost = avgInventory * holdingCostPerUnit * 365;
-      const totalOrderCost = avgOrders * orderCostPerOrder;
+      const serviceLevelMean = serviceLevels.length > 0 ? serviceLevels.reduce((a, b) => a + b, 0) / serviceLevels.length * 100 : 95;
+      const serviceLevelMin = serviceLevels.length > 0 ? Math.min(...serviceLevels) * 100 : 90;
+      const serviceLevelMax = serviceLevels.length > 0 ? Math.max(...serviceLevels) * 100 : 100;
+      const serviceLevelSD = serviceLevels.length > 1 ? Math.sqrt(serviceLevels.map(x => Math.pow(x - serviceLevelMean/100, 2)).reduce((a, b) => a + b, 0) / serviceLevels.length) * 100 : 2;
       
       const simResult: SimulationResult = {
+        srNo: index + 1,
         scenarioDescription: result.policyId || `Scenario ${index + 1}`,
-        avgPolicyPerformance: {
-          expectedAnnualCost: costMean,
-          expectedServiceLevel: serviceLevelMean * 100,
-          avgInventoryLevel: avgInventory,
-          avgOrders: avgOrders,
-          costStdDev: costSD,
-          serviceLevelStdDev: serviceLevelSD * 100,
-        },
+        costMin,
+        costMax,
+        costMean,
+        costSD,
+        serviceLevelMin,
+        serviceLevelMax,
+        serviceLevelMean,
+        serviceLevelSD,
+        eltServiceLevelMin: serviceLevelMin,
+        eltServiceLevelMax: serviceLevelMax,
+        eltServiceLevelMean: serviceLevelMean,
+        eltServiceLevelSD: serviceLevelSD,
         costBreakdown: {
           transportation: result.transportCost || 0,
           production: result.productionCost || 0,
           handling: result.handlingCost || 0,
-          inventory: totalHoldingCost,
-          replenishment: totalOrderCost,
-        },
-        replicationResults: replications.map((rep: any, repIdx: number) => ({
-          replicationNumber: repIdx + 1,
-          totalCost: rep.totalCost || 0,
-          serviceLevel: rep.serviceLevel * 100 || 0,
-          avgInventory: rep.avgInventory || 0,
-          orders: rep.orders || 0,
-          stockouts: rep.stockouts || 0,
-        })),
-        serviceMetrics: {
-          avgFillRate: serviceLevelMean * 100,
-          avgBackorders: 0,
-          avgStockouts: replications.reduce((sum: number, r: any) => sum + (r.stockouts || 0), 0) / Math.max(replications.length, 1),
-          fillRateStdDev: serviceLevelSD * 100,
+          inventory: result.inventoryCost || 0,
+          replenishment: result.replenishmentCost || 0,
         },
       };
       
       results.push(simResult);
       
+      // Extract inventory time series data
       replications.forEach((rep: any, repIndex: number) => {
         if (rep.inventoryTimeSeries) {
           rep.inventoryTimeSeries.forEach((point: any) => {
             inventoryData.push({
-              timeStep: point.time || point.day || 0,
-              site: result.facilityName || result.policyId || `Policy ${index}`,
+              day: point.time || point.day || 0,
+              inventory: point.inventory || point.level || 0,
+              facility: result.facilityName || result.policyId || `Policy ${index}`,
               product: result.productName || result.policyId || `Product ${index}`,
-              inventoryLevel: point.inventory || point.level || 0,
-              replicationNumber: repIndex + 1,
-              scenarioDescription: result.policyId || `Scenario ${index + 1}`
+              scenario: result.policyId || `Scenario ${index + 1}`,
+              scenarioDescription: result.policyId || `Scenario ${index + 1}`,
+              replication: repIndex + 1,
             });
           });
         }
