@@ -31,7 +31,7 @@ function toRadians(degrees: number): number {
   return degrees * (Math.PI / 180);
 }
 
-// Calculate geodesic centroid using iterative optimization
+// Calculate geodesic centroid using iterative optimization (SAME AS LOCAL)
 function calculateGeodesicCentroid(customers: any[]): {
   latitude: number;
   longitude: number;
@@ -86,7 +86,7 @@ function calculateGeodesicCentroid(customers: any[]): {
   return { latitude: lat, longitude: lon };
 }
 
-// K-means clustering for DC optimization
+// K-means clustering for DC optimization (SAME AS LOCAL)
 function kMeansOptimization(
   customers: any[],
   numDCs: number,
@@ -170,22 +170,41 @@ function kMeansOptimization(
   return dcs.filter(dc => dc.assignedCustomers.length > 0);
 }
 
-// Optimize with existing sites
-function optimizeWithExistingSites(
+// Build DC configuration with existing sites (MATCHES LOCAL LOGIC)
+function buildDCConfiguration(
   customers: any[],
+  numNewSites: number,
   existingSites: any[],
-  settings: any
+  mode: 'always' | 'potential' | 'use-existing-subset'
 ): any[] {
-  const dcs: any[] = existingSites.map(site => ({
-    id: site.id,
-    latitude: site.latitude,
-    longitude: site.longitude,
-    assignedCustomers: [],
-    totalDemand: 0,
-    capacity: site.capacity || 0,
-  }));
-
-  // Assign customers to nearest existing site
+  const dcs: any[] = [];
+  
+  if (mode === 'always' || mode === 'use-existing-subset') {
+    // Include existing sites
+    const sitesToUse = mode === 'use-existing-subset' 
+      ? existingSites.slice(0, numNewSites)
+      : existingSites;
+      
+    sitesToUse.forEach(site => {
+      dcs.push({
+        id: site.id,
+        latitude: site.latitude,
+        longitude: site.longitude,
+        assignedCustomers: [],
+        totalDemand: 0,
+        capacity: site.capacity || 0,
+        isExisting: true,
+      });
+    });
+  }
+  
+  // Add new sites if needed
+  if (numNewSites > 0 && mode !== 'use-existing-subset') {
+    const newSites = kMeansOptimization(customers, numNewSites);
+    dcs.push(...newSites.map(dc => ({ ...dc, isExisting: false })));
+  }
+  
+  // Assign customers to nearest DC
   for (const customer of customers) {
     let minDistance = Infinity;
     let nearestDC = dcs[0];
@@ -213,10 +232,11 @@ function optimizeWithExistingSites(
   return dcs.filter(dc => dc.assignedCustomers.length > 0);
 }
 
-// Calculate cost breakdown
+// Calculate cost breakdown (MATCHES LOCAL LOGIC EXACTLY)
 function calculateCostBreakdown(
   dcs: any[],
-  settings: any
+  settings: any,
+  existingSites?: any[]
 ): {
   totalCost: number;
   transportationCost: number;
@@ -234,13 +254,25 @@ function calculateCostBreakdown(
         customer.longitude
       );
       
-      // Convert to miles if needed
+      // Convert to miles if needed (SAME AS LOCAL)
       const distanceInUnit = settings.distanceUnit === 'mile' ? distance * 0.621371 : distance;
       transportationCost += distanceInUnit * customer.demand * (settings.transportationCostPerMilePerUnit || 0.5);
     }
   }
 
-  const facilityCost = dcs.length * (settings.facilityCost || 100000);
+  // Calculate facility cost - ONLY count NEW sites (not existing ones)
+  let numNewSites = dcs.length;
+  if (existingSites && existingSites.length > 0) {
+    // Count how many DCs match existing sites
+    const existingDCCount = dcs.filter(dc => {
+      return existingSites.some(site => 
+        haversineDistance(dc.latitude, dc.longitude, site.latitude, site.longitude) < 1
+      );
+    }).length;
+    numNewSites = dcs.length - existingDCCount;
+  }
+
+  const facilityCost = numNewSites * (settings.facilityCost || 100000);
   const totalCost = transportationCost + facilityCost;
 
   return {
@@ -275,21 +307,39 @@ serve(async (req) => {
     let dcs: any[] = [];
     let warnings: string[] = [];
 
-    // Run optimization based on mode
+    // EXACT SAME LOGIC AS LOCAL: Respect mode and existing sites settings
+    const existingSitesMode = settings.existingSitesMode || 'always';
+    
     if (settings.includeExistingSites && existingSites && existingSites.length > 0) {
-      console.log("Using existing sites optimization");
-      dcs = optimizeWithExistingSites(customers, existingSites, settings);
-    } else if (settings.mode === 'sites') {
-      console.log("Running K-means optimization with", settings.numDCs, "DCs");
-      dcs = kMeansOptimization(customers, settings.numDCs || 3);
+      console.log(`Using existing sites with mode: ${existingSitesMode}`);
+      
+      if (settings.mode === 'sites') {
+        // Sites mode: use specified number of DCs
+        if (existingSitesMode === 'always') {
+          const numNewSites = Math.max(0, (settings.numDCs || 3) - existingSites.length);
+          dcs = buildDCConfiguration(customers, numNewSites, existingSites, 'always');
+        } else if (existingSitesMode === 'potential') {
+          // Compare existing vs new sites
+          const newSitesDcs = kMeansOptimization(customers, settings.numDCs || 3);
+          const existingDcs = buildDCConfiguration(customers, settings.numDCs || 3, existingSites, 'use-existing-subset');
+          
+          const newCost = calculateCostBreakdown(newSitesDcs, settings, existingSites);
+          const existingCost = calculateCostBreakdown(existingDcs, settings, existingSites);
+          
+          dcs = existingCost.totalCost < newCost.totalCost ? existingDcs : newSitesDcs;
+        }
+      } else {
+        // Cost mode: minimize cost
+        dcs = buildDCConfiguration(customers, 0, existingSites, 'always');
+      }
     } else {
-      // Default to K-means
-      console.log("Running default K-means optimization");
+      // No existing sites - use K-means
+      console.log("Running K-means optimization with", settings.numDCs, "DCs");
       dcs = kMeansOptimization(customers, settings.numDCs || 3);
     }
 
-    // Calculate cost breakdown
-    const costBreakdown = calculateCostBreakdown(dcs, settings);
+    // Calculate cost breakdown (PASS existingSites to correctly calculate facility costs)
+    const costBreakdown = calculateCostBreakdown(dcs, settings, existingSites);
 
     // Check capacity constraints
     if (settings.dcCapacity && settings.dcCapacity > 0) {
