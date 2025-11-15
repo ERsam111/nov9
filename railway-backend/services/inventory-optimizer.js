@@ -229,95 +229,116 @@ function runSimulation(s, S, demandParams, leadTimeParams, costs, numDays, numRe
   return replications;
 }
 
+// Main optimization function - EXACT MATCH TO LOCAL SIMULATION
 export async function optimizeInventory(requestData) {
   const { tableData, config } = requestData;
-  const results = [];
-
-  for (const policy of tableData.policy) {
-    console.log(`Optimizing policy: ${policy['Policy ID']}`);
-
-    const demandRow = tableData.demand.find(d => d['Policy ID'] === policy['Policy ID']);
-    const transportRow = tableData.transport.find(t => t['Policy ID'] === policy['Policy ID']);
-
-    if (!demandRow || !transportRow) {
-      console.warn(`Missing data for policy ${policy['Policy ID']}`);
-      continue;
-    }
-
+  
+  console.log('Starting inventory optimization...');
+  const startTime = Date.now();
+  
+  const policies = tableData.inventoryPolicyData || [];
+  const optimizedResults = [];
+  
+  for (let i = 0; i < policies.length; i++) {
+    const policy = policies[i];
+    console.log(`Optimizing policy: ${policy.policyName}_${i}`);
+    
     const demandParams = {
-      mean: demandRow['Average Daily Demand (units)'],
-      std: demandRow['Demand Std. Dev.'],
-      distribution: demandRow['Demand Distribution']
+      mean: parseFloat(policy.demandMean) || 100,
+      std: parseFloat(policy.demandStdDev) || 20,
+      distribution: policy.demandDistribution || 'normal'
     };
-
+    
     const leadTimeParams = {
-      mean: transportRow['Lead Time (days)'],
-      std: transportRow['Lead Time Std. Dev.'],
-      distribution: transportRow['Lead Time Distribution']
+      mean: parseFloat(policy.leadTimeMean) || 5,
+      std: parseFloat(policy.leadTimeStdDev) || 1,
+      distribution: policy.leadTimeDistribution || 'normal'
     };
-
+    
     const costs = {
-      ordering: policy['Ordering Cost ($/order)'],
-      holding: policy['Holding Cost ($/unit/day)'],
-      shortage: policy['Shortage Cost ($/unit)']
+      holdingCost: parseFloat(policy.holdingCostPerUnit) || 1,
+      orderingCost: parseFloat(policy.orderingCost) || 100,
+      shortageCost: parseFloat(policy.shortageCost) || 10
     };
-
-    const safetyStock = calculateSafetyStock(
-      demandParams.mean,
-      demandParams.std,
-      leadTimeParams.mean,
-      leadTimeParams.std,
-      policy['Service Level Target'] / 100
+    
+    const serviceLevel = parseFloat(policy.targetServiceLevel) || 95;
+    
+    // Calculate initial safety stock and reorder point
+    const zScore = normalPPF(serviceLevel / 100);
+    const leadTimeDemand = demandParams.mean * leadTimeParams.mean;
+    const leadTimeDemandStd = Math.sqrt(
+      (leadTimeParams.mean * Math.pow(demandParams.std, 2)) +
+      (Math.pow(demandParams.mean, 2) * Math.pow(leadTimeParams.std, 2))
     );
-
-    const reorderPoint = demandParams.mean * leadTimeParams.mean + safetyStock;
-    const eoq = Math.sqrt((2 * demandParams.mean * 365 * costs.ordering) / costs.holding);
-    const initialS = reorderPoint + eoq;
-
-    const objectiveFn = (params) => {
-      const [s, S] = params;
-      if (S <= s) return Infinity;
-
-      const sims = runSimulation(
-        s, S, demandParams, leadTimeParams, costs,
-        config.simulationDays || 365,
-        5
-      );
-
-      return sims.reduce((sum, sim) => sum + sim.totalCost, 0) / sims.length;
-    };
-
+    const safetyStock = zScore * leadTimeDemandStd;
+    const reorderPoint = leadTimeDemand + safetyStock;
+    
+    // EOQ calculation
+    const annualDemand = demandParams.mean * 365;
+    const eoq = Math.sqrt((2 * annualDemand * costs.orderingCost) / costs.holdingCost);
+    const orderUpToLevel = reorderPoint + eoq;
+    
+    // Optimize using DE
     const bounds = [
-      [0, reorderPoint * 1.5],
-      [reorderPoint, initialS * 1.5]
+      [leadTimeDemand * 0.5, leadTimeDemand * 2],
+      [reorderPoint + eoq * 0.5, reorderPoint + eoq * 2]
     ];
-
-    const optimizer = new DifferentialEvolution(bounds, 30, 50);
-    const optimized = optimizer.optimize(objectiveFn);
-
-    const [optimalS, optimalS_upper] = optimized.solution;
-    const finalSimulations = runSimulation(
-      optimalS, optimalS_upper, demandParams, leadTimeParams, costs,
-      config.simulationDays || 365,
-      config.numReplications || 100
-    );
-
-    const avgCost = finalSimulations.reduce((sum, sim) => sum + sim.totalCost, 0) / finalSimulations.length;
-    const avgServiceLevel = finalSimulations.reduce((sum, sim) => sum + sim.serviceLevel, 0) / finalSimulations.length;
-
-    results.push({
-      policyId: policy['Policy ID'],
-      optimalReorderPoint: Math.round(optimalS),
-      optimalOrderUpToLevel: Math.round(optimalS_upper),
-      safetyStock: Math.round(safetyStock),
-      expectedAnnualCost: avgCost,
-      achievedServiceLevel: avgServiceLevel,
-      replications: finalSimulations,
+    
+    const de = new DifferentialEvolution(bounds, 20, 50);
+    
+    const objectiveFn = ([s, S]) => {
+      const results = runSimulation(
+        s, S, demandParams, leadTimeParams, costs,
+        365, 10
+      );
+      
+      const avgCost = results.reduce((sum, r) => sum + r.totalCost, 0) / results.length;
+      const avgServiceLevel = results.reduce((sum, r) => sum + r.serviceLevel, 0) / results.length;
+      
+      // Penalty if service level not met
+      const penalty = avgServiceLevel < serviceLevel ? 100000 : 0;
+      return avgCost + penalty;
+    };
+    
+    const [optimizedS, optimizedS_val] = de.optimize(objectiveFn);
+    
+    // Run final simulation with optimized values
+    const finalResults = runSimulation(
+      optimizedS,
+      optimizedS_val,
       demandParams,
       leadTimeParams,
-      costs
+      costs,
+      365,
+      100
+    );
+    
+    const avgCost = finalResults.reduce((sum, r) => sum + r.totalCost, 0) / finalResults.length;
+    const avgServiceLevel = finalResults.reduce((sum, r) => sum + r.serviceLevel, 0) / finalResults.length;
+    const avgInventory = finalResults.reduce((sum, r) => sum + r.avgInventory, 0) / finalResults.length;
+    const totalOrders = finalResults.reduce((sum, r) => sum + r.numOrders, 0) / finalResults.length;
+    
+    optimizedResults.push({
+      policyName: policy.policyName || `Policy_${i}`,
+      policyIndex: i,
+      reorderPoint: Math.round(optimizedS),
+      orderUpToLevel: Math.round(optimizedS_val),
+      expectedCost: Math.round(avgCost),
+      expectedServiceLevel: Math.round(avgServiceLevel * 10) / 10,
+      avgInventory: Math.round(avgInventory),
+      avgOrders: Math.round(totalOrders),
+      holdingCost: Math.round(avgInventory * costs.holdingCost),
+      orderCost: Math.round(totalOrders * costs.orderingCost),
+      replications: finalResults
     });
   }
-
-  return { results };
+  
+  const endTime = Date.now();
+  console.log(`Inventory optimization completed in ${endTime - startTime}ms`);
+  
+  return {
+    success: true,
+    optimizedPolicies: optimizedResults,
+    executionTime: endTime - startTime
+  };
 }

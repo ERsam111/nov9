@@ -25,6 +25,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Trash2 } from "lucide-react";
 import { QuickStartDialog } from "@/components/QuickStartDialog";
 import { sampleGFACustomers, sampleGFAProducts, sampleGFAExistingSites, sampleGFASettings } from "@/data/sampleData";
+import { ComputeToggle } from "@/components/gfa/ComputeToggle";
 
 const GFA = () => {
   const navigate = useNavigate();
@@ -45,6 +46,7 @@ const GFA = () => {
   const [activeTab, setActiveTab] = useState("input");
   const [activeTable, setActiveTable] = useState<string>("customers");
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
+  const [useCloudCompute, setUseCloudCompute] = useState(false);
 
   // Load project from route state if available
   useEffect(() => {
@@ -203,7 +205,7 @@ const GFA = () => {
           settings.includeExistingSites ? settings.existingSitesMode : undefined
         );
       },
-      true // Use backend if available
+      useCloudCompute // Use cloud compute toggle
     );
 
     // Show toast indicating which backend was used
@@ -564,15 +566,20 @@ const GFA = () => {
           </TabsContent>
 
           <TabsContent value="optimization" className="space-y-6">
-            <div className="max-w-[calc(100vw-300px)] overflow-x-hidden">
-            <GFAOptimizationPanel
-              customers={customers} 
-              products={products} 
-              existingSites={existingSites}
-              settings={settings} 
-              onSettingsChange={setSettings} 
-              onOptimize={handleOptimize} 
-            />
+            <div className="max-w-[calc(100vw-300px)] overflow-x-hidden space-y-4">
+              <ComputeToggle 
+                useCloud={useCloudCompute}
+                onToggle={setUseCloudCompute}
+                disabled={false}
+              />
+              <GFAOptimizationPanel
+                customers={customers} 
+                products={products} 
+                existingSites={existingSites}
+                settings={settings} 
+                onSettingsChange={setSettings} 
+                onOptimize={handleOptimize} 
+              />
             </div>
           </TabsContent>
 
