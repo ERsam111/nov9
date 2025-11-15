@@ -229,8 +229,7 @@ function runSimulation(s, S, demandParams, leadTimeParams, costs, numDays, numRe
   return replications;
 }
 
-// Main optimization function - EXACT MATCH TO LOCAL SIMULATION
-// Main optimization function - Uses iteration logic like local
+// Main optimization function - EXACT MATCH TO LOCAL SIMULATION (ITERATION LOGIC)
 export async function optimizeInventory(requestData) {
   const { tableData, config } = requestData;
   
@@ -249,7 +248,8 @@ export async function optimizeInventory(requestData) {
   const demandTable = tableData.demand || [];
   const transportTable = tableData.transport || [];
   
-  const optimizedResults = [];
+  // Extract parameter values from tables
+  const scenarioResults = [];
   
   for (let i = 0; i < policyTable.length; i++) {
     console.log(`\n=== Starting policy ${i + 1}/${policyTable.length} ===`);
@@ -259,6 +259,9 @@ export async function optimizeInventory(requestData) {
       const transportRow = transportTable[i] || {};
       
       const policyId = policyRow['Policy ID'] || `Policy_${i}`;
+      const facilityName = policyRow['Facility Name'] || '';
+      const productName = policyRow['Product Name'] || '';
+      
       console.log(`Policy ID: ${policyId}`);
       
       // Extract parameters
@@ -280,75 +283,41 @@ export async function optimizeInventory(requestData) {
         shortage: parseFloat(policyRow['Shortage Cost ($/unit)']) || 10
       };
       
+      // Get s and S values directly from policy table (they come from iteration)
+      const s = parseFloat(policyRow['Reorder Point (s)']) || 0;
+      const S = parseFloat(policyRow['Order-up-to Level (S)']) || 0;
+      
       console.log(`Demand params:`, demandParams);
       console.log(`Lead time params:`, leadTimeParams);
       console.log(`Costs:`, costs);
+      console.log(`Policy: s=${s}, S=${S}`);
       
-      // Use provided s,S or calculate initial estimates
-      let initialS = parseFloat(policyRow['Reorder Point (s)']);
-      let initialS_val = parseFloat(policyRow['Order-up-to Level (S)']);
-      
-      if (!initialS || !initialS_val) {
-        const leadTimeDemand = demandParams.mean * leadTimeParams.mean;
-        const leadTimeDemandStd = Math.sqrt(
-          (leadTimeParams.mean * Math.pow(demandParams.std, 2)) +
-          (Math.pow(demandParams.mean, 2) * Math.pow(leadTimeParams.std, 2))
-        );
-        const zScore = 1.645; // ~95% service level
-        const safetyStock = zScore * leadTimeDemandStd;
-        const reorderPoint = leadTimeDemand + safetyStock;
-        
-        const annualDemand = Math.max(demandParams.mean * 365, 1);
-        const eoq = Math.sqrt((2 * annualDemand * costs.ordering) / Math.max(costs.holding, 0.001));
-        
-        initialS = reorderPoint;
-        initialS_val = reorderPoint + eoq;
-      }
-      
-      // Set optimization bounds
-      const bounds = [
-        [Math.max(initialS * 0.5, 1), initialS * 2],
-        [Math.max(initialS_val * 0.5, 10), initialS_val * 2]
-      ];
-      
-      const de = new DifferentialEvolution(bounds, 20, 50);
-      
-      const objectiveFn = ([s, S]) => {
-        const results = runSimulation(s, S, demandParams, leadTimeParams, costs, 365, 10);
-        const avgCost = results.reduce((sum, r) => sum + r.totalCost, 0) / results.length;
-        return avgCost;
-      };
-      
-      const optimizationResult = de.optimize(objectiveFn);
-      const [optimizedS, optimizedS_val] = optimizationResult.solution;
-      
-      console.log(`  Optimized: s=${Math.round(optimizedS)}, S=${Math.round(optimizedS_val)}`);
-      
-      // Run final simulation with optimized values
+      // Run simulation with these exact s,S values (no optimization)
       const numReps = config?.numReplications || 100;
-      const finalResults = runSimulation(optimizedS, optimizedS_val, demandParams, leadTimeParams, costs, 365, numReps);
+      const results = runSimulation(s, S, demandParams, leadTimeParams, costs, 365, numReps);
       
-      const avgCost = finalResults.reduce((sum, r) => sum + r.totalCost, 0) / finalResults.length;
-      const avgServiceLevel = finalResults.reduce((sum, r) => sum + r.serviceLevel, 0) / finalResults.length;
-      const avgInventory = finalResults.reduce((sum, r) => sum + r.avgInventory, 0) / finalResults.length;
-      const totalOrders = finalResults.reduce((sum, r) => sum + r.numOrders, 0) / finalResults.length;
+      // Calculate statistics
+      const avgCost = results.reduce((sum, r) => sum + r.totalCost, 0) / results.length;
+      const avgServiceLevel = results.reduce((sum, r) => sum + r.serviceLevel, 0) / results.length;
+      const avgInventory = results.reduce((sum, r) => sum + r.avgInventory, 0) / results.length;
+      const totalOrders = results.reduce((sum, r) => sum + r.numOrders, 0) / results.length;
       
-      optimizedResults.push({
+      scenarioResults.push({
         policyId: policyId,
-        policyName: `${policyRow['Facility Name']} - ${policyRow['Product Name']}`,
+        policyName: `${facilityName} - ${productName}`,
         policyIndex: i,
-        reorderPoint: Math.round(optimizedS),
-        orderUpToLevel: Math.round(optimizedS_val),
+        reorderPoint: Math.round(s),
+        orderUpToLevel: Math.round(S),
         expectedCost: Math.round(avgCost),
         expectedServiceLevel: Math.round(avgServiceLevel * 100 * 10) / 10,
         avgInventory: Math.round(avgInventory),
         avgOrders: Math.round(totalOrders),
         holdingCost: Math.round(avgInventory * costs.holding * 365),
         orderCost: Math.round(totalOrders * costs.ordering),
-        replications: finalResults
+        replications: results
       });
       
-      console.log(`  ✓ Completed: Cost=${Math.round(avgCost)}, SL=${Math.round(avgServiceLevel * 100)}%`);
+      console.log(`  ✓ Completed: s=${s}, S=${S}, Cost=${Math.round(avgCost)}, SL=${Math.round(avgServiceLevel * 100)}%`);
     } catch (error) {
       console.error(`\n✗✗✗ ERROR on policy ${i}: ${error.message}`);
       console.error(`Stack trace:`, error.stack);
@@ -357,11 +326,11 @@ export async function optimizeInventory(requestData) {
   }
   
   const endTime = Date.now();
-  console.log(`Optimization completed: ${optimizedResults.length} policies in ${endTime - startTime}ms`);
+  console.log(`Optimization completed: ${scenarioResults.length} scenarios in ${endTime - startTime}ms`);
   
   return {
     success: true,
-    optimizedPolicies: optimizedResults,
+    optimizedPolicies: scenarioResults,
     executionTime: endTime - startTime
   };
 }
