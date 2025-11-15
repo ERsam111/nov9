@@ -43,7 +43,7 @@ const GFA = () => {
     updateScenario,
     loadScenariosByProject
   } = useScenarios();
-  const [activeTab, setActiveTab] = useState("input");
+  const [activeTab, setActiveTab] = useState("input"); // Always default to input tab
   const [activeTable, setActiveTable] = useState<string>("customers");
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const [useCloudCompute, setUseCloudCompute] = useState(false);
@@ -125,9 +125,6 @@ const GFA = () => {
           setFeasible(outputData.feasible ?? true);
           setWarnings(outputData.warnings || []);
           setCostBreakdown(outputData.costBreakdown);
-          if (outputData.dcs?.length > 0) {
-            setActiveTab("results");
-          }
         } else {
           // Clear output data for new scenario
           setDcs([]);
@@ -135,6 +132,9 @@ const GFA = () => {
           setWarnings([]);
           setCostBreakdown(undefined);
         }
+        
+        // Always switch to input tab when loading a scenario
+        setActiveTab("input");
       }
     };
     loadScenarioData();

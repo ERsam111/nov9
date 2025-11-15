@@ -120,7 +120,8 @@ export function CreateProjectDialog({
       setName('');
       setDescription('');
       onOpenChange(false);
-      navigate(redirectTo);
+      // Navigate with the new project ID so it gets auto-selected
+      navigate(redirectTo, { state: { projectId: project.id } });
     } else {
       toast.error('Failed to create project');
     }

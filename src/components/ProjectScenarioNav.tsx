@@ -88,11 +88,11 @@ export const ProjectScenarioNav = ({
     }
   }, [currentScenarioId, scenarios]);
 
-  const handleProjectSelect = (project: Project) => {
+  const handleProjectSelect = async (project: Project) => {
     setSelectedProject(project);
     setCurrentProject(project); // Update global context so sidebar highlights
     setCurrentScenario(null);
-    loadScenariosByProject(project.id, moduleType);
+    await loadScenariosByProject(project.id, moduleType);
     onProjectChange?.(project);
   };
 
@@ -153,6 +153,7 @@ export const ProjectScenarioNav = ({
     });
 
     if (newScenario) {
+      await loadScenariosByProject(selectedProject.id, moduleType); // Reload scenarios
       toast.success("Scenario created successfully");
       setCreateScenarioOpen(false);
       setScenarioName("");
@@ -243,8 +244,10 @@ export const ProjectScenarioNav = ({
               <DropdownMenuContent align="start" className="w-64 bg-popover z-50">
                 <div className="px-2 py-1.5 text-sm font-medium text-muted-foreground">Scenarios</div>
                 <DropdownMenuSeparator />
-                {scenarios.length > 0 ? (
-                  scenarios.map(scenario => (
+                {scenarios.filter(s => s.project_id === selectedProject.id && s.module_type === moduleType).length > 0 ? (
+                  scenarios
+                    .filter(s => s.project_id === selectedProject.id && s.module_type === moduleType)
+                    .map(scenario => (
                     <DropdownMenuItem
                       key={scenario.id}
                       onClick={() => handleScenarioSelect(scenario)}
