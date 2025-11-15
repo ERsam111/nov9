@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Play, MapPin, BarChart3, TrendingUp, Upload, Download, MessageSquare, FileDown } from "lucide-react";
+import { ArrowLeft, Play, MapPin, BarChart3, TrendingUp, Upload, Download, MessageSquare, FileDown, Search, X } from "lucide-react";
 import * as XLSX from "xlsx";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Customer, DistributionCenter, OptimizationSettings, Product, ExistingSite } from "@/types/gfa";
 import { optimizeWithConstraints } from "@/utils/geoCalculations";
 import { exportReport } from "@/utils/exportReport";
@@ -47,6 +48,7 @@ const GFA = () => {
   const [activeTable, setActiveTable] = useState<string>("customers");
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const [useCloudCompute, setUseCloudCompute] = useState(false);
+  const [globalSearch, setGlobalSearch] = useState("");
 
   // Load project from route state if available
   useEffect(() => {
@@ -63,6 +65,31 @@ const GFA = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [existingSites, setExistingSites] = useState<ExistingSite[]>([]);
+  
+  // Filtered data based on global search
+  const filteredCustomers = globalSearch.trim() 
+    ? customers.filter(c => 
+        Object.values(c).some(val => 
+          String(val || "").toLowerCase().includes(globalSearch.toLowerCase())
+        )
+      )
+    : customers;
+    
+  const filteredProducts = globalSearch.trim()
+    ? products.filter(p =>
+        Object.values(p).some(val =>
+          String(val || "").toLowerCase().includes(globalSearch.toLowerCase())
+        )
+      )
+    : products;
+    
+  const filteredExistingSites = globalSearch.trim()
+    ? existingSites.filter(s =>
+        Object.values(s).some(val =>
+          String(val || "").toLowerCase().includes(globalSearch.toLowerCase())
+        )
+      )
+    : existingSites;
   const [dcs, setDcs] = useState<DistributionCenter[]>([]);
   const [feasible, setFeasible] = useState(true);
   const [warnings, setWarnings] = useState<string[]>([]);
@@ -577,7 +604,25 @@ const GFA = () => {
                         <p className="text-xs text-muted-foreground truncate">Import Excel file to populate customer table</p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <QuickStartDialog 
+                        <div className="relative">
+                          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                          <Input
+                            type="text"
+                            placeholder="Search..."
+                            value={globalSearch}
+                            onChange={(e) => setGlobalSearch(e.target.value)}
+                            className="h-8 w-40 pl-8 pr-8 text-xs"
+                          />
+                          {globalSearch && (
+                            <button
+                              onClick={() => setGlobalSearch("")}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          )}
+                        </div>
+                        <QuickStartDialog
                           module="gfa"
                           onLoadSampleData={handleLoadSampleData}
                           trigger={
@@ -620,9 +665,9 @@ const GFA = () => {
 
                 {/* Active Table Content with horizontal scroll */}
                 <div className="flex-1 min-w-0 overflow-hidden">
-                  {activeTable === "customers" && <GFAEditableTable tableType="customers" data={customers} onDataChange={setCustomers} onGeocode={handleGeocodeCustomer} products={products} />}
-                  {activeTable === "products" && <GFAEditableTable tableType="products" data={products} onDataChange={setProducts} />}
-                  {activeTable === "existing-sites" && <GFAEditableTable tableType="existing-sites" data={existingSites} onDataChange={setExistingSites} />}
+                  {activeTable === "customers" && <GFAEditableTable tableType="customers" data={filteredCustomers} onDataChange={setCustomers} onGeocode={handleGeocodeCustomer} products={products} />}
+                  {activeTable === "products" && <GFAEditableTable tableType="products" data={filteredProducts} onDataChange={setProducts} />}
+                  {activeTable === "existing-sites" && <GFAEditableTable tableType="existing-sites" data={filteredExistingSites} onDataChange={setExistingSites} />}
                   {activeTable === "costs" && <GFACostParametersPanel settings={settings} onSettingsChange={setSettings} />}
                 </div>
               </div>
