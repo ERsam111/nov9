@@ -136,9 +136,7 @@ export function GFASidebarNav({ activeTable, onTableSelect, customerCount, produ
           </CollapsibleTrigger>
           <CollapsibleContent className="mt-2 px-3">
             <div className="text-xs space-y-2 text-muted-foreground">
-              <p><strong>Bulk Edit Button:</strong> Click <Edit2 className="h-3 w-3 inline" /> above any column</p>
-              <p><kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">Ctrl+Click</kbd> column header to select</p>
-              <p><kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">Space</kbd> to open bulk editor</p>
+              <p><kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">Ctrl+Click</kbd> column name to bulk edit</p>
               <p>Use checkboxes for multi-row selection</p>
               <p>Delete multiple rows at once</p>
               <p><strong>Sr No</strong> column shows row numbers</p>
