@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Download, Upload, Plus, Trash2, MapPin, Edit2, RotateCcw, GripVertical } from "lucide-react";
+import { Download, Upload, Plus, Trash2, MapPin, Edit2, RotateCcw, GripVertical, ChevronDown, ChevronRight } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -89,12 +89,21 @@ export function GFAEditableTable({
   const [columnOrder, setColumnOrder] = useState<string[]>(columns);
   const [draggingColumn, setDraggingColumn] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
+  const [rowDensity, setRowDensity] = useState<'compact' | 'comfortable' | 'spacious'>('comfortable');
+  const [showWidthControls, setShowWidthControls] = useState(false);
+  const [showDensityControls, setShowDensityControls] = useState(false);
   
   const DEFAULT_COLUMN_WIDTH = 200;
   const WIDTH_PRESETS = {
     compact: 150,
     normal: 200,
     wide: 300
+  };
+
+  const ROW_DENSITY_STYLES = {
+    compact: 'h-8 py-1',
+    comfortable: 'h-10 py-2',
+    spacious: 'h-12 py-3'
   };
 
   // Update column order when tableType changes
@@ -488,25 +497,79 @@ export function GFAEditableTable({
           </div>
         </div>
 
-        {/* Column Width Controls */}
-        <div className="flex items-center gap-2 text-xs">
-          <span className="text-muted-foreground">Column Width:</span>
-          <Button variant="outline" size="sm" onClick={handleResetColumnWidths} className="h-7">
-            <RotateCcw className="h-3 w-3 mr-1" /> Reset
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => handleApplyWidthPreset('compact')} className="h-7">
-            Compact
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => handleApplyWidthPreset('normal')} className="h-7">
-            Normal
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => handleApplyWidthPreset('wide')} className="h-7">
-            Wide
-          </Button>
-          <span className="text-muted-foreground ml-2">
-            <GripVertical className="h-3 w-3 inline mr-1" />
-            Drag column headers to reorder
-          </span>
+        {/* Table Controls */}
+        <div className="space-y-2">
+          {/* Column Width Controls */}
+          <div className="border rounded-md">
+            <button
+              onClick={() => setShowWidthControls(!showWidthControls)}
+              className="w-full flex items-center justify-between px-3 py-2 hover:bg-accent/50 rounded-md text-xs font-medium"
+            >
+              <span className="flex items-center gap-2">
+                <GripVertical className="h-3 w-3" />
+                Column Width Options
+              </span>
+              {showWidthControls ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            </button>
+            {showWidthControls && (
+              <div className="px-3 pb-3 pt-1 flex items-center gap-2 text-xs border-t">
+                <Button variant="outline" size="sm" onClick={handleResetColumnWidths} className="h-7">
+                  <RotateCcw className="h-3 w-3 mr-1" /> Reset
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => handleApplyWidthPreset('compact')} className="h-7">
+                  Compact
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => handleApplyWidthPreset('normal')} className="h-7">
+                  Normal
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => handleApplyWidthPreset('wide')} className="h-7">
+                  Wide
+                </Button>
+                <span className="text-muted-foreground ml-2 text-[10px]">
+                  Drag column edges to resize • Drag headers to reorder
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Row Density Controls */}
+          <div className="border rounded-md">
+            <button
+              onClick={() => setShowDensityControls(!showDensityControls)}
+              className="w-full flex items-center justify-between px-3 py-2 hover:bg-accent/50 rounded-md text-xs font-medium"
+            >
+              <span>Row Density</span>
+              {showDensityControls ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            </button>
+            {showDensityControls && (
+              <div className="px-3 pb-3 pt-1 flex items-center gap-2 text-xs border-t">
+                <Button 
+                  variant={rowDensity === 'compact' ? 'default' : 'outline'} 
+                  size="sm" 
+                  onClick={() => setRowDensity('compact')} 
+                  className="h-7"
+                >
+                  Compact
+                </Button>
+                <Button 
+                  variant={rowDensity === 'comfortable' ? 'default' : 'outline'} 
+                  size="sm" 
+                  onClick={() => setRowDensity('comfortable')} 
+                  className="h-7"
+                >
+                  Comfortable
+                </Button>
+                <Button 
+                  variant={rowDensity === 'spacious' ? 'default' : 'outline'} 
+                  size="sm" 
+                  onClick={() => setRowDensity('spacious')} 
+                  className="h-7"
+                >
+                  Spacious
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -594,9 +657,10 @@ export function GFAEditableTable({
                   </TableCell>
                 </TableRow> : paginatedRows.map((row, displayIndex) => {
                 const i = rows.indexOf(row);
-                return <TableRow key={i} className={`${selectedRows.has(i) ? 'bg-primary/10' : i % 2 === 0 ? 'bg-background' : 'bg-muted/30'}`}>
+                const rowBgClass = selectedRows.has(i) ? 'bg-primary/10' : i % 2 === 0 ? 'bg-white' : 'bg-green-50';
+                return <TableRow key={i} className={rowBgClass}>
                     <TableCell 
-                      className={`sticky z-10 text-center border-r border-border ${selectedRows.has(i) ? 'bg-primary/10' : i % 2 === 0 ? 'bg-background' : 'bg-muted/30'}`}
+                      className={`sticky z-10 text-center border-r border-border ${rowBgClass} ${ROW_DENSITY_STYLES[rowDensity]}`}
                       style={{ left: 0, width: '48px', minWidth: '48px', maxWidth: '48px' }}
                     >
                       <Checkbox
@@ -605,7 +669,7 @@ export function GFAEditableTable({
                       />
                     </TableCell>
                     <TableCell 
-                      className={`sticky z-10 border-r border-border text-center text-sm text-muted-foreground ${selectedRows.has(i) ? 'bg-primary/10' : i % 2 === 0 ? 'bg-background' : 'bg-muted/30'}`}
+                      className={`sticky z-10 border-r border-border text-center text-sm text-muted-foreground ${rowBgClass} ${ROW_DENSITY_STYLES[rowDensity]}`}
                       style={{ left: '48px', width: '64px', minWidth: '64px', maxWidth: '64px' }}
                     >
                       {i + 1}
@@ -618,12 +682,13 @@ export function GFAEditableTable({
                 minWidth: columnWidths[col] || DEFAULT_COLUMN_WIDTH,
                 maxWidth: columnWidths[col] || DEFAULT_COLUMN_WIDTH
               };
+              const densityClass = ROW_DENSITY_STYLES[rowDensity];
 
               // Special handling for unit conversion columns in products
               if (tableType === "products" && key.startsWith("to_")) {
                 const conversions = row.unitConversions || {};
                 const value = conversions[key] || "";
-                return <TableCell key={col} className="border-r border-border" style={cellStyle}>
+                return <TableCell key={col} className={`border-r border-border ${densityClass}`} style={cellStyle}>
                   <Input 
                     type="number"
                     value={value}
@@ -636,7 +701,7 @@ export function GFAEditableTable({
 
               // Special handling for base unit dropdown in products
               if (tableType === "products" && key === "baseUnit") {
-                return <TableCell key={col} className="border-r border-border" style={cellStyle}>
+                return <TableCell key={col} className={`border-r border-border ${densityClass}`} style={cellStyle}>
                             <Select value={String(val)} onValueChange={v => handleChange(i, col, v)}>
                               <SelectTrigger className="w-full h-9 text-sm">
                                 <SelectValue placeholder="Select unit" />
@@ -657,7 +722,7 @@ export function GFAEditableTable({
 
               // Special handling for product dropdown in customers
               if (tableType === "customers" && key === "product") {
-                return <TableCell key={col} className="border-r border-border" style={cellStyle}>
+                return <TableCell key={col} className={`border-r border-border ${densityClass}`} style={cellStyle}>
                             <Select value={String(val)} onValueChange={v => handleChange(i, col, v)}>
                               <SelectTrigger className="w-full h-9 text-sm">
                                 <SelectValue placeholder="Select product" />
@@ -681,7 +746,7 @@ export function GFAEditableTable({
 
               // Special handling for country dropdown
               if (key === "country") {
-                return <TableCell key={col} className="border-r border-border" style={cellStyle}>
+                return <TableCell key={col} className={`border-r border-border ${densityClass}`} style={cellStyle}>
                             <Select value={String(val)} onValueChange={v => handleChange(i, col, v)}>
                               <SelectTrigger className="w-full h-9 text-sm">
                                 <SelectValue placeholder="Select country" />
@@ -703,7 +768,7 @@ export function GFAEditableTable({
 
               // Special handling for unit of measure dropdown in customers
               if (tableType === "customers" && key === "unitOfMeasure") {
-                return <TableCell key={col} className="border-r border-border" style={cellStyle}>
+                return <TableCell key={col} className={`border-r border-border ${densityClass}`} style={cellStyle}>
                             <Select value={String(val)} onValueChange={v => handleChange(i, col, v)}>
                               <SelectTrigger className="w-full h-9 text-sm">
                                 <SelectValue placeholder="Select unit" />
@@ -724,7 +789,7 @@ export function GFAEditableTable({
 
               // Special handling for capacity unit dropdown in existing-sites
               if (tableType === "existing-sites" && key === "capacityUnit") {
-                return <TableCell key={col} className="border-r border-border" style={cellStyle}>
+                return <TableCell key={col} className={`border-r border-border ${densityClass}`} style={cellStyle}>
                             <Select value={String(val)} onValueChange={v => handleChange(i, col, v)}>
                               <SelectTrigger className="w-full h-9 text-sm">
                                 <SelectValue placeholder="Select unit" />
@@ -744,11 +809,11 @@ export function GFAEditableTable({
               }
 
               // Regular input fields
-              return <TableCell key={col} className="whitespace-nowrap border-r border-border" style={cellStyle}>
+              return <TableCell key={col} className={`whitespace-nowrap border-r border-border ${densityClass}`} style={cellStyle}>
                           <Input value={val === undefined || val === null ? "" : String(val)} onChange={e => handleChange(i, col, e.target.value)} placeholder={`Enter ${col}`} className="h-9 text-sm min-w-[120px]" type={key === "demand" || key === "sellingPrice" || key === "latitude" || key === "longitude" ? "number" : "text"} />
                         </TableCell>;
             })}
-                    <TableCell className="border-r border-border">
+                    <TableCell className={`border-r border-border ${ROW_DENSITY_STYLES[rowDensity]}`}>
                       <div className="flex items-center gap-1">
                         {tableType === "customers" && onGeocode && <Button variant="ghost" size="sm" onClick={() => onGeocode(i)} className="h-8 w-8 p-0">
                             <MapPin className="h-4 w-4 text-primary" />
