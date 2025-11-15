@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Download, Upload, Plus, Trash2, MapPin, Edit2, RotateCcw, GripVertical, ChevronDown, ChevronRight } from "lucide-react";
+import { Download, Upload, Plus, Trash2, MapPin, Edit2, RotateCcw, GripVertical, ChevronDown, ChevronRight, Maximize, Minimize } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -18,6 +18,8 @@ interface GFAEditableTableProps {
   onDataChange: (data: any[]) => void;
   onGeocode?: (index: number) => void;
   products?: any[]; // For customer table product dropdown
+  isFullscreen?: boolean;
+  onToggleFullscreen?: () => void;
 }
 const getTableTitle = (type: string) => ({
   customers: "Customers",
@@ -74,7 +76,9 @@ export function GFAEditableTable({
   data,
   onDataChange,
   onGeocode,
-  products = []
+  products = [],
+  isFullscreen = false,
+  onToggleFullscreen
 }: GFAEditableTableProps) {
   const [rows, setRows] = useState<any[]>(data);
   const columns = getTableColumns(tableType);
@@ -548,6 +552,16 @@ export function GFAEditableTable({
           </div>
           
           <div className="flex gap-2">
+            {onToggleFullscreen && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onToggleFullscreen}
+                title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+              >
+                {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+              </Button>
+            )}
             {selectedRows.size > 0 && (
               <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
                 <Trash2 className="h-4 w-4 mr-2" /> Delete {selectedRows.size} Row(s)
@@ -572,7 +586,7 @@ export function GFAEditableTable({
       <div className="flex-1 overflow-hidden relative">
         <div className="overflow-auto h-full">
           <Table className="min-w-full relative" style={{ paddingLeft: '112px' }}>
-            <TableHeader>
+            <TableHeader className="sticky top-0 z-30 bg-background">
               <TableRow>
                 <TableHead 
                   className="sticky top-0 z-20 bg-background font-semibold text-sm text-center border-r border-border"
