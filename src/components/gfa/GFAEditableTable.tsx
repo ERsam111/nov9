@@ -466,16 +466,87 @@ export function GFAEditableTable({
   }, [displayRows, currentPage, rowsPerPage]);
 
   return <Card className="flex flex-col h-full overflow-hidden">
-      <div className="p-4 border-b space-y-3 shrink-0">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <h2 className="text-base font-semibold">{getTableTitle(tableType)}</h2>
-            <span className="text-sm text-muted-foreground">
+      <div className="p-4 border-b shrink-0">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4 flex-1">
+            <h2 className="text-base font-semibold whitespace-nowrap">{getTableTitle(tableType)}</h2>
+            <span className="text-sm text-muted-foreground whitespace-nowrap">
               {displayRows.length > rowsPerPage 
                 ? `Showing ${currentPage * rowsPerPage + 1}-${Math.min((currentPage + 1) * rowsPerPage, displayRows.length)} of ${displayRows.length}`
                 : `${displayRows.length} rows`}
             </span>
+            
+            {/* Compact horizontal controls */}
+            <div className="flex items-center gap-3 ml-4">
+              {/* Column Width Controls */}
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setShowWidthControls(!showWidthControls)}
+                  className="flex items-center gap-1 px-2 py-1 hover:bg-accent/50 rounded text-xs font-medium whitespace-nowrap"
+                >
+                  <GripVertical className="h-3 w-3" />
+                  Width
+                  {showWidthControls ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                </button>
+                {showWidthControls && (
+                  <div className="flex items-center gap-1">
+                    <Button variant="outline" size="sm" onClick={handleResetColumnWidths} className="h-6 px-2 text-xs">
+                      Reset
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => handleApplyWidthPreset('compact')} className="h-6 px-2 text-xs">
+                      Compact
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => handleApplyWidthPreset('normal')} className="h-6 px-2 text-xs">
+                      Normal
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => handleApplyWidthPreset('wide')} className="h-6 px-2 text-xs">
+                      Wide
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {/* Row Density Controls */}
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setShowDensityControls(!showDensityControls)}
+                  className="flex items-center gap-1 px-2 py-1 hover:bg-accent/50 rounded text-xs font-medium whitespace-nowrap"
+                >
+                  Density
+                  {showDensityControls ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                </button>
+                {showDensityControls && (
+                  <div className="flex items-center gap-1">
+                    <Button 
+                      variant={rowDensity === 'compact' ? 'default' : 'outline'} 
+                      size="sm" 
+                      onClick={() => setRowDensity('compact')} 
+                      className="h-6 px-2 text-xs"
+                    >
+                      Compact
+                    </Button>
+                    <Button 
+                      variant={rowDensity === 'comfortable' ? 'default' : 'outline'} 
+                      size="sm" 
+                      onClick={() => setRowDensity('comfortable')} 
+                      className="h-6 px-2 text-xs"
+                    >
+                      Comfortable
+                    </Button>
+                    <Button 
+                      variant={rowDensity === 'spacious' ? 'default' : 'outline'} 
+                      size="sm" 
+                      onClick={() => setRowDensity('spacious')} 
+                      className="h-6 px-2 text-xs"
+                    >
+                      Spacious
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
+          
           <div className="flex gap-2">
             {selectedRows.size > 0 && (
               <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
@@ -494,81 +565,6 @@ export function GFAEditableTable({
             <Button size="sm" onClick={handleAddRow}>
               <Plus className="h-4 w-4 mr-2" /> Add Row
             </Button>
-          </div>
-        </div>
-
-        {/* Table Controls */}
-        <div className="space-y-2">
-          {/* Column Width Controls */}
-          <div className="border rounded-md">
-            <button
-              onClick={() => setShowWidthControls(!showWidthControls)}
-              className="w-full flex items-center justify-between px-3 py-2 hover:bg-accent/50 rounded-md text-xs font-medium"
-            >
-              <span className="flex items-center gap-2">
-                <GripVertical className="h-3 w-3" />
-                Column Width Options
-              </span>
-              {showWidthControls ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-            </button>
-            {showWidthControls && (
-              <div className="px-3 pb-3 pt-1 flex items-center gap-2 text-xs border-t">
-                <Button variant="outline" size="sm" onClick={handleResetColumnWidths} className="h-7">
-                  <RotateCcw className="h-3 w-3 mr-1" /> Reset
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => handleApplyWidthPreset('compact')} className="h-7">
-                  Compact
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => handleApplyWidthPreset('normal')} className="h-7">
-                  Normal
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => handleApplyWidthPreset('wide')} className="h-7">
-                  Wide
-                </Button>
-                <span className="text-muted-foreground ml-2 text-[10px]">
-                  Drag column edges to resize • Drag headers to reorder
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* Row Density Controls */}
-          <div className="border rounded-md">
-            <button
-              onClick={() => setShowDensityControls(!showDensityControls)}
-              className="w-full flex items-center justify-between px-3 py-2 hover:bg-accent/50 rounded-md text-xs font-medium"
-            >
-              <span>Row Density</span>
-              {showDensityControls ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-            </button>
-            {showDensityControls && (
-              <div className="px-3 pb-3 pt-1 flex items-center gap-2 text-xs border-t">
-                <Button 
-                  variant={rowDensity === 'compact' ? 'default' : 'outline'} 
-                  size="sm" 
-                  onClick={() => setRowDensity('compact')} 
-                  className="h-7"
-                >
-                  Compact
-                </Button>
-                <Button 
-                  variant={rowDensity === 'comfortable' ? 'default' : 'outline'} 
-                  size="sm" 
-                  onClick={() => setRowDensity('comfortable')} 
-                  className="h-7"
-                >
-                  Comfortable
-                </Button>
-                <Button 
-                  variant={rowDensity === 'spacious' ? 'default' : 'outline'} 
-                  size="sm" 
-                  onClick={() => setRowDensity('spacious')} 
-                  className="h-7"
-                >
-                  Spacious
-                </Button>
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -657,7 +653,7 @@ export function GFAEditableTable({
                   </TableCell>
                 </TableRow> : paginatedRows.map((row, displayIndex) => {
                 const i = rows.indexOf(row);
-                const rowBgClass = selectedRows.has(i) ? 'bg-primary/10' : i % 2 === 0 ? 'bg-white' : 'bg-green-50';
+                const rowBgClass = selectedRows.has(i) ? 'bg-primary/10' : i % 2 === 0 ? 'bg-white' : 'bg-gray-50';
                 return <TableRow key={i} className={rowBgClass}>
                     <TableCell 
                       className={`sticky z-10 text-center border-r border-border ${rowBgClass} ${ROW_DENSITY_STYLES[rowDensity]}`}
