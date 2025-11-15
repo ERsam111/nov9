@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Download, Upload, Plus, Trash2, MapPin, Edit2, RotateCcw, GripVertical, ChevronDown, ChevronRight, Search, X } from "lucide-react";
+import { Download, Upload, Plus, Trash2, MapPin, Edit2, RotateCcw, GripVertical, ChevronDown, ChevronRight } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -92,7 +92,6 @@ export function GFAEditableTable({
   const [rowDensity, setRowDensity] = useState<'compact' | 'comfortable' | 'spacious'>('comfortable');
   const [showWidthControls, setShowWidthControls] = useState(false);
   const [showDensityControls, setShowDensityControls] = useState(false);
-  const [globalSearch, setGlobalSearch] = useState("");
   
   const DEFAULT_COLUMN_WIDTH = 200;
   const WIDTH_PRESETS = {
@@ -440,24 +439,10 @@ export function GFAEditableTable({
   // Apply filters and sorting with useMemo to optimize large datasets
   const displayRows = useMemo(() => {
     let filtered = rows.filter((row) => {
-      // Apply column filters
-      const matchesColumnFilters = Object.entries(columnFilters).every(([colLabel, filter]) => {
+      return Object.entries(columnFilters).every(([colLabel, filter]) => {
         const key = keyOf(colLabel, tableType);
         return applyColumnFilter(row[key], filter);
       });
-      
-      // Apply global search across all columns
-      if (globalSearch.trim()) {
-        const searchLower = globalSearch.toLowerCase();
-        const matchesSearch = columns.some(col => {
-          const key = keyOf(col, tableType);
-          const value = String(row[key] || "").toLowerCase();
-          return value.includes(searchLower);
-        });
-        return matchesColumnFilters && matchesSearch;
-      }
-      
-      return matchesColumnFilters;
     });
 
     // Apply sorting
@@ -469,7 +454,7 @@ export function GFAEditableTable({
     }
     
     return filtered;
-  }, [rows, columnFilters, columnSorts, globalSearch, tableType, columns]);
+  }, [rows, columnFilters, columnSorts, tableType]);
   
   // Pagination for large datasets
   const [currentPage, setCurrentPage] = useState(0);
@@ -481,7 +466,7 @@ export function GFAEditableTable({
   }, [displayRows, currentPage, rowsPerPage]);
 
   return <Card className="flex flex-col h-full overflow-hidden">
-      <div className="p-4 border-b shrink-0 space-y-3">
+      <div className="p-4 border-b shrink-0">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-4 flex-1">
             <h2 className="text-base font-semibold whitespace-nowrap">{getTableTitle(tableType)}</h2>
@@ -581,26 +566,6 @@ export function GFAEditableTable({
               <Plus className="h-4 w-4 mr-2" /> Add Row
             </Button>
           </div>
-        </div>
-        
-        {/* Global Search Bar */}
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="text"
-            placeholder="Search across all columns..."
-            value={globalSearch}
-            onChange={(e) => setGlobalSearch(e.target.value)}
-            className="pl-9 pr-9 h-9 text-sm"
-          />
-          {globalSearch && (
-            <button
-              onClick={() => setGlobalSearch("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
         </div>
       </div>
 
