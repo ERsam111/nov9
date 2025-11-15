@@ -583,13 +583,13 @@ export function GFAEditableTable({
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden relative">
-        <div className="overflow-auto h-full">
+      <div className="flex-1 overflow-auto relative">
+        <div className="w-full h-full overflow-auto">
           <Table className="min-w-full relative" style={{ paddingLeft: '112px' }}>
-            <TableHeader className="sticky top-0 z-30 bg-background">
-              <TableRow>
+            <TableHeader className="sticky top-0 z-30 bg-background shadow-sm">
+              <TableRow className="bg-background">
                 <TableHead 
-                  className="sticky top-0 z-20 bg-background font-semibold text-sm text-center border-r border-border"
+                  className="sticky top-0 z-30 bg-background font-semibold text-sm text-center border-r border-border shadow-sm"
                   style={{ left: 0, width: '48px', minWidth: '48px', maxWidth: '48px' }}
                 >
                   <Checkbox
@@ -598,7 +598,7 @@ export function GFAEditableTable({
                   />
                 </TableHead>
                 <TableHead 
-                  className="sticky top-0 z-20 bg-background border-r border-border font-semibold text-sm text-center"
+                  className="sticky top-0 z-30 bg-background border-r border-border font-semibold text-sm text-center shadow-sm"
                   style={{ left: '48px', width: '64px', minWidth: '64px', maxWidth: '64px' }}
                 >
                   Sr No
@@ -611,7 +611,7 @@ export function GFAEditableTable({
                     onDragOver={(e) => handleDragOver(e, c)}
                     onDrop={(e) => handleDrop(e, c)}
                     onDragEnd={handleDragEnd}
-                    className={`sticky top-0 z-10 bg-background border-r border-border font-semibold text-sm whitespace-nowrap px-2 cursor-move hover:bg-accent/50 ${
+                    className={`sticky top-0 z-30 bg-background border-r border-border font-semibold text-sm whitespace-nowrap px-2 cursor-move hover:bg-accent/50 shadow-sm ${
                       selectedColumn === c ? 'bg-primary/20' : ''
                     } ${draggingColumn === c ? 'opacity-50' : ''} ${dragOverColumn === c ? 'bg-accent' : ''}`}
                     onClick={(e) => handleColumnClick(c, e)}
@@ -653,7 +653,7 @@ export function GFAEditableTable({
                     />
                   </TableHead>
                 ))}
-                <TableHead className="sticky top-0 z-10 bg-background border-r border-border font-semibold text-sm whitespace-nowrap text-center">Actions</TableHead>
+                <TableHead className="sticky top-0 z-30 bg-background border-r border-border font-semibold text-sm whitespace-nowrap text-center shadow-sm">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

@@ -661,7 +661,7 @@ const GFA = () => {
           )}
 
           <TabsContent value="input" className="space-y-2">
-            <div className={`flex gap-3 overflow-hidden ${isFullscreen ? 'h-[calc(100vh-100px)]' : 'h-[calc(100vh-240px)]'}`}>
+            <div className={`flex gap-3 overflow-hidden ${isFullscreen ? 'h-[calc(100vh-60px)]' : 'h-[calc(100vh-240px)]'}`}>
               {!isFullscreen && (
                 <GFASidebarNav 
                   activeTable={activeTable} 
@@ -671,7 +671,7 @@ const GFA = () => {
                   existingSiteCount={existingSites.length}
                 />
               )}
-              <div className="flex-1 min-w-0 flex flex-col gap-2 max-w-[calc(100vw-400px)]">
+              <div className={`flex-1 min-w-0 flex flex-col gap-2 ${isFullscreen ? 'max-w-full' : 'max-w-[calc(100vw-400px)]'}`}>
                 {/* Active Table Content with horizontal scroll */}
                 <div className="flex-1 min-w-0 overflow-hidden">
                   {activeTable === "customers" && <GFAEditableTable tableType="customers" data={filteredCustomers} onDataChange={setCustomers} onGeocode={handleGeocodeCustomer} products={products} isFullscreen={isFullscreen} onToggleFullscreen={() => setIsFullscreen(!isFullscreen)} />}
