@@ -60,7 +60,7 @@ export function DataHandlingGuide() {
         <Alert>
           <RotateCcw className="h-4 w-4" />
           <AlertDescription>
-            <strong>Width Presets:</strong> Use the preset buttons (Compact/Normal/Wide) to quickly apply uniform widths to all columns, or click Reset to restore defaults.
+            <strong>Width & Density Presets:</strong> Use collapsible controls to adjust column widths (Compact/Normal/Wide) and row density (Compact/Comfortable/Spacious) for your viewing preference.
           </AlertDescription>
         </Alert>
 
@@ -70,8 +70,10 @@ export function DataHandlingGuide() {
             <li>Ctrl+Click any column header to instantly open bulk editor</li>
             <li>Drag the right edge of column headers to resize columns</li>
             <li>Drag column headers by the grip icon to reorder them</li>
-            <li>Use width presets for quick layout adjustments</li>
+            <li>Expand Column Width Options for quick layout presets</li>
+            <li>Expand Row Density to adjust row spacing (Compact/Comfortable/Spacious)</li>
             <li>Column headers stay frozen when scrolling down</li>
+            <li>Zebra striping (green/white) helps distinguish rows</li>
             <li>Vertical lines separate all columns for clarity</li>
             <li>Sr No column automatically shows row numbers for reference</li>
             <li>Bulk edit works for all column types including dropdowns</li>
