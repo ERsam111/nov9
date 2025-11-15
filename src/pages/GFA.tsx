@@ -134,8 +134,7 @@ const GFA = () => {
           setCostBreakdown(undefined);
         }
         
-        // Always switch to input tab when loading a scenario
-        setActiveTab("input");
+        // Don't auto-switch tabs - let user stay where they are
       }
     };
     loadScenarioData();
@@ -512,12 +511,9 @@ const GFA = () => {
       setSettings(updatedData.settings);
     }
     
-    // Force a re-render by switching tabs
-    setActiveTab("data-support");
-    setTimeout(() => {
-      console.log("Switching to input tab to show updated data");
-      setActiveTab("input");
-    }, 100);
+    // Don't auto-switch tabs - let user stay where they are
+    
+    toast.success("Data updated! Check the Input Data tab to see changes.");
     
     toast.success("Data updated! Check the Input Data tab to see changes.");
   };
