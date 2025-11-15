@@ -378,47 +378,77 @@ export function GFAEditableTable({
         </div>
       </div>
 
-      <div className="flex-1 overflow-x-auto overflow-y-auto p-4">
-        <Table className="min-w-max">
+      <div className="flex-1 overflow-auto p-4">
+        <div className="overflow-x-auto">
+          <Table className="min-w-full">
             <TableHeader>
               <TableRow>
-                <TableHead className="sticky top-0 bg-muted/50 font-semibold text-sm w-12">
+                <TableHead className="sticky top-0 left-0 z-20 bg-background border-r font-semibold text-sm w-12">
                   <Checkbox
                     checked={selectedRows.size === rows.length && rows.length > 0}
                     onCheckedChange={handleSelectAll}
                   />
                 </TableHead>
-                {columns.map(c => <TableHead 
+                <TableHead className="sticky top-0 left-12 z-20 bg-background border-r font-semibold text-sm w-16 px-2">
+                  Sr No
+                </TableHead>
+                {columns.map(c => (
+                  <TableHead 
                     key={c} 
-                    className={`sticky top-0 font-semibold text-sm whitespace-nowrap bg-muted/50 px-2 cursor-pointer ${selectedColumn === c ? 'bg-primary/20' : ''}`}
-                    onClick={(e) => handleColumnClick(c, e)}
-                    title="Ctrl+Click to select, then press Space to bulk edit"
+                    className="sticky top-0 z-10 bg-background font-semibold text-sm whitespace-nowrap px-2"
                   >
-                    <TableColumnFilter
-                      columnKey={keyOf(c, tableType)}
-                      columnLabel={c}
-                      dataType={getColumnDataType(c)}
-                      currentFilter={columnFilters[c]}
-                      currentSort={columnSorts[c] || null}
-                      onFilterChange={(filter) => handleFilterChange(c, filter)}
-                      onSortChange={(sort) => handleSortChange(c, sort)}
-                    />
-                  </TableHead>)}
-                <TableHead className="sticky top-0 bg-muted/50 font-semibold text-sm whitespace-nowrap">Actions</TableHead>
+                    <div className="flex flex-col gap-1 min-w-[120px]">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-medium">{c}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedColumn(c);
+                            setBulkEditOpen(true);
+                          }}
+                          className="h-6 w-6 p-0 hover:bg-primary/20"
+                          title="Bulk edit this column"
+                        >
+                          <Edit2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      <TableColumnFilter
+                        columnKey={keyOf(c, tableType)}
+                        columnLabel={c}
+                        dataType={getColumnDataType(c)}
+                        currentFilter={columnFilters[c]}
+                        currentSort={columnSorts[c] || null}
+                        onFilterChange={(filter) => handleFilterChange(c, filter)}
+                        onSortChange={(sort) => handleSortChange(c, sort)}
+                      />
+                    </div>
+                  </TableHead>
+                ))}
+                <TableHead className="sticky top-0 z-10 bg-background font-semibold text-sm whitespace-nowrap">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {rows.length === 0 ? <TableRow>
-                  <TableCell colSpan={columns.length + 1} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={columns.length + 3} className="text-center text-muted-foreground py-8">
                     No data. Click "Add Row" to begin.
                   </TableCell>
                 </TableRow> : displayRows.length === 0 ? <TableRow>
-                  <TableCell colSpan={columns.length + 1} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={columns.length + 3} className="text-center text-muted-foreground py-8">
                     No results match your filters.
                   </TableCell>
                 </TableRow> : paginatedRows.map((row, displayIndex) => {
                 const i = rows.indexOf(row);
-                return <TableRow key={i}>
+                return <TableRow key={i} className={selectedRows.has(i) ? 'bg-primary/5' : 'bg-background'}>
+                    <TableCell className={`sticky left-0 z-10 border-r ${selectedRows.has(i) ? 'bg-primary/5' : 'bg-background'}`}>
+                      <Checkbox
+                        checked={selectedRows.has(i)}
+                        onCheckedChange={(checked) => handleRowSelection(i, checked as boolean)}
+                      />
+                    </TableCell>
+                    <TableCell className={`sticky left-12 z-10 border-r text-center text-sm text-muted-foreground ${selectedRows.has(i) ? 'bg-primary/5' : 'bg-background'}`}>
+                      {i + 1}
+                    </TableCell>
                     {columns.map(col => {
               const key = keyOf(col, tableType);
               const val = row[key] ?? "";
@@ -544,7 +574,8 @@ export function GFAEditableTable({
                   </TableRow>
               })}
             </TableBody>
-        </Table>
+          </Table>
+        </div>
       </div>
 
       {totalPages > 1 && (
@@ -590,31 +621,51 @@ export function GFAEditableTable({
       )}
 
       <Dialog open={bulkEditOpen} onOpenChange={setBulkEditOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Bulk Edit Column: {selectedColumn}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit2 className="h-5 w-5" />
+              Bulk Edit: {selectedColumn}
+            </DialogTitle>
             <DialogDescription>
-              Enter one value per line. Each line will update the corresponding row in the "{selectedColumn}" column.
-              {rows.length > 0 && ` (${rows.length} rows total)`}
+              Enter one value per line to update the "<strong>{selectedColumn}</strong>" column. Each line corresponds to one row in the table.
+              {rows.length > 0 && ` (Total rows: ${rows.length})`}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            <div className="p-3 bg-muted rounded-lg text-sm space-y-1">
+              <p className="font-medium">Quick Tips:</p>
+              <ul className="list-disc list-inside text-muted-foreground space-y-1">
+                <li>Enter exactly {rows.length} lines to update all rows</li>
+                <li>Leave a line blank to skip that row</li>
+                <li>Click "Clear All" to remove all values from this column</li>
+              </ul>
+            </div>
             <Textarea
               value={bulkEditValue}
               onChange={(e) => setBulkEditValue(e.target.value)}
-              placeholder={`Enter values, one per line...\nExample:\nValue 1\nValue 2\nValue 3`}
+              placeholder={`Enter values for "${selectedColumn}", one per line...\nExample:\nValue for row 1\nValue for row 2\nValue for row 3`}
               className="min-h-[300px] font-mono text-sm"
               autoFocus
             />
-            <div className="text-sm text-muted-foreground">
-              {bulkEditValue.split("\n").filter(l => l.trim()).length} line(s) entered
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">
+                {bulkEditValue.split("\n").filter(l => l.trim()).length} line(s) entered
+              </span>
+              {bulkEditValue.split("\n").filter(l => l.trim()).length > rows.length && (
+                <span className="text-amber-600">⚠ More lines than rows!</span>
+              )}
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setBulkEditOpen(false)}>
+            <Button variant="outline" onClick={() => {
+              setBulkEditOpen(false);
+              setBulkEditValue("");
+            }}>
               Cancel
             </Button>
             <Button variant="destructive" onClick={handleClearColumn}>
+              <Trash2 className="h-4 w-4 mr-2" />
               Clear All
             </Button>
             <Button onClick={handleBulkEdit}>
