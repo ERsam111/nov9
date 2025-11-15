@@ -612,7 +612,7 @@ export const EditableTable = ({
 
         {/* Bulk Edit Dialog */}
         <Dialog open={bulkEditOpen} onOpenChange={setBulkEditOpen}>
-          <DialogContent>
+          <DialogContent className="bg-background z-[100]">
             <DialogHeader>
               <DialogTitle>Bulk Edit: {selectedColumn}</DialogTitle>
               <DialogDescription>
@@ -623,7 +623,7 @@ export const EditableTable = ({
               value={bulkEditValue}
               onChange={(e) => setBulkEditValue(e.target.value)}
               placeholder="Value 1&#10;Value 2&#10;Value 3"
-              className="min-h-[200px] font-mono text-xs"
+              className="min-h-[200px] font-mono text-xs bg-background"
             />
             <DialogFooter className="gap-2">
               <Button onClick={handleClearColumn} variant="outline">
