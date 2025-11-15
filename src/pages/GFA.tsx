@@ -141,22 +141,55 @@ const GFA = () => {
     loadScenarioData();
   }, [currentScenario]);
 
-  // Save input data whenever it changes
+  // Manual save function instead of auto-save to prevent performance issues with large datasets
+  const handleSaveScenario = async () => {
+    if (!currentScenario) return;
+    
+    try {
+      await saveScenarioInput(currentScenario.id, {
+        customers,
+        products,
+        existingSites,
+        settings
+      }, false); // Not background, show feedback
+      toast.success("Scenario saved successfully");
+    } catch (error) {
+      toast.error("Failed to save scenario");
+    }
+  };
+
+  // Optional: Auto-save with longer debounce for large datasets
+  const [saveTimer, setSaveTimer] = useState<NodeJS.Timeout | null>(null);
+  
   useEffect(() => {
     if (currentScenario && (customers.length > 0 || products.length > 0 || existingSites.length > 0)) {
-      const saveData = async () => {
+      // Clear existing timer
+      if (saveTimer) {
+        clearTimeout(saveTimer);
+      }
+      
+      // For large datasets (>1000 items), use longer debounce or skip auto-save
+      const totalItems = customers.length + products.length + existingSites.length;
+      if (totalItems > 1000) {
+        // Don't auto-save for large datasets, user must save manually
+        return;
+      }
+      
+      // For smaller datasets, auto-save with debounce
+      const timeoutId = setTimeout(async () => {
         await saveScenarioInput(currentScenario.id, {
           customers,
           products,
           existingSites,
           settings
         }, true); // Background save, non-blocking
-      };
-      // Add a small delay to prevent overwriting manual updates
-      const timeoutId = setTimeout(saveData, 500);
+      }, 2000); // Increased from 500ms to 2000ms
+      
+      setSaveTimer(timeoutId);
       return () => clearTimeout(timeoutId);
     }
   }, [customers, products, existingSites, settings, currentScenario?.id]);
+
 
   // Products are managed separately - not auto-populated from customers
   const handleOptimize = async () => {
@@ -526,9 +559,20 @@ const GFA = () => {
                           variant="outline" 
                           size="sm"
                           disabled={customers.length === 0}
+                          className="gap-2"
                         >
-                          <FileDown className="h-4 w-4 mr-2" />
+                          <FileDown className="h-4 w-4" />
                           Export
+                        </Button>
+                        <Button
+                          onClick={handleSaveScenario} 
+                          variant="default" 
+                          size="sm"
+                          className="gap-2"
+                          disabled={!currentScenario}
+                        >
+                          <Download className="h-4 w-4" />
+                          Save
                         </Button>
                       </div>
                     </div>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download, Upload, Plus, Trash2, MapPin } from "lucide-react";
@@ -117,30 +117,38 @@ export function GFAEditableTable({
   };
   const handleChange = (i: number, col: string, val: any) => {
     const key = keyOf(col, tableType);
-    const updated = [...rows];
     
-    // For product unit conversions, update the unitConversions object
-    if (tableType === "products" && key.startsWith("to_")) {
-      const conversions = { ...(updated[i].unitConversions || {}) };
-      const numVal = parseFloat(val);
-      if (!isNaN(numVal) && numVal > 0) {
-        conversions[key] = numVal;
+    // Use functional update to avoid race conditions with large datasets
+    setRows(prevRows => {
+      const updated = [...prevRows];
+      
+      // For product unit conversions, update the unitConversions object
+      if (tableType === "products" && key.startsWith("to_")) {
+        const conversions = { ...(updated[i].unitConversions || {}) };
+        const numVal = parseFloat(val);
+        if (!isNaN(numVal) && numVal > 0) {
+          conversions[key] = numVal;
+        } else {
+          delete conversions[key];
+        }
+        updated[i] = {
+          ...updated[i],
+          unitConversions: conversions
+        };
       } else {
-        delete conversions[key];
+        updated[i] = {
+          ...updated[i],
+          [key]: val
+        };
       }
-      updated[i] = {
-        ...updated[i],
-        unitConversions: conversions
-      };
-    } else {
-      updated[i] = {
-        ...updated[i],
-        [key]: val
-      };
-    }
-    
-    setRows(updated);
-    onDataChange(updated);
+      
+      // Call onDataChange in next tick to batch updates
+      requestAnimationFrame(() => {
+        onDataChange(updated);
+      });
+      
+      return updated;
+    });
   };
   const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -191,25 +199,45 @@ export function GFAEditableTable({
     return numericFields.includes(key) ? "number" : "text";
   };
 
-  // Apply filters and sorting
-  let displayRows = rows.filter((row) => {
-    return Object.entries(columnFilters).every(([colLabel, filter]) => {
-      const key = keyOf(colLabel, tableType);
-      return applyColumnFilter(row[key], filter);
+  // Apply filters and sorting with useMemo to optimize large datasets
+  const displayRows = useMemo(() => {
+    let filtered = rows.filter((row) => {
+      return Object.entries(columnFilters).every(([colLabel, filter]) => {
+        const key = keyOf(colLabel, tableType);
+        return applyColumnFilter(row[key], filter);
+      });
     });
-  });
 
-  // Apply sorting
-  const sortEntry = Object.entries(columnSorts).find(([_, dir]) => dir !== null);
-  if (sortEntry) {
-    const [colLabel, direction] = sortEntry;
-    const key = keyOf(colLabel, tableType);
-    displayRows = applySorting(displayRows, key, direction);
-  }
+    // Apply sorting
+    const sortEntry = Object.entries(columnSorts).find(([_, dir]) => dir !== null);
+    if (sortEntry) {
+      const [colLabel, direction] = sortEntry;
+      const key = keyOf(colLabel, tableType);
+      filtered = applySorting(filtered, key, direction);
+    }
+    
+    return filtered;
+  }, [rows, columnFilters, columnSorts, tableType]);
+  
+  // Pagination for large datasets
+  const [currentPage, setCurrentPage] = useState(0);
+  const rowsPerPage = 100; // Show 100 rows at a time
+  const totalPages = Math.ceil(displayRows.length / rowsPerPage);
+  const paginatedRows = useMemo(() => {
+    const start = currentPage * rowsPerPage;
+    return displayRows.slice(start, start + rowsPerPage);
+  }, [displayRows, currentPage, rowsPerPage]);
 
   return <Card className="flex flex-col h-full overflow-hidden">
       <div className="p-4 border-b flex items-center justify-between shrink-0">
-        <h2 className="text-base font-semibold">{getTableTitle(tableType)}</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-base font-semibold">{getTableTitle(tableType)}</h2>
+          <span className="text-sm text-muted-foreground">
+            {displayRows.length > rowsPerPage 
+              ? `Showing ${currentPage * rowsPerPage + 1}-${Math.min((currentPage + 1) * rowsPerPage, displayRows.length)} of ${displayRows.length}`
+              : `${displayRows.length} rows`}
+          </span>
+        </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={handleDownload}>
             <Download className="h-4 w-4 mr-2" /> Export
@@ -253,7 +281,7 @@ export function GFAEditableTable({
                   <TableCell colSpan={columns.length + 1} className="text-center text-muted-foreground py-8">
                     No results match your filters.
                   </TableCell>
-                </TableRow> : displayRows.map((row, displayIndex) => {
+                </TableRow> : paginatedRows.map((row, displayIndex) => {
                 const i = rows.indexOf(row);
                 return <TableRow key={i}>
                     {columns.map(col => {
