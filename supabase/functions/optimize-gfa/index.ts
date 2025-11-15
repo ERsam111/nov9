@@ -330,31 +330,90 @@ serve(async (req) => {
     // EXACT SAME LOGIC AS LOCAL: Respect mode and existing sites settings
     const existingSitesMode = settings.existingSitesMode || 'always';
     
-    if (settings.includeExistingSites && existingSites && existingSites.length > 0) {
-      console.log(`Using existing sites with mode: ${existingSitesMode}`);
+    if (settings.mode === 'cost') {
+      // COST MODE: Find optimal number of sites that minimizes total cost
+      console.log("Cost mode: Finding optimal number of sites");
       
-      if (settings.mode === 'sites') {
-        // Sites mode: use specified number of DCs
-        if (existingSitesMode === 'always') {
-          const numNewSites = Math.max(0, (settings.numDCs || 3) - existingSites.length);
-          dcs = buildDCConfiguration(customers, numNewSites, existingSites, 'always');
-        } else if (existingSitesMode === 'potential') {
-          // Compare existing vs new sites
-          const newSitesDcs = kMeansOptimization(customers, settings.numDCs || 3);
-          const existingDcs = buildDCConfiguration(customers, settings.numDCs || 3, existingSites, 'use-existing-subset');
+      let bestDcs: any[] = [];
+      let bestCost = Infinity;
+      let bestBreakdown = null;
+      const maxTrialSites = Math.min(50, customers.length);
+      const hasExistingSites = settings.includeExistingSites && existingSites && existingSites.length > 0;
+      
+      if (existingSitesMode === 'always' && hasExistingSites) {
+        // Try adding 0 to maxTrialSites NEW sites to existing sites
+        for (let numNewSites = 0; numNewSites <= maxTrialSites; numNewSites++) {
+          const trialDcs = buildDCConfiguration(customers, numNewSites, existingSites, 'always');
+          const costBreakdown = calculateCostBreakdown(trialDcs, settings, existingSites);
           
-          const newCost = calculateCostBreakdown(newSitesDcs, settings, existingSites);
-          const existingCost = calculateCostBreakdown(existingDcs, settings, existingSites);
+          if (costBreakdown.totalCost < bestCost) {
+            bestCost = costBreakdown.totalCost;
+            bestDcs = trialDcs;
+            bestBreakdown = costBreakdown;
+          }
+        }
+      } else if (existingSitesMode === 'potential' && hasExistingSites) {
+        // Compare existing sites vs new sites for each number
+        for (let numSites = 1; numSites <= maxTrialSites; numSites++) {
+          // Option A: Use existing sites subset
+          if (numSites <= existingSites.length) {
+            const existingDcs = buildDCConfiguration(customers, numSites, existingSites, 'use-existing-subset');
+            const existingCost = calculateCostBreakdown(existingDcs, settings, existingSites);
+            
+            if (existingCost.totalCost < bestCost) {
+              bestCost = existingCost.totalCost;
+              bestDcs = existingDcs;
+              bestBreakdown = existingCost;
+            }
+          }
           
-          dcs = existingCost.totalCost < newCost.totalCost ? existingDcs : newSitesDcs;
+          // Option B: Pure k-means (all new sites)
+          const newDcs = kMeansOptimization(customers, numSites);
+          const newCost = calculateCostBreakdown(newDcs, settings, existingSites);
+          
+          if (newCost.totalCost < bestCost) {
+            bestCost = newCost.totalCost;
+            bestDcs = newDcs;
+            bestBreakdown = newCost;
+          }
         }
       } else {
-        // Cost mode: minimize cost
-        dcs = buildDCConfiguration(customers, 0, existingSites, 'always');
+        // No existing sites: pure cost optimization
+        for (let numSites = 1; numSites <= maxTrialSites; numSites++) {
+          const trialDcs = kMeansOptimization(customers, numSites);
+          const costBreakdown = calculateCostBreakdown(trialDcs, settings, existingSites);
+          
+          if (costBreakdown.totalCost < bestCost) {
+            bestCost = costBreakdown.totalCost;
+            bestDcs = trialDcs;
+            bestBreakdown = costBreakdown;
+          }
+        }
+      }
+      
+      dcs = bestDcs;
+      console.log(`Cost mode optimized to ${dcs.length} sites with total cost ${bestCost.toFixed(2)}`);
+      
+    } else if (settings.includeExistingSites && existingSites && existingSites.length > 0) {
+      // SITES MODE with existing sites
+      console.log(`Sites mode with existing sites (mode: ${existingSitesMode})`);
+      
+      if (existingSitesMode === 'always') {
+        const numNewSites = Math.max(0, (settings.numDCs || 3) - existingSites.length);
+        dcs = buildDCConfiguration(customers, numNewSites, existingSites, 'always');
+      } else if (existingSitesMode === 'potential') {
+        // Compare existing vs new sites
+        const newSitesDcs = kMeansOptimization(customers, settings.numDCs || 3);
+        const existingDcs = buildDCConfiguration(customers, settings.numDCs || 3, existingSites, 'use-existing-subset');
+        
+        const newCost = calculateCostBreakdown(newSitesDcs, settings, existingSites);
+        const existingCost = calculateCostBreakdown(existingDcs, settings, existingSites);
+        
+        dcs = existingCost.totalCost < newCost.totalCost ? existingDcs : newSitesDcs;
       }
     } else {
-      // No existing sites - use K-means
-      console.log("Running K-means optimization with", settings.numDCs, "DCs");
+      // SITES MODE without existing sites: use specified number of DCs
+      console.log("Sites mode: Using specified", settings.numDCs, "DCs");
       dcs = kMeansOptimization(customers, settings.numDCs || 3);
     }
 
