@@ -2,12 +2,14 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, CheckCircle2, Clock, Server } from "lucide-react";
+import { AlertCircle, CheckCircle2, Clock, Server, Zap } from "lucide-react";
 import { railwayClient } from "@/lib/railwayClient";
 import { toast } from "sonner";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export function BackendConnectionTest() {
   const [testing, setTesting] = useState(false);
+  const [testingOptimization, setTestingOptimization] = useState(false);
   const [status, setStatus] = useState<{
     connected: boolean;
     latency?: number;
@@ -15,6 +17,7 @@ export function BackendConnectionTest() {
     error?: string;
     url?: string;
   } | null>(null);
+  const [optimizationResult, setOptimizationResult] = useState<any>(null);
 
   const testConnection = async () => {
     setTesting(true);
@@ -54,6 +57,64 @@ export function BackendConnectionTest() {
       });
     } finally {
       setTesting(false);
+    }
+  };
+
+  const testOptimization = async () => {
+    if (!status?.connected) {
+      toast.error("Please test connection first");
+      return;
+    }
+
+    setTestingOptimization(true);
+    setOptimizationResult(null);
+
+    // Sample test data
+    const sampleData = [
+      {
+        product: "Product A",
+        demandMean: 100,
+        demandStd: 20,
+        demandDist: "normal",
+        leadTimeMean: 5,
+        leadTimeStd: 1,
+        leadTimeDist: "normal",
+        holdingCost: 2,
+        orderCost: 50,
+        backorderCost: 10,
+        initialInventory: 150
+      }
+    ];
+
+    const config = {
+      numDays: 365,
+      numReplications: 100,
+      serviceLevel: 0.95,
+      policies: ["(s,S)", "(R,S)"]
+    };
+
+    try {
+      const startTime = Date.now();
+      const result = await railwayClient.optimizeInventory(sampleData, config);
+      const computeTime = Date.now() - startTime;
+
+      setOptimizationResult({
+        data: result,
+        computeTime
+      });
+
+      toast.success(`Optimization completed in ${(computeTime / 1000).toFixed(2)}s`, {
+        description: "Backend is working correctly!"
+      });
+    } catch (error: any) {
+      toast.error("Optimization test failed", {
+        description: error.message
+      });
+      setOptimizationResult({
+        error: error.message
+      });
+    } finally {
+      setTestingOptimization(false);
     }
   };
 
