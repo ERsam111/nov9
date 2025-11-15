@@ -112,6 +112,17 @@ function transformFromBackendFormat(backendResults: any, input: SimulationInput)
       const serviceLevelMax = serviceLevels.length > 0 ? Math.max(...serviceLevels) : Math.min(1, serviceLevelMean + 0.05);
       const serviceLevelSD = serviceLevels.length > 1 ? Math.sqrt(serviceLevels.map((x: number) => Math.pow(x - serviceLevelMean, 2)).reduce((a: number, b: number) => a + b, 0) / serviceLevels.length) : 0.02;
       
+      // Extract detailed metrics from replications
+      const inventoryLevels = replications.map((r: any) => r.avgInventory || 0);
+      const orders = replications.map((r: any) => r.orders || 0);
+      
+      const avgInventory = inventoryLevels.length > 0 ? inventoryLevels.reduce((a: number, b: number) => a + b, 0) / inventoryLevels.length : 0;
+      const avgOrders = orders.length > 0 ? orders.reduce((a: number, b: number) => a + b, 0) / orders.length : 0;
+      
+      // Calculate cost components
+      const holdingCost = result.costs?.holdingCost ? result.costs.holdingCost * avgInventory * 365 : 0;
+      const orderCost = result.costs?.orderCost ? result.costs.orderCost * avgOrders : 0;
+      
       results.push({
         srNo: index + 1,
         scenarioDescription: `Policy ${result.policyId} - Optimal (s,S): (${result.optimalReorderPoint}, ${result.optimalOrderUpToLevel})`,
@@ -130,9 +141,9 @@ function transformFromBackendFormat(backendResults: any, input: SimulationInput)
         costBreakdown: {
           transportation: 0,
           production: 0,
-          handling: 0,
-          inventory: result.costs?.holdingCost || 0,
-          replenishment: result.costs?.orderCost || 0,
+          handling: holdingCost,
+          inventory: holdingCost,
+          replenishment: orderCost,
         },
       });
     });
@@ -185,21 +196,34 @@ export async function runSimulationWithBackend(
       
       console.log("✅ Transformed results:", {
         scenarioCount: scenarioResults.length,
-        firstScenario: scenarioResults[0]
+        sample: scenarioResults[0]
       });
       
-      onProgress?.(100);
+      // Generate inventory time series data from replications
+      const inventoryData: any[] = [];
+      if (backendResults.results?.[0]?.replications) {
+        const firstReplication = backendResults.results[0].replications[0];
+        if (firstReplication?.inventoryLevels) {
+          firstReplication.inventoryLevels.forEach((level: number, day: number) => {
+            inventoryData.push({
+              day,
+              inventory: level,
+              policyId: backendResults.results[0].policyId,
+            });
+          });
+        }
+      }
       
-      console.log("✅ Backend simulation completed:", scenarioResults.length, "scenarios");
+      onProgress?.(100);
       
       return {
         scenarioResults,
         orderLogs: [],
-        inventoryData: [],
+        inventoryData,
         productionLogs: [],
         productFlowLogs: [],
         tripLogs: [],
-        usedBackend: true
+        usedBackend: true,
       };
     } catch (error) {
       console.error("❌ Backend simulation failed, falling back to local:", error);
