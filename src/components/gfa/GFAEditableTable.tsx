@@ -512,18 +512,19 @@ export function GFAEditableTable({
 
       <div className="flex-1 overflow-hidden relative">
         <div className="overflow-auto h-full">
-          <Table className="min-w-full relative">
-            <TableHeader>
-              <TableRow>
-                <TableHead className="sticky top-0 left-0 z-20 bg-background font-semibold text-sm w-16 px-3">
-                  <Checkbox
-                    checked={selectedRows.size === rows.length && rows.length > 0}
-                    onCheckedChange={handleSelectAll}
-                  />
-                </TableHead>
-                <TableHead className="sticky top-0 left-16 z-20 bg-background border-r border-border font-semibold text-sm w-20 px-2 text-center">
-                  Sr No
-                </TableHead>
+          <div className="relative" style={{ paddingLeft: '144px' }}>
+            <Table className="min-w-full relative">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="sticky top-0 left-0 z-20 bg-background font-semibold text-sm w-16 px-3" style={{ marginLeft: '-144px' }}>
+                    <Checkbox
+                      checked={selectedRows.size === rows.length && rows.length > 0}
+                      onCheckedChange={handleSelectAll}
+                    />
+                  </TableHead>
+                  <TableHead className="sticky top-0 left-16 z-20 bg-background border-r border-border font-semibold text-sm w-20 px-2 text-center" style={{ marginLeft: '-144px' }}>
+                    Sr No
+                  </TableHead>
                 {columnOrder.map(c => (
                   <TableHead 
                     key={c}
@@ -589,13 +590,13 @@ export function GFAEditableTable({
                 </TableRow> : paginatedRows.map((row, displayIndex) => {
                 const i = rows.indexOf(row);
                 return <TableRow key={i} className={selectedRows.has(i) ? 'bg-primary/5' : 'bg-background'}>
-                    <TableCell className={`sticky left-0 z-10 w-16 px-3 ${selectedRows.has(i) ? 'bg-primary/5' : 'bg-background'}`}>
+                    <TableCell className={`sticky left-0 z-10 w-16 px-3 ${selectedRows.has(i) ? 'bg-primary/5' : 'bg-background'}`} style={{ marginLeft: '-144px' }}>
                       <Checkbox
                         checked={selectedRows.has(i)}
                         onCheckedChange={(checked) => handleRowSelection(i, checked as boolean)}
                       />
                     </TableCell>
-                    <TableCell className={`sticky left-16 z-10 border-r border-border text-center text-sm text-muted-foreground w-20 ${selectedRows.has(i) ? 'bg-primary/5' : 'bg-background'}`}>
+                    <TableCell className={`sticky left-16 z-10 border-r border-border text-center text-sm text-muted-foreground w-20 ${selectedRows.has(i) ? 'bg-primary/5' : 'bg-background'}`} style={{ marginLeft: '-144px' }}>
                       {i + 1}
                     </TableCell>
                     {columnOrder.map(col => {
@@ -750,6 +751,7 @@ export function GFAEditableTable({
               })}
             </TableBody>
           </Table>
+          </div>
         </div>
       </div>
 
