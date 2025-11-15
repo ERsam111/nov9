@@ -50,6 +50,10 @@ function transformToBackendFormat(input: SimulationInput, replications: number) 
       'Policy Type': policy["Simulation Policy"] || "(s,S)",
       'Reorder Point (s)': parseFloat(policy["Simulation Policy Value 1"]) || 0,
       'Order-up-to Level (S)': parseFloat(policy["Simulation Policy Value 2"]) || 0,
+      'Service Level Target': 95, // Default 95% service level
+      'Ordering Cost ($/order)': 50, // Default ordering cost
+      'Holding Cost ($/unit/day)': (product ? parseFloat(product["Unit Value"]) * 0.2 : 2) / 365, // Annual holding cost converted to daily
+      'Shortage Cost ($/unit)': product ? parseFloat(product["Unit Value"]) * 0.5 : 10, // Backorder cost
     });
     
     // Build demand table entry
@@ -63,12 +67,9 @@ function transformToBackendFormat(input: SimulationInput, replications: number) 
     // Build transport table entry  
     transportTable.push({
       'Policy ID': policyId,
-      'Lead Time Mean (days)': leadTimeMean,
+      'Lead Time (days)': leadTimeMean,
       'Lead Time Std. Dev.': leadTimeStd,
       'Lead Time Distribution': 'normal',
-      'Holding Cost per Unit': product ? parseFloat(product["Unit Value"]) * 0.2 : 2,
-      'Order Cost': 50,
-      'Backorder Cost per Unit': product ? parseFloat(product["Unit Value"]) * 0.5 : 10,
     });
   });
 
