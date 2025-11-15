@@ -512,16 +512,22 @@ export function GFAEditableTable({
 
       <div className="flex-1 overflow-hidden relative">
         <div className="overflow-auto h-full">
-          <Table className="min-w-full relative">
+          <Table className="min-w-full relative" style={{ paddingLeft: '112px' }}>
             <TableHeader>
               <TableRow>
-                <TableHead className="sticky top-0 left-0 z-20 bg-background font-semibold text-sm w-12 px-2 text-center">
+                <TableHead 
+                  className="sticky top-0 z-20 bg-background font-semibold text-sm text-center border-r border-border"
+                  style={{ left: 0, width: '48px', minWidth: '48px', maxWidth: '48px' }}
+                >
                   <Checkbox
                     checked={selectedRows.size === rows.length && rows.length > 0}
                     onCheckedChange={handleSelectAll}
                   />
                 </TableHead>
-                <TableHead className="sticky top-0 left-12 z-20 bg-background border-r border-border font-semibold text-sm w-16 px-2 text-center">
+                <TableHead 
+                  className="sticky top-0 z-20 bg-background border-r border-border font-semibold text-sm text-center"
+                  style={{ left: '48px', width: '64px', minWidth: '64px', maxWidth: '64px' }}
+                >
                   Sr No
                 </TableHead>
                 {columnOrder.map(c => (
@@ -589,13 +595,19 @@ export function GFAEditableTable({
                 </TableRow> : paginatedRows.map((row, displayIndex) => {
                 const i = rows.indexOf(row);
                 return <TableRow key={i} className={`${selectedRows.has(i) ? 'bg-primary/10' : i % 2 === 0 ? 'bg-background' : 'bg-muted/30'}`}>
-                    <TableCell className={`sticky left-0 z-10 w-12 px-2 text-center ${selectedRows.has(i) ? 'bg-primary/10' : i % 2 === 0 ? 'bg-background' : 'bg-muted/30'}`}>
+                    <TableCell 
+                      className={`sticky z-10 text-center border-r border-border ${selectedRows.has(i) ? 'bg-primary/10' : i % 2 === 0 ? 'bg-background' : 'bg-muted/30'}`}
+                      style={{ left: 0, width: '48px', minWidth: '48px', maxWidth: '48px' }}
+                    >
                       <Checkbox
                         checked={selectedRows.has(i)}
                         onCheckedChange={(checked) => handleRowSelection(i, checked as boolean)}
                       />
                     </TableCell>
-                    <TableCell className={`sticky left-12 z-10 border-r border-border text-center text-sm text-muted-foreground w-16 px-2 ${selectedRows.has(i) ? 'bg-primary/10' : i % 2 === 0 ? 'bg-background' : 'bg-muted/30'}`}>
+                    <TableCell 
+                      className={`sticky z-10 border-r border-border text-center text-sm text-muted-foreground ${selectedRows.has(i) ? 'bg-primary/10' : i % 2 === 0 ? 'bg-background' : 'bg-muted/30'}`}
+                      style={{ left: '48px', width: '64px', minWidth: '64px', maxWidth: '64px' }}
+                    >
                       {i + 1}
                     </TableCell>
                     {columnOrder.map(col => {
