@@ -244,6 +244,8 @@ function calculateCostBreakdown(
   numSites: number;
 } {
   let transportationCost = 0;
+  let totalDistance = 0;
+  let totalDemand = 0;
 
   for (const dc of dcs) {
     for (const customer of dc.assignedCustomers) {
@@ -256,7 +258,16 @@ function calculateCostBreakdown(
       
       // Convert to miles if needed (SAME AS LOCAL)
       const distanceInUnit = settings.distanceUnit === 'mile' ? distance * 0.621371 : distance;
-      transportationCost += distanceInUnit * customer.demand * (settings.transportationCostPerMilePerUnit || 0.5);
+      
+      // Use conversion factor if available (customer.conversionFactor accounts for unit differences)
+      const demandInCostUnit = customer.demand * (customer.conversionFactor || 1);
+      
+      const costForThisCustomer = distanceInUnit * demandInCostUnit * (settings.transportationCostPerMilePerUnit || 0.5);
+      transportationCost += costForThisCustomer;
+      
+      // Track for logging
+      totalDistance += distanceInUnit;
+      totalDemand += demandInCostUnit;
     }
   }
 
@@ -274,6 +285,15 @@ function calculateCostBreakdown(
 
   const facilityCost = numNewSites * (settings.facilityCost || 100000);
   const totalCost = transportationCost + facilityCost;
+
+  console.log("Cost breakdown details:", {
+    totalDistance: totalDistance.toFixed(2),
+    totalDemand: totalDemand.toFixed(2),
+    transportationCost: transportationCost.toFixed(2),
+    facilityCost: facilityCost.toFixed(2),
+    numNewSites,
+    totalSites: dcs.length,
+  });
 
   return {
     totalCost,
@@ -359,7 +379,9 @@ serve(async (req) => {
 
     console.log("Optimization completed:", {
       numDCs: dcs.length,
-      totalCost: costBreakdown.totalCost,
+      totalCost: costBreakdown.totalCost.toFixed(2),
+      transportationCost: costBreakdown.transportationCost.toFixed(2),
+      facilityCost: costBreakdown.facilityCost.toFixed(2),
       feasible: result.feasible,
     });
 
