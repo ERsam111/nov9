@@ -205,8 +205,10 @@ export function GFAEditableTable({
   const handleColumnClick = (columnLabel: string, e: React.MouseEvent) => {
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
+      e.stopPropagation();
       setSelectedColumn(columnLabel);
-      toast.info(`Column "${columnLabel}" selected. Press Space to bulk edit.`);
+      setBulkEditOpen(true);
+      toast.info(`Opening bulk editor for "${columnLabel}"`);
     }
   };
 
@@ -395,24 +397,12 @@ export function GFAEditableTable({
                 {columns.map(c => (
                   <TableHead 
                     key={c} 
-                    className="sticky top-0 z-10 bg-background font-semibold text-sm whitespace-nowrap px-2"
+                    className={`sticky top-0 z-10 bg-background font-semibold text-sm whitespace-nowrap px-2 cursor-pointer hover:bg-accent ${selectedColumn === c ? 'bg-primary/20' : ''}`}
+                    onClick={(e) => handleColumnClick(c, e)}
+                    title="Ctrl+Click to select for bulk edit"
                   >
                     <div className="flex flex-col gap-1 min-w-[120px]">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-medium">{c}</span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedColumn(c);
-                            setBulkEditOpen(true);
-                          }}
-                          className="h-6 w-6 p-0 hover:bg-primary/20"
-                          title="Bulk edit this column"
-                        >
-                          <Edit2 className="h-3 w-3" />
-                        </Button>
-                      </div>
+                      <span className="text-xs font-medium">{c}</span>
                       <TableColumnFilter
                         columnKey={keyOf(c, tableType)}
                         columnLabel={c}

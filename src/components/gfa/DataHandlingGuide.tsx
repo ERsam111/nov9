@@ -25,14 +25,14 @@ export function DataHandlingGuide() {
         <Alert>
           <MousePointerClick className="h-4 w-4" />
           <AlertDescription>
-            <strong>Column Bulk Edit (NEW):</strong> Click the <Edit2 className="h-3 w-3 inline" /> button above any column header to instantly open bulk editor. Or hold <kbd className="px-2 py-1 bg-muted rounded text-xs font-mono">Ctrl</kbd> and click column name (legacy method).
+            <strong>Column Bulk Edit:</strong> Hold <kbd className="px-2 py-1 bg-muted rounded text-xs font-mono">Ctrl</kbd> (or <kbd className="px-2 py-1 bg-muted rounded text-xs font-mono">Cmd</kbd> on Mac) and click on any column header name to open the bulk editor instantly.
           </AlertDescription>
         </Alert>
 
         <Alert>
           <Keyboard className="h-4 w-4" />
           <AlertDescription>
-            <strong>Open Bulk Editor:</strong> After selecting a column, press <kbd className="px-2 py-1 bg-muted rounded text-xs font-mono">Space</kbd> to open the bulk edit dialog. Enter one value per line to update each row.
+            <strong>Alternative Method:</strong> After Ctrl+clicking a column, you can also press <kbd className="px-2 py-1 bg-muted rounded text-xs font-mono">Space</kbd> to open the bulk editor (if it didn't open automatically).
           </AlertDescription>
         </Alert>
 
@@ -46,7 +46,7 @@ export function DataHandlingGuide() {
         <div className="p-4 bg-muted/50 rounded-lg space-y-2 text-sm">
           <p className="font-semibold">Quick Tips:</p>
           <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-            <li>NEW: Click the edit icon (<Edit2 className="h-3 w-3 inline" />) above any column for instant bulk editing</li>
+            <li>Ctrl+Click any column header to instantly open bulk editor</li>
             <li>Sr No column automatically shows row numbers for reference</li>
             <li>Bulk edit works for all column types including dropdowns</li>
             <li>You can clear an entire column using the "Clear All" button</li>
