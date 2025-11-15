@@ -252,13 +252,14 @@ export async function optimizeInventory(requestData) {
   const optimizedResults = [];
   
   for (let i = 0; i < policyTable.length; i++) {
+    console.log(`\n=== Starting policy ${i + 1}/${policyTable.length} ===`);
     try {
       const policyRow = policyTable[i];
       const demandRow = demandTable[i] || {};
       const transportRow = transportTable[i] || {};
       
       const policyId = policyRow['Policy ID'] || `Policy_${i}`;
-      console.log(`Processing policy ${i + 1}/${policyTable.length}: ${policyId}`);
+      console.log(`Policy ID: ${policyId}`);
       
       // Extract parameters
       const demandParams = {
@@ -279,9 +280,13 @@ export async function optimizeInventory(requestData) {
         shortageCost: parseFloat(policyRow['Shortage Cost ($/unit)']) || 10
       };
       
-      const serviceLevel = parseFloat(policyRow['Service Level Target']) || 95;
+      console.log(`Demand params:`, demandParams);
+      console.log(`Lead time params:`, leadTimeParams);
+      console.log(`Costs:`, costs);
+      console.log(`Service level: ${serviceLevel}`);
       
       // Calculate initial estimates
+      console.log(`Calculating zScore for serviceLevel/100 = ${serviceLevel / 100}`);
       const zScore = normalPPF(serviceLevel / 100);
       const leadTimeDemand = demandParams.mean * leadTimeParams.mean;
       const leadTimeDemandStd = Math.sqrt(
@@ -341,7 +346,9 @@ export async function optimizeInventory(requestData) {
       
       console.log(`  ✓ Completed: Cost=${Math.round(avgCost)}, SL=${Math.round(avgServiceLevel * 100)}%`);
     } catch (error) {
-      console.error(`  ✗ Error on policy ${i}:`, error.message);
+      console.error(`\n✗✗✗ ERROR on policy ${i}: ${error.message}`);
+      console.error(`Stack trace:`, error.stack);
+      console.error(`✗✗✗ END ERROR\n`);
     }
   }
   
