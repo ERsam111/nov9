@@ -84,6 +84,8 @@ export function GFAEditableTable({
   const [selectedColumn, setSelectedColumn] = useState<string | null>(null);
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const [bulkEditValue, setBulkEditValue] = useState("");
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
+  const [resizingColumn, setResizingColumn] = useState<string | null>(null);
   useEffect(() => {
     setRows(data);
     setSelectedRows(new Set());
@@ -271,6 +273,29 @@ export function GFAEditableTable({
     setSelectedColumn(null);
     toast.success(`Cleared column "${selectedColumn}"`);
   };
+
+  const handleResizeStart = (column: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setResizingColumn(column);
+    const startX = e.clientX;
+    const startWidth = columnWidths[column] || 120;
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const diff = moveEvent.clientX - startX;
+      const newWidth = Math.max(80, startWidth + diff);
+      setColumnWidths(prev => ({ ...prev, [column]: newWidth }));
+    };
+
+    const handleMouseUp = () => {
+      setResizingColumn(null);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
   
   const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -386,25 +411,28 @@ export function GFAEditableTable({
           <Table className="min-w-full">
             <TableHeader>
               <TableRow>
-                <TableHead className="sticky top-0 left-0 z-20 bg-background border-r font-semibold text-sm w-12">
-                  <Checkbox
-                    checked={selectedRows.size === rows.length && rows.length > 0}
-                    onCheckedChange={handleSelectAll}
-                  />
+                <TableHead className="sticky top-0 left-0 z-20 bg-background border-r font-semibold text-sm w-20 px-4">
+                  <div className="flex items-center justify-center">
+                    <Checkbox
+                      checked={selectedRows.size === rows.length && rows.length > 0}
+                      onCheckedChange={handleSelectAll}
+                    />
+                  </div>
                 </TableHead>
-                <TableHead className="sticky top-0 left-12 z-20 bg-background border-r font-semibold text-sm w-16 px-2">
-                  Sr No
+                <TableHead className="sticky top-0 left-20 z-20 bg-background border-r font-semibold text-sm w-20 px-2">
+                  <div className="text-center">Sr No</div>
                 </TableHead>
                 {columns.map(c => (
                   <TableHead 
                     key={c} 
-                    className={`sticky top-0 z-10 bg-background font-semibold text-sm whitespace-nowrap px-2 cursor-pointer hover:bg-accent ${selectedColumn === c ? 'bg-primary/20' : ''}`}
+                    className={`sticky top-0 z-10 bg-background font-semibold text-sm whitespace-nowrap px-2 cursor-pointer hover:bg-accent relative group ${selectedColumn === c ? 'bg-primary/20' : ''}`}
                     onClick={(e) => handleColumnClick(c, e)}
+                    style={{ width: columnWidths[c] || 150, minWidth: 80 }}
                   >
                     <TooltipProvider>
                       <Tooltip delayDuration={300}>
                         <TooltipTrigger asChild>
-                          <div className="min-w-[120px]">
+                          <div>
                             <TableColumnFilter
                               columnKey={keyOf(c, tableType)}
                               columnLabel={c}
@@ -421,9 +449,14 @@ export function GFAEditableTable({
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
+                    <div
+                      className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/50 group-hover:bg-primary/30"
+                      onMouseDown={(e) => handleResizeStart(c, e)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
                   </TableHead>
                 ))}
-                <TableHead className="sticky top-0 z-10 bg-background font-semibold text-sm whitespace-nowrap">Actions</TableHead>
+                <TableHead className="sticky top-0 z-10 bg-background font-semibold text-sm whitespace-nowrap w-24">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -438,13 +471,15 @@ export function GFAEditableTable({
                 </TableRow> : paginatedRows.map((row, displayIndex) => {
                 const i = rows.indexOf(row);
                 return <TableRow key={i} className={selectedRows.has(i) ? 'bg-primary/5' : 'bg-background'}>
-                    <TableCell className={`sticky left-0 z-10 border-r ${selectedRows.has(i) ? 'bg-primary/5' : 'bg-background'}`}>
-                      <Checkbox
-                        checked={selectedRows.has(i)}
-                        onCheckedChange={(checked) => handleRowSelection(i, checked as boolean)}
-                      />
+                    <TableCell className={`sticky left-0 z-10 border-r w-20 px-4 ${selectedRows.has(i) ? 'bg-primary/5' : 'bg-background'}`}>
+                      <div className="flex items-center justify-center">
+                        <Checkbox
+                          checked={selectedRows.has(i)}
+                          onCheckedChange={(checked) => handleRowSelection(i, checked as boolean)}
+                        />
+                      </div>
                     </TableCell>
-                    <TableCell className={`sticky left-12 z-10 border-r text-center text-sm text-muted-foreground ${selectedRows.has(i) ? 'bg-primary/5' : 'bg-background'}`}>
+                    <TableCell className={`sticky left-20 z-10 border-r text-center text-sm text-muted-foreground w-20 ${selectedRows.has(i) ? 'bg-primary/5' : 'bg-background'}`}>
                       {i + 1}
                     </TableCell>
                     {columns.map(col => {
@@ -555,8 +590,8 @@ export function GFAEditableTable({
               }
 
               // Regular input fields
-              return <TableCell key={col} className="whitespace-nowrap">
-                          <Input value={val === undefined || val === null ? "" : String(val)} onChange={e => handleChange(i, col, e.target.value)} placeholder={`Enter ${col}`} className="h-9 text-sm min-w-[120px]" type={key === "demand" || key === "sellingPrice" || key === "latitude" || key === "longitude" ? "number" : "text"} />
+              return <TableCell key={col} className="whitespace-nowrap" style={{ width: columnWidths[col] || 150 }}>
+                          <Input value={val === undefined || val === null ? "" : String(val)} onChange={e => handleChange(i, col, e.target.value)} placeholder={`Enter ${col}`} className="h-9 text-sm w-full" type={key === "demand" || key === "sellingPrice" || key === "latitude" || key === "longitude" ? "number" : "text"} />
                         </TableCell>;
             })}
                     <TableCell>
