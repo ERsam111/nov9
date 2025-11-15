@@ -89,7 +89,17 @@ export const ProjectScenarioNav = ({
         onScenarioChange?.(latestScenario);
       }
     }
-  }, [scenarios, selectedProject, moduleType]);
+  }, [scenarios, selectedProject]);
+  
+  // Clear scenario when selected project changes
+  useEffect(() => {
+    if (selectedProject && currentScenario) {
+      // If current scenario doesn't belong to selected project, clear it
+      if (currentScenario.project_id !== selectedProject.id) {
+        setCurrentScenario(null);
+      }
+    }
+  }, [selectedProject?.id]);
 
   // Load project and scenarios on mount or when IDs change
   useEffect(() => {

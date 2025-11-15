@@ -53,12 +53,13 @@ const GFA = () => {
     const projectId = location.state?.projectId;
     if (projectId && projects.length > 0) {
       const project = projects.find(p => p.id === projectId);
-      if (project) {
+      if (project && project.id !== currentProject?.id) {
         setCurrentProject(project);
+        setCurrentScenario(null); // Clear current scenario when switching projects
         loadScenariosByProject(project.id, 'gfa'); // Filter by GFA module
       }
     }
-  }, [location.state, projects]);
+  }, [location.state?.projectId, projects]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [existingSites, setExistingSites] = useState<ExistingSite[]>([]);
