@@ -55,7 +55,6 @@ const Index = ({ currentScenario, updateScenario, saveScenarioOutput, saveScenar
   const [simulationProgress, setSimulationProgress] = useState(0);
   const [activeTab, setActiveTab] = useState("input");
   const [useCloudCompute, setUseCloudCompute] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
   
   // Filters for inventory graph and order log
   const [selectedSite, setSelectedSite] = useState<string>("all");
@@ -89,7 +88,6 @@ const Index = ({ currentScenario, updateScenario, saveScenarioOutput, saveScenar
   const customerNames = Array.from(new Set(customerData.map((c: any) => c["Customer Name"])));
   const facilityNames = Array.from(new Set(facilityData.map((f: any) => f["Facility Name"])));
   const productNames = Array.from(new Set(productData.map((p: any) => p["Product Name"])));
-  const modeNames = Array.from(new Set(transportationModeData.map((m: any) => m["Mode Name"])));
 
   // Load saved scenario data when scenario changes
   useEffect(() => {
@@ -328,15 +326,15 @@ const Index = ({ currentScenario, updateScenario, saveScenarioOutput, saveScenar
         "Origin Name": facilityNames,
         "Destination Name": [...facilityNames, ...customerNames],
         "Product Name": productNames,
-        "Mode Name": modeNames,
-        "Optimization Policy": ["Minimize Cost", "Minimize Time"],
-        "Simulation Policy": ["By Preference", "Random"],
         "Unit Cost UOM": ["USD"],
-        "Product UOM": ["EA", "PLT"],
-        "Fixed Cost UOM": ["USD"],
-        "Fixed Cost Rule": ["Per Shipment", "Per Product Unit"],
         "Average Shipment Size UOM": ["EA", "PLT"],
         "Transport Distance UOM": ["MI"],
+        "Transport Time Distribution": [
+          "Constant(value)",
+          "Normal(mean, std)",
+          "Uniform(min, max)",
+          "Triangular(min, mode, max)"
+        ],
         "Transport Time Distribution UOM": ["DAY", "HR", "MIN"]
       }
     },
@@ -365,8 +363,32 @@ const Index = ({ currentScenario, updateScenario, saveScenarioOutput, saveScenar
         "Status": ["Include", "Exclude"],
         "Customer Name": customerNames,
         "Product Name": productNames,
+        "Quantity": [
+          "Normal(mean, std)",
+          "Uniform(min, max)",
+          "Exponential(lambda)",
+          "Poisson(lambda)",
+          "Lognormal(mean, std)",
+          "Gamma(shape, scale)",
+          "Weibull(shape, scale)",
+          "Triangular(min, mode, max)",
+          "Beta(alpha, beta)",
+          "Constant(value)"
+        ],
         "Quantity UOM": ["EA", "PLT"],
         "Service Level UOM": ["DAY", "HR"],
+        "Time Between Orders": [
+          "Normal(mean, std)",
+          "Uniform(min, max)",
+          "Exponential(lambda)",
+          "Poisson(lambda)",
+          "Lognormal(mean, std)",
+          "Gamma(shape, scale)",
+          "Weibull(shape, scale)",
+          "Triangular(min, mode, max)",
+          "Beta(alpha, beta)",
+          "Constant(value)"
+        ],
         "Time Between Orders UOM": ["DAY", "HR"]
       }
     },
@@ -706,34 +728,31 @@ const Index = ({ currentScenario, updateScenario, saveScenarioOutput, saveScenar
 
   return (
     <div className="h-full bg-background">
-      <div className="max-w-[1800px] mx-auto w-full px-2 py-2 h-full">
+      <div className="max-w-[1800px] mx-auto w-full px-4 py-2 h-full">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          {!isFullscreen && (
-            <TabsList>
-              <TabsTrigger value="input">Input Tables</TabsTrigger>
-              <TabsTrigger value="network">Map View</TabsTrigger>
-              <TabsTrigger value="simulation">Run Simulation</TabsTrigger>
-              <TabsTrigger value="results">Results</TabsTrigger>
-              <TabsTrigger value="datasupport">
-                <Bot className="h-4 w-4 mr-2" />
-                Data Support
-              </TabsTrigger>
-            </TabsList>
-          )}
+          <TabsList>
+            <TabsTrigger value="input">Input Tables</TabsTrigger>
+            <TabsTrigger value="network">Map View</TabsTrigger>
+            <TabsTrigger value="simulation">Run Simulation</TabsTrigger>
+            <TabsTrigger value="results">Results</TabsTrigger>
+            <TabsTrigger value="datasupport">
+              <Bot className="h-4 w-4 mr-2" />
+              Data Support
+            </TabsTrigger>
+          </TabsList>
 
           {/* --- Input Tables --- */}
           <TabsContent value="input" className="mt-1">
-            <div className={`flex gap-2 ${isFullscreen ? 'h-[calc(100vh-60px)]' : 'h-[calc(100vh-200px)]'}`}>
+            <div className="flex gap-4 h-[calc(100vh-250px)]">
               {/* Left Sidebar - Table Names */}
-              {!isFullscreen && (
-                <Card className="w-64 flex-shrink-0 flex flex-col">
-                  <CardHeader className="pb-2 border-b">
-                    <CardTitle className="text-sm flex items-center gap-1.5">
-                      <Database className="h-4 w-4" />
-                      Input Tables
-                    </CardTitle>
-                    <CardDescription className="text-xs">Select a table to edit</CardDescription>
-                  </CardHeader>
+              <Card className="w-80 flex-shrink-0 flex flex-col">
+                <CardHeader className="pb-2 border-b">
+                  <CardTitle className="text-sm flex items-center gap-1.5">
+                    <Database className="h-4 w-4" />
+                    Input Tables
+                  </CardTitle>
+                  <CardDescription className="text-xs">Select a table to edit</CardDescription>
+                </CardHeader>
                 <CardContent className="p-0 flex-1 flex flex-col min-h-0">
                   <div className="p-3 flex flex-col gap-2 border-b">
                     <QuickStartDialog 
@@ -792,10 +811,9 @@ const Index = ({ currentScenario, updateScenario, saveScenarioOutput, saveScenar
                   </ScrollArea>
                 </CardContent>
               </Card>
-              )}
 
               {/* Right Panel - Selected Table */}
-              <div className={`flex-1 overflow-auto ${isFullscreen ? 'w-full' : ''}`}>
+              <div className="flex-1 overflow-auto">
                 {currentTable && (
                   <EditableTable
                     title={currentTable.name}
@@ -805,8 +823,6 @@ const Index = ({ currentScenario, updateScenario, saveScenarioOutput, saveScenar
                     onDataChange={currentTable.setData}
                     dropdownOptions={currentTable.dropdownOptions}
                     inventoryPolicyData={(currentTable as any).inventoryPolicyData}
-                    isFullscreen={isFullscreen}
-                    onToggleFullscreen={() => setIsFullscreen(!isFullscreen)}
                   />
                 )}
               </div>
