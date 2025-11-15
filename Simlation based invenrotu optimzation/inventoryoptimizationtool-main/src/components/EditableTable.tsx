@@ -348,7 +348,7 @@ export const EditableTable = ({
                 <SlidersHorizontal className="h-3 w-3" />
               </Button>
               {showWidthControls && (
-                <div className="absolute right-0 top-full mt-1 z-50 bg-popover border rounded-md shadow-md p-2 space-y-1">
+                <div className="absolute right-0 top-full mt-1 z-[100] bg-popover border rounded-md shadow-md p-2 space-y-1">
                   <Button onClick={() => applyWidthPreset('compact')} size="sm" variant="ghost" className="w-full justify-start text-xs">
                     Compact
                   </Button>
@@ -373,7 +373,7 @@ export const EditableTable = ({
                 <LayoutGrid className="h-3 w-3" />
               </Button>
               {showDensityControls && (
-                <div className="absolute right-0 top-full mt-1 z-50 bg-popover border rounded-md shadow-md p-2 space-y-1">
+                <div className="absolute right-0 top-full mt-1 z-[100] bg-popover border rounded-md shadow-md p-2 space-y-1">
                   <Button onClick={() => setRowDensity('compact')} size="sm" variant="ghost" className="w-full justify-start text-xs">
                     Compact
                   </Button>
@@ -541,11 +541,45 @@ export const EditableTable = ({
                               />
                             )
                           ) : isParameterSetup ? (
-                            <span className="text-xs text-muted-foreground">Setup</span>
+                            <ParameterSetupDialog
+                              facilityName={row["Facility Name"] || ""}
+                              productName={row["Product Name"] || row["Product"] || ""}
+                              simulationPolicy={row["Simulation Policy"] || ""}
+                              parameters={(() => {
+                                try {
+                                  return cellValue ? JSON.parse(cellValue) : [];
+                                } catch {
+                                  return [];
+                                }
+                              })()}
+                              onSave={(params) => {
+                                const updated = [...rows];
+                                updated[rowIndex][column] = JSON.stringify(params);
+                                setRows(updated);
+                                onDataChange(updated);
+                              }}
+                            />
                           ) : isDistributionParam ? (
-                            <span className="text-xs text-muted-foreground">Model</span>
+                            <DistributionParameterDialog
+                              currentValue={cellValue?.toString() || ""}
+                              onSave={(newVal) => {
+                                const updated = [...rows];
+                                updated[rowIndex][column] = newVal;
+                                setRows(updated);
+                                onDataChange(updated);
+                              }}
+                            />
                           ) : isBOM ? (
-                            <span className="text-xs text-muted-foreground">BOM</span>
+                            <BOMDialog
+                              currentValue={cellValue?.toString() || ""}
+                              availableProducts={data.map((r: any) => r["Product Name"] || r["Product"]).filter(Boolean)}
+                              onSave={(newVal) => {
+                                const updated = [...rows];
+                                updated[rowIndex][column] = newVal;
+                                setRows(updated);
+                                onDataChange(updated);
+                              }}
+                            />
                           ) : (
                             <div
                               onClick={() => handleCellClick(rowIndex, column, cellValue)}
