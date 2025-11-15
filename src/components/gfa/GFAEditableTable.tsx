@@ -1,10 +1,13 @@
 import { useEffect, useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Download, Upload, Plus, Trash2, MapPin } from "lucide-react";
+import { Download, Upload, Plus, Trash2, MapPin, Edit2 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import { TableColumnFilter, ColumnFilter, SortDirection, applyColumnFilter, applySorting } from "@/components/ui/table-column-filter";
@@ -76,9 +79,26 @@ export function GFAEditableTable({
   const columns = getTableColumns(tableType);
   const [columnFilters, setColumnFilters] = useState<Record<string, ColumnFilter>>({});
   const [columnSorts, setColumnSorts] = useState<Record<string, SortDirection>>({});
+  const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
+  const [selectedColumn, setSelectedColumn] = useState<string | null>(null);
+  const [bulkEditOpen, setBulkEditOpen] = useState(false);
+  const [bulkEditValue, setBulkEditValue] = useState("");
   useEffect(() => {
     setRows(data);
+    setSelectedRows(new Set());
   }, [data]);
+
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === " " && selectedColumn && !bulkEditOpen) {
+        e.preventDefault();
+        setBulkEditOpen(true);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedColumn, bulkEditOpen]);
   const handleAddRow = () => {
     const newRow: any = {};
     if (tableType === "products") {
@@ -150,6 +170,105 @@ export function GFAEditableTable({
       return updated;
     });
   };
+  
+  const handleBulkDelete = () => {
+    if (selectedRows.size === 0) {
+      toast.error("No rows selected");
+      return;
+    }
+    const updated = rows.filter((_, i) => !selectedRows.has(i));
+    setRows(updated);
+    setSelectedRows(new Set());
+    onDataChange(updated);
+    toast.success(`Deleted ${selectedRows.size} row(s)`);
+  };
+
+  const handleRowSelection = (index: number, checked: boolean) => {
+    const newSelected = new Set(selectedRows);
+    if (checked) {
+      newSelected.add(index);
+    } else {
+      newSelected.delete(index);
+    }
+    setSelectedRows(newSelected);
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const allIndices = new Set(rows.map((_, i) => i));
+      setSelectedRows(allIndices);
+    } else {
+      setSelectedRows(new Set());
+    }
+  };
+
+  const handleColumnClick = (columnLabel: string, e: React.MouseEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      setSelectedColumn(columnLabel);
+      toast.info(`Column "${columnLabel}" selected. Press Space to bulk edit.`);
+    }
+  };
+
+  const handleBulkEdit = () => {
+    if (!selectedColumn || !bulkEditValue.trim()) {
+      toast.error("Please enter a value");
+      return;
+    }
+
+    const lines = bulkEditValue.split("\n").filter(line => line.trim());
+    const key = keyOf(selectedColumn, tableType);
+    const updated = [...rows];
+
+    lines.forEach((value, index) => {
+      if (index < updated.length) {
+        if (tableType === "products" && key.startsWith("to_")) {
+          updated[index] = {
+            ...updated[index],
+            unitConversions: {
+              ...updated[index].unitConversions,
+              [key]: value.trim()
+            }
+          };
+        } else {
+          updated[index] = { ...updated[index], [key]: value.trim() };
+        }
+      }
+    });
+
+    setRows(updated);
+    onDataChange(updated);
+    setBulkEditOpen(false);
+    setBulkEditValue("");
+    setSelectedColumn(null);
+    toast.success(`Updated ${lines.length} row(s) in column "${selectedColumn}"`);
+  };
+
+  const handleClearColumn = () => {
+    if (!selectedColumn) return;
+
+    const key = keyOf(selectedColumn, tableType);
+    const updated = rows.map(row => {
+      if (tableType === "products" && key.startsWith("to_")) {
+        return {
+          ...row,
+          unitConversions: {
+            ...row.unitConversions,
+            [key]: ""
+          }
+        };
+      }
+      return { ...row, [key]: "" };
+    });
+
+    setRows(updated);
+    onDataChange(updated);
+    setBulkEditOpen(false);
+    setBulkEditValue("");
+    setSelectedColumn(null);
+    toast.success(`Cleared column "${selectedColumn}"`);
+  };
+  
   const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -239,6 +358,11 @@ export function GFAEditableTable({
           </span>
         </div>
         <div className="flex gap-2">
+          {selectedRows.size > 0 && (
+            <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
+              <Trash2 className="h-4 w-4 mr-2" /> Delete {selectedRows.size} Row(s)
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={handleDownload}>
             <Download className="h-4 w-4 mr-2" /> Export
           </Button>
@@ -258,7 +382,18 @@ export function GFAEditableTable({
         <Table className="min-w-max">
             <TableHeader>
               <TableRow>
-                {columns.map(c => <TableHead key={c} className="sticky top-0 font-semibold text-sm whitespace-nowrap bg-muted/50 px-2">
+                <TableHead className="sticky top-0 bg-muted/50 font-semibold text-sm w-12">
+                  <Checkbox
+                    checked={selectedRows.size === rows.length && rows.length > 0}
+                    onCheckedChange={handleSelectAll}
+                  />
+                </TableHead>
+                {columns.map(c => <TableHead 
+                    key={c} 
+                    className={`sticky top-0 font-semibold text-sm whitespace-nowrap bg-muted/50 px-2 cursor-pointer ${selectedColumn === c ? 'bg-primary/20' : ''}`}
+                    onClick={(e) => handleColumnClick(c, e)}
+                    title="Ctrl+Click to select, then press Space to bulk edit"
+                  >
                     <TableColumnFilter
                       columnKey={keyOf(c, tableType)}
                       columnLabel={c}
@@ -411,5 +546,83 @@ export function GFAEditableTable({
             </TableBody>
         </Table>
       </div>
+
+      {totalPages > 1 && (
+        <div className="p-4 border-t flex items-center justify-between shrink-0">
+          <div className="text-sm text-muted-foreground">
+            Page {currentPage + 1} of {totalPages}
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(0)}
+              disabled={currentPage === 0}
+            >
+              First
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
+              disabled={currentPage === 0}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => Math.min(totalPages - 1, p + 1))}
+              disabled={currentPage === totalPages - 1}
+            >
+              Next
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(totalPages - 1)}
+              disabled={currentPage === totalPages - 1}
+            >
+              Last
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <Dialog open={bulkEditOpen} onOpenChange={setBulkEditOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Bulk Edit Column: {selectedColumn}</DialogTitle>
+            <DialogDescription>
+              Enter one value per line. Each line will update the corresponding row in the "{selectedColumn}" column.
+              {rows.length > 0 && ` (${rows.length} rows total)`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Textarea
+              value={bulkEditValue}
+              onChange={(e) => setBulkEditValue(e.target.value)}
+              placeholder={`Enter values, one per line...\nExample:\nValue 1\nValue 2\nValue 3`}
+              className="min-h-[300px] font-mono text-sm"
+              autoFocus
+            />
+            <div className="text-sm text-muted-foreground">
+              {bulkEditValue.split("\n").filter(l => l.trim()).length} line(s) entered
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkEditOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleClearColumn}>
+              Clear All
+            </Button>
+            <Button onClick={handleBulkEdit}>
+              <Edit2 className="h-4 w-4 mr-2" />
+              Apply Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>;
 }
