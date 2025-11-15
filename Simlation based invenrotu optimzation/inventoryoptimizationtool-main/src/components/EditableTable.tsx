@@ -5,7 +5,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, Save } from "lucide-react";
+import { Plus, Trash2, Save, Maximize, Minimize } from "lucide-react";
 import { toast } from "sonner";
 import { ParameterSetupDialog } from "./ParameterSetupDialog";
 import { DistributionParameterDialog } from "./DistributionParameterDialog";
@@ -19,6 +19,8 @@ interface EditableTableProps {
   onDataChange: (newData: any[]) => void;
   dropdownOptions?: Record<string, string[]>;
   inventoryPolicyData?: any[];
+  isFullscreen?: boolean;
+  onToggleFullscreen?: () => void;
 }
 
 export const EditableTable = ({
@@ -29,6 +31,8 @@ export const EditableTable = ({
   onDataChange,
   dropdownOptions,
   inventoryPolicyData,
+  isFullscreen = false,
+  onToggleFullscreen,
 }: EditableTableProps) => {
   const [editingCell, setEditingCell] = useState<{ row: number; col: string } | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -90,30 +94,38 @@ export const EditableTable = ({
   };
 
   return (
-    <Card className="flex flex-col h-full">
-      <div className="p-4 border-b flex items-center justify-between">
-        <h2 className="text-lg font-semibold">{title}</h2>
-        <Button onClick={handleAddRow} size="sm">
-          <Plus className="h-4 w-4 mr-2" />
-          Add Row
-        </Button>
+    <Card className="flex flex-col h-full overflow-hidden">
+      <div className="p-3 border-b flex items-center justify-between flex-shrink-0">
+        <h2 className="text-base font-semibold">{title}</h2>
+        <div className="flex items-center gap-2">
+          {onToggleFullscreen && (
+            <Button onClick={onToggleFullscreen} size="sm" variant="ghost">
+              {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+            </Button>
+          )}
+          <Button onClick={handleAddRow} size="sm">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Row
+          </Button>
+        </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-4">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              {columns.map((col) => (
-                <TableHead
-                  key={col}
-                  className="min-w-[150px]"
-                >
-                  {col}
-                </TableHead>
-              ))}
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
+      <div className="flex-1 overflow-auto">
+        <div className="w-full h-full overflow-auto">
+          <Table>
+            <TableHeader className="sticky top-0 z-30 bg-background shadow-sm">
+              <TableRow className="bg-background">
+                {columns.map((col) => (
+                  <TableHead
+                    key={col}
+                    className="sticky top-0 z-30 bg-background min-w-[150px] border-r border-border shadow-sm"
+                  >
+                    {col}
+                  </TableHead>
+                ))}
+                <TableHead className="sticky top-0 z-30 bg-background border-r border-border shadow-sm">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
 
           <TableBody>
             {data.map((row, rowIndex) => (
@@ -270,9 +282,10 @@ export const EditableTable = ({
             </TableCell>
           </TableRow>
         ))}
-      </TableBody>
-    </Table>
-  </div>
-</Card>
+          </TableBody>
+        </Table>
+        </div>
+      </div>
+    </Card>
   );
 };
