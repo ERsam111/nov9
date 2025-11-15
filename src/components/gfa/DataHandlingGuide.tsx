@@ -54,6 +54,7 @@ export function DataHandlingGuide() {
           <p className="font-semibold">Quick Tips:</p>
           <ul className="list-disc list-inside space-y-1 text-muted-foreground">
             <li>Ctrl+Click any column header to instantly open bulk editor</li>
+            <li>Drag column edges to resize - hover over the right edge of any column header</li>
             <li>Sr No column automatically shows row numbers for reference</li>
             <li>Bulk edit works for all column types including dropdowns</li>
             <li>You can clear an entire column using the "Clear All" button</li>
