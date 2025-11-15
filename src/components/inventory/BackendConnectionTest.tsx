@@ -24,9 +24,30 @@ export function BackendConnectionTest() {
     setStatus(null);
 
     const backendUrl = import.meta.env.VITE_RAILWAY_BACKEND_URL;
+    const backendEnabled = import.meta.env.VITE_USE_RAILWAY_BACKEND;
+
+    console.log('🔍 Testing backend connection...');
+    console.log('Backend URL:', backendUrl);
+    console.log('Backend Enabled:', backendEnabled);
+    console.log('Expected URL:', 'https://nov9.onrender.com');
 
     try {
       const startTime = Date.now();
+      
+      // First, try direct fetch to see raw error
+      console.log('📡 Attempting direct fetch to:', `${backendUrl}/health`);
+      const directResponse = await fetch(`${backendUrl}/health`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+        },
+        mode: 'cors',
+      });
+      
+      console.log('✅ Direct fetch status:', directResponse.status);
+      const directData = await directResponse.json();
+      console.log('✅ Direct fetch data:', directData);
+      
       const health = await railwayClient.checkHealth();
       const latency = Date.now() - startTime;
 
@@ -47,13 +68,18 @@ export function BackendConnectionTest() {
         toast.success(`Connected! Latency: ${latency}ms`);
       }
     } catch (error: any) {
+      console.error('❌ Connection test failed:', error);
+      console.error('Error name:', error.name);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+      
       setStatus({
         connected: false,
         url: backendUrl,
-        error: error.message || "Unknown error occurred"
+        error: `${error.name}: ${error.message}`
       });
       toast.error("Connection failed", {
-        description: error.message
+        description: `${error.name}: ${error.message}`
       });
     } finally {
       setTesting(false);
@@ -176,13 +202,20 @@ export function BackendConnectionTest() {
                   <p className="text-xs">Trying to connect to: {status.url}</p>
                 )}
                 <div className="mt-3 p-3 bg-muted rounded text-xs text-foreground space-y-2">
-                  <p className="font-medium">Troubleshooting steps:</p>
+                  <p className="font-medium">Debug Info:</p>
+                  <div className="space-y-1 font-mono text-xs">
+                    <p>URL: {status.url}</p>
+                    <p>Enabled: {import.meta.env.VITE_USE_RAILWAY_BACKEND}</p>
+                    <p>Frontend: {window.location.origin}</p>
+                  </div>
+                  
+                  <p className="font-medium mt-3">Troubleshooting:</p>
                   <ol className="list-decimal list-inside space-y-1">
-                    <li>Verify your Render service is deployed and running</li>
-                    <li>Check Render dashboard for service status</li>
-                    <li>Ensure the URL in .env matches your Render service URL</li>
-                    <li>Check Render logs for any startup errors</li>
-                    <li>Verify CORS settings allow your frontend domain</li>
+                    <li>Open browser console (F12) to see detailed logs</li>
+                    <li>Visit {status.url}/health directly in browser</li>
+                    <li>Check if CORS headers include your frontend origin</li>
+                    <li>Verify Render service is not sleeping (free tier)</li>
+                    <li>Check Render dashboard for any deployment errors</li>
                   </ol>
                 </div>
               </div>
