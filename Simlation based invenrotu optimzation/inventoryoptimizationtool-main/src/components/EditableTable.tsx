@@ -521,10 +521,10 @@ export const EditableTable = ({
                                 setEditValue(val);
                                 setTimeout(handleCellSave, 0);
                               }}>
-                                <SelectTrigger className="h-7 text-xs">
+                                <SelectTrigger className="h-7 text-xs bg-background">
                                   <SelectValue />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent className="bg-background z-[100]">
                                   {dropdownOptions[column].map((opt) => (
                                     <SelectItem key={opt} value={opt} className="text-xs">{opt}</SelectItem>
                                   ))}
