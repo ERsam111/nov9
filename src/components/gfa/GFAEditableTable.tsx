@@ -84,6 +84,8 @@ export function GFAEditableTable({
   const [selectedColumn, setSelectedColumn] = useState<string | null>(null);
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const [bulkEditValue, setBulkEditValue] = useState("");
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
+  const [resizingColumn, setResizingColumn] = useState<{ column: string; startX: number; startWidth: number } | null>(null);
   useEffect(() => {
     setRows(data);
     setSelectedRows(new Set());
@@ -271,6 +273,40 @@ export function GFAEditableTable({
     setSelectedColumn(null);
     toast.success(`Cleared column "${selectedColumn}"`);
   };
+
+  // Column resizing handlers
+  const handleResizeStart = (e: React.MouseEvent, column: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const startX = e.clientX;
+    const startWidth = columnWidths[column] || 200;
+    setResizingColumn({ column, startX, startWidth });
+  };
+
+  useEffect(() => {
+    if (!resizingColumn) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const delta = e.clientX - resizingColumn.startX;
+      const newWidth = Math.max(100, resizingColumn.startWidth + delta);
+      setColumnWidths(prev => ({
+        ...prev,
+        [resizingColumn.column]: newWidth
+      }));
+    };
+
+    const handleMouseUp = () => {
+      setResizingColumn(null);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [resizingColumn]);
   
   const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -381,18 +417,18 @@ export function GFAEditableTable({
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-4">
-        <div className="overflow-x-auto">
-          <Table className="min-w-full">
+      <div className="flex-1 overflow-hidden relative">
+        <div className="overflow-auto h-full">
+          <Table className="min-w-full relative">
             <TableHeader>
               <TableRow>
-                <TableHead className="sticky top-0 left-0 z-20 bg-background border-r font-semibold text-sm w-12">
+                <TableHead className="sticky top-0 left-0 z-20 bg-background border-r font-semibold text-sm w-20 px-4">
                   <Checkbox
                     checked={selectedRows.size === rows.length && rows.length > 0}
                     onCheckedChange={handleSelectAll}
                   />
                 </TableHead>
-                <TableHead className="sticky top-0 left-12 z-20 bg-background border-r font-semibold text-sm w-16 px-2">
+                <TableHead className="sticky top-0 left-20 z-20 bg-background border-r font-semibold text-sm w-20 px-2 text-center">
                   Sr No
                 </TableHead>
                 {columns.map(c => (
@@ -400,6 +436,12 @@ export function GFAEditableTable({
                     key={c} 
                     className={`sticky top-0 z-10 bg-background font-semibold text-sm whitespace-nowrap px-2 cursor-pointer hover:bg-accent ${selectedColumn === c ? 'bg-primary/20' : ''}`}
                     onClick={(e) => handleColumnClick(c, e)}
+                    style={{ 
+                      width: columnWidths[c] || 200,
+                      minWidth: columnWidths[c] || 200,
+                      maxWidth: columnWidths[c] || 200,
+                      position: 'relative'
+                    }}
                   >
                     <TooltipProvider>
                       <Tooltip delayDuration={300}>
@@ -421,6 +463,11 @@ export function GFAEditableTable({
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
+                    <div
+                      className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/50 active:bg-primary"
+                      onMouseDown={(e) => handleResizeStart(e, c)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
                   </TableHead>
                 ))}
                 <TableHead className="sticky top-0 z-10 bg-background font-semibold text-sm whitespace-nowrap">Actions</TableHead>
@@ -438,24 +485,29 @@ export function GFAEditableTable({
                 </TableRow> : paginatedRows.map((row, displayIndex) => {
                 const i = rows.indexOf(row);
                 return <TableRow key={i} className={selectedRows.has(i) ? 'bg-primary/5' : 'bg-background'}>
-                    <TableCell className={`sticky left-0 z-10 border-r ${selectedRows.has(i) ? 'bg-primary/5' : 'bg-background'}`}>
+                    <TableCell className={`sticky left-0 z-10 border-r w-20 px-4 ${selectedRows.has(i) ? 'bg-primary/5' : 'bg-background'}`}>
                       <Checkbox
                         checked={selectedRows.has(i)}
                         onCheckedChange={(checked) => handleRowSelection(i, checked as boolean)}
                       />
                     </TableCell>
-                    <TableCell className={`sticky left-12 z-10 border-r text-center text-sm text-muted-foreground ${selectedRows.has(i) ? 'bg-primary/5' : 'bg-background'}`}>
+                    <TableCell className={`sticky left-20 z-10 border-r text-center text-sm text-muted-foreground w-20 ${selectedRows.has(i) ? 'bg-primary/5' : 'bg-background'}`}>
                       {i + 1}
                     </TableCell>
                     {columns.map(col => {
               const key = keyOf(col, tableType);
               const val = row[key] ?? "";
+              const cellStyle = {
+                width: columnWidths[col] || 200,
+                minWidth: columnWidths[col] || 200,
+                maxWidth: columnWidths[col] || 200
+              };
 
               // Special handling for unit conversion columns in products
               if (tableType === "products" && key.startsWith("to_")) {
                 const conversions = row.unitConversions || {};
                 const value = conversions[key] || "";
-                return <TableCell key={col}>
+                return <TableCell key={col} style={cellStyle}>
                   <Input 
                     type="number"
                     value={value}
@@ -468,7 +520,7 @@ export function GFAEditableTable({
 
               // Special handling for base unit dropdown in products
               if (tableType === "products" && key === "baseUnit") {
-                return <TableCell key={col}>
+                return <TableCell key={col} style={cellStyle}>
                             <Select value={String(val)} onValueChange={v => handleChange(i, col, v)}>
                               <SelectTrigger className="w-full h-9 text-sm">
                                 <SelectValue placeholder="Select unit" />
@@ -489,7 +541,7 @@ export function GFAEditableTable({
 
               // Special handling for product dropdown in customers
               if (tableType === "customers" && key === "product") {
-                return <TableCell key={col}>
+                return <TableCell key={col} style={cellStyle}>
                             <Select value={String(val)} onValueChange={v => handleChange(i, col, v)}>
                               <SelectTrigger className="w-full h-9 text-sm">
                                 <SelectValue placeholder="Select product" />
@@ -513,7 +565,7 @@ export function GFAEditableTable({
 
               // Special handling for country dropdown
               if (key === "country") {
-                return <TableCell key={col}>
+                return <TableCell key={col} style={cellStyle}>
                             <Select value={String(val)} onValueChange={v => handleChange(i, col, v)}>
                               <SelectTrigger className="w-full h-9 text-sm">
                                 <SelectValue placeholder="Select country" />
@@ -535,7 +587,28 @@ export function GFAEditableTable({
 
               // Special handling for unit of measure dropdown in customers
               if (tableType === "customers" && key === "unitOfMeasure") {
-                return <TableCell key={col}>
+                return <TableCell key={col} style={cellStyle}>
+                            <Select value={String(val)} onValueChange={v => handleChange(i, col, v)}>
+                              <SelectTrigger className="w-full h-9 text-sm">
+                                <SelectValue placeholder="Select unit" />
+                              </SelectTrigger>
+                              <SelectContent className="z-50 bg-background">
+                                <SelectItem value="m3">m³ (Cubic Meter)</SelectItem>
+                                <SelectItem value="pallets">Pallets</SelectItem>
+                                <SelectItem value="kg">kg (Kilogram)</SelectItem>
+                                <SelectItem value="tonnes">Tonnes</SelectItem>
+                                <SelectItem value="lbs">lbs (Pounds)</SelectItem>
+                                <SelectItem value="ft3">ft³ (Cubic Feet)</SelectItem>
+                                <SelectItem value="liters">Liters</SelectItem>
+                                <SelectItem value="units">Units</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>;
+              }
+
+              // Special handling for capacity unit dropdown in existing-sites
+              if (tableType === "existing-sites" && key === "capacityUnit") {
+                return <TableCell key={col} style={cellStyle}>
                             <Select value={String(val)} onValueChange={v => handleChange(i, col, v)}>
                               <SelectTrigger className="w-full h-9 text-sm">
                                 <SelectValue placeholder="Select unit" />
@@ -555,7 +628,7 @@ export function GFAEditableTable({
               }
 
               // Regular input fields
-              return <TableCell key={col} className="whitespace-nowrap">
+              return <TableCell key={col} className="whitespace-nowrap" style={cellStyle}>
                           <Input value={val === undefined || val === null ? "" : String(val)} onChange={e => handleChange(i, col, e.target.value)} placeholder={`Enter ${col}`} className="h-9 text-sm min-w-[120px]" type={key === "demand" || key === "sellingPrice" || key === "latitude" || key === "longitude" ? "number" : "text"} />
                         </TableCell>;
             })}
