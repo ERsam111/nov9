@@ -13,46 +13,59 @@ function transformToBackendFormat(
   existingSites: ExistingSite[],
   settings: OptimizationSettings
 ) {
-  const data = {
-    customers: customers.map(c => ({
-      id: c.id,
-      name: c.name,
-      latitude: c.latitude,
-      longitude: c.longitude,
-      demand: c.demand,
-      product: c.product,
-      unitOfMeasure: c.unitOfMeasure,
-      conversionFactor: c.conversionFactor,
-    })),
-    facilities: existingSites.map(site => ({
-      id: site.id,
-      name: site.name,
-      latitude: site.latitude,
-      longitude: site.longitude,
-      capacity: site.capacity,
-      capacityUnit: site.capacityUnit,
-    })),
-    products: products.map(p => ({
+  // Transform products to have demand/capacity indexed by product ID
+  const productMap: Record<string, any> = {};
+  products.forEach(p => {
+    productMap[p.name] = {
+      id: p.name,
       name: p.name,
       baseUnit: p.baseUnit,
       sellingPrice: p.sellingPrice,
       unitConversions: p.unitConversions,
-    })),
+    };
+  });
+
+  // Transform customers with demand structured per product
+  const customersData = customers.map(c => {
+    const demand: Record<string, number> = {};
+    // Each customer has demand for one product
+    if (c.product && c.demand) {
+      demand[c.product] = c.demand;
+    }
+    return {
+      id: c.id,
+      name: c.name,
+      latitude: c.latitude,
+      longitude: c.longitude,
+      demand,
+    };
+  });
+
+  // Transform facilities with capacity structured per product
+  const facilitiesData = existingSites.map(site => {
+    const capacity: Record<string, number> = {};
+    // Distribute capacity across all products equally
+    products.forEach(p => {
+      capacity[p.name] = site.capacity / products.length;
+    });
+    return {
+      id: site.id,
+      name: site.name,
+      latitude: site.latitude,
+      longitude: site.longitude,
+      capacity,
+    };
+  });
+
+  const data = {
+    customers: customersData,
+    facilities: facilitiesData,
+    products: Object.values(productMap),
   };
 
   const optimizationSettings = {
-    mode: settings.mode,
-    numDCs: settings.numDCs,
-    maxRadius: settings.maxRadius,
-    demandPercentage: settings.demandPercentage,
-    dcCapacity: settings.dcCapacity,
-    capacityUnit: settings.capacityUnit,
-    transportationCostPerMilePerUnit: settings.transportationCostPerMilePerUnit,
-    facilityCost: settings.facilityCost,
-    distanceUnit: settings.distanceUnit,
-    costUnit: settings.costUnit,
-    includeExistingSites: settings.includeExistingSites,
-    existingSitesMode: settings.existingSitesMode,
+    transportCostPerKm: settings.transportationCostPerMilePerUnit || 0.5,
+    fixedCostPerFacility: settings.facilityCost || 250000,
   };
 
   return { data, settings: optimizationSettings };
@@ -74,29 +87,44 @@ function transformFromBackendFormat(backendResults: any): {
 } {
   const dcs: DistributionCenter[] = [];
   
-  // Transform distribution centers from backend response
-  if (backendResults.facilities) {
-    backendResults.facilities.forEach((facility: any, index: number) => {
-      dcs.push({
-        id: facility.id || `dc-${index}`,
-        latitude: facility.latitude,
-        longitude: facility.longitude,
-        assignedCustomers: facility.assignedCustomers || [],
-        totalDemand: facility.totalDemand || 0,
-        nearestCity: facility.nearestCity,
-        cityCountry: facility.cityCountry,
-      });
+  // Backend returns allocation array with facility assignments
+  if (backendResults.allocation && Array.isArray(backendResults.allocation)) {
+    // Group allocations by facility
+    const facilityMap = new Map<string, any>();
+    
+    backendResults.allocation.forEach((alloc: any) => {
+      if (!facilityMap.has(alloc.facilityId)) {
+        facilityMap.set(alloc.facilityId, {
+          id: alloc.facilityId,
+          name: alloc.facilityName,
+          latitude: 0, // Will be set from facility data
+          longitude: 0,
+          assignedCustomers: [],
+          totalDemand: 0,
+        });
+      }
+      
+      const facility = facilityMap.get(alloc.facilityId)!;
+      facility.assignedCustomers.push(alloc.customerId);
+      facility.totalDemand += alloc.quantity;
     });
+    
+    dcs.push(...Array.from(facilityMap.values()));
   }
 
-  const feasible = backendResults.feasible !== false;
-  const warnings = backendResults.warnings || [];
+  const feasible = backendResults.success !== false;
+  const warnings: string[] = [];
   
-  const costBreakdown = backendResults.costBreakdown ? {
-    totalCost: backendResults.costBreakdown.totalCost || 0,
-    transportationCost: backendResults.costBreakdown.transportationCost || 0,
-    facilityCost: backendResults.costBreakdown.facilityCost || 0,
-    numSites: backendResults.costBreakdown.numSites || dcs.length,
+  // Add warnings for unmet demand
+  if (backendResults.kpis?.unmetDemand > 0) {
+    warnings.push(`Unmet demand: ${backendResults.kpis.unmetDemand.toFixed(0)} units`);
+  }
+  
+  const costBreakdown = backendResults.kpis ? {
+    totalCost: backendResults.kpis.totalCost || 0,
+    transportationCost: backendResults.kpis.transportCost || 0,
+    facilityCost: backendResults.kpis.fixedCost || 0,
+    numSites: backendResults.kpis.facilitiesUsed || dcs.length,
   } : undefined;
 
   return {
