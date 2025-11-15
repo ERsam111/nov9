@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import { TableColumnFilter, ColumnFilter, SortDirection, applyColumnFilter, applySorting } from "@/components/ui/table-column-filter";
@@ -399,20 +400,27 @@ export function GFAEditableTable({
                     key={c} 
                     className={`sticky top-0 z-10 bg-background font-semibold text-sm whitespace-nowrap px-2 cursor-pointer hover:bg-accent ${selectedColumn === c ? 'bg-primary/20' : ''}`}
                     onClick={(e) => handleColumnClick(c, e)}
-                    title="Ctrl+Click to select for bulk edit"
                   >
-                    <div className="flex flex-col gap-1 min-w-[120px]">
-                      <span className="text-xs font-medium">{c}</span>
-                      <TableColumnFilter
-                        columnKey={keyOf(c, tableType)}
-                        columnLabel={c}
-                        dataType={getColumnDataType(c)}
-                        currentFilter={columnFilters[c]}
-                        currentSort={columnSorts[c] || null}
-                        onFilterChange={(filter) => handleFilterChange(c, filter)}
-                        onSortChange={(sort) => handleSortChange(c, sort)}
-                      />
-                    </div>
+                    <TooltipProvider>
+                      <Tooltip delayDuration={300}>
+                        <TooltipTrigger asChild>
+                          <div className="min-w-[120px]">
+                            <TableColumnFilter
+                              columnKey={keyOf(c, tableType)}
+                              columnLabel={c}
+                              dataType={getColumnDataType(c)}
+                              currentFilter={columnFilters[c]}
+                              currentSort={columnSorts[c] || null}
+                              onFilterChange={(filter) => handleFilterChange(c, filter)}
+                              onSortChange={(sort) => handleSortChange(c, sort)}
+                            />
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="bg-primary text-primary-foreground">
+                          <p className="text-xs">Ctrl+Click to bulk edit</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </TableHead>
                 ))}
                 <TableHead className="sticky top-0 z-10 bg-background font-semibold text-sm whitespace-nowrap">Actions</TableHead>
