@@ -247,7 +247,7 @@ export async function optimizeInventory(requestData) {
   // Get tables
   const policyTable = tableData.policy || [];
   const demandTable = tableData.demand || [];
-  const transportTable = transportTable.transport || [];
+  const transportTable = tableData.transport || [];
   
   const optimizedResults = policyTable.map((policyRow, i) => {
     const demandRow = demandTable[i] || {};
