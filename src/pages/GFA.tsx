@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Play, MapPin, BarChart3, TrendingUp, Upload, Download, MessageSquare, FileDown, Search, X } from "lucide-react";
+import { ArrowLeft, Play, MapPin, BarChart3, TrendingUp, Upload, Download, MessageSquare, FileDown, Search, X, Maximize, Minimize } from "lucide-react";
 import * as XLSX from "xlsx";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -49,6 +49,7 @@ const GFA = () => {
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const [useCloudCompute, setUseCloudCompute] = useState(false);
   const [globalSearch, setGlobalSearch] = useState("");
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Load project from route state if available
   useEffect(() => {
@@ -548,20 +549,23 @@ const GFA = () => {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {/* Project & Scenario Navigation */}
-      <div className="border-b border-gfa/20 bg-gradient-to-r from-gfa-light to-transparent">
-        <ProjectScenarioNav currentProjectId={currentProject?.id} currentScenarioId={currentScenario?.id} moduleType="gfa" moduleName="Green Field Analysis" onProjectChange={project => {
-        setCurrentProject(project);
-        setCurrentScenario(null);
-        loadScenariosByProject(project.id, 'gfa'); // Filter by GFA module
-      }} onScenarioChange={scenario => {
-        setCurrentScenario(scenario);
-      }} />
-      </div>
+      {!isFullscreen && (
+        <div className="border-b border-gfa/20 bg-gradient-to-r from-gfa-light to-transparent">
+          <ProjectScenarioNav currentProjectId={currentProject?.id} currentScenarioId={currentScenario?.id} moduleType="gfa" moduleName="Green Field Analysis" onProjectChange={project => {
+          setCurrentProject(project);
+          setCurrentScenario(null);
+          loadScenariosByProject(project.id, 'gfa'); // Filter by GFA module
+        }} onScenarioChange={scenario => {
+          setCurrentScenario(scenario);
+        }} />
+        </div>
+      )}
 
       {/* Main Content */}
       <div className="flex-1 w-full px-3 py-3">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-3">
-          <TabsList>
+          {!isFullscreen && (
+            <TabsList>
             <TabsTrigger value="input" className="gap-2" disabled={!currentScenario}>
               <Upload className="h-4 w-4" />
               Input Data
@@ -582,10 +586,11 @@ const GFA = () => {
               <BarChart3 className="h-4 w-4" />
               Results
             </TabsTrigger>
-          </TabsList>
+            </TabsList>
+          )}
 
           {/* Upload Data Panel - Shows only when Input tab is active */}
-          {activeTab === "input" && (
+          {activeTab === "input" && !isFullscreen && (
             <Card className="shadow-sm">
               <CardContent className="p-2">
                 <div className="flex items-center gap-2">
@@ -656,20 +661,22 @@ const GFA = () => {
           )}
 
           <TabsContent value="input" className="space-y-2">
-            <div className="flex gap-3 h-[calc(100vh-240px)] overflow-hidden">
-              <GFASidebarNav 
-                activeTable={activeTable} 
-                onTableSelect={setActiveTable} 
-                customerCount={customers.length} 
-                productCount={products.length}
-                existingSiteCount={existingSites.length}
-              />
+            <div className={`flex gap-3 overflow-hidden ${isFullscreen ? 'h-[calc(100vh-100px)]' : 'h-[calc(100vh-240px)]'}`}>
+              {!isFullscreen && (
+                <GFASidebarNav 
+                  activeTable={activeTable} 
+                  onTableSelect={setActiveTable} 
+                  customerCount={customers.length} 
+                  productCount={products.length}
+                  existingSiteCount={existingSites.length}
+                />
+              )}
               <div className="flex-1 min-w-0 flex flex-col gap-2 max-w-[calc(100vw-400px)]">
                 {/* Active Table Content with horizontal scroll */}
                 <div className="flex-1 min-w-0 overflow-hidden">
-                  {activeTable === "customers" && <GFAEditableTable tableType="customers" data={filteredCustomers} onDataChange={setCustomers} onGeocode={handleGeocodeCustomer} products={products} />}
-                  {activeTable === "products" && <GFAEditableTable tableType="products" data={filteredProducts} onDataChange={setProducts} />}
-                  {activeTable === "existing-sites" && <GFAEditableTable tableType="existing-sites" data={filteredExistingSites} onDataChange={setExistingSites} />}
+                  {activeTable === "customers" && <GFAEditableTable tableType="customers" data={filteredCustomers} onDataChange={setCustomers} onGeocode={handleGeocodeCustomer} products={products} isFullscreen={isFullscreen} onToggleFullscreen={() => setIsFullscreen(!isFullscreen)} />}
+                  {activeTable === "products" && <GFAEditableTable tableType="products" data={filteredProducts} onDataChange={setProducts} isFullscreen={isFullscreen} onToggleFullscreen={() => setIsFullscreen(!isFullscreen)} />}
+                  {activeTable === "existing-sites" && <GFAEditableTable tableType="existing-sites" data={filteredExistingSites} onDataChange={setExistingSites} isFullscreen={isFullscreen} onToggleFullscreen={() => setIsFullscreen(!isFullscreen)} />}
                   {activeTable === "costs" && <GFACostParametersPanel settings={settings} onSettingsChange={setSettings} />}
                 </div>
               </div>
