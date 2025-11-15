@@ -584,149 +584,113 @@ const Index = ({ currentScenario, updateScenario, saveScenarioOutput, saveScenar
     }
 
     try {
-      const sim = await import("../lib/simulationEngine");
+      // Use backend simulation adapter which handles both backend and local fallback
+      const { runSimulationWithBackend } = await import("../lib/backendSimulation");
+      
+      const { scenarioResults, orderLogs, inventoryData: invData, productionLogs, productFlowLogs, tripLogs, usedBackend } = await runSimulationWithBackend(
+        {
+          customerData,
+          facilityData,
+          productData,
+          customerFulfillmentData,
+          replenishmentData,
+          productionData,
+          inventoryPolicyData,
+          warehousingData,
+          orderFulfillmentData,
+          transportationData,
+          customerOrderData,
+          inputFactorsData,
+          bomData,
+        },
+        replications,
+        (progress: number) => {
+          setSimulationProgress(progress);
+          console.log(`Simulation progress: ${progress.toFixed(0)}%`);
+        },
+        true // Use backend if available
+      );
 
-      if (typeof (sim as any).runSimulationWithLogs === "function") {
-        // Preferred: rich API returns summary + order logs + inventory data + production logs + product flow logs + trip logs
-        const { scenarioResults, orderLogs, inventoryData: invData, productionLogs, productFlowLogs, tripLogs } = await (sim as any).runSimulationWithLogs(
-          {
-            customerData,
-            facilityData,
-            productData,
-            customerFulfillmentData,
-            replenishmentData,
-            productionData,
-            inventoryPolicyData,
-            warehousingData,
-            orderFulfillmentData,
-            transportationData,
-            customerOrderData,
-            inputFactorsData,
-            bomData,
-          },
-          replications,
-          (progress: number) => {
-            setSimulationProgress(progress);
-            console.log(`Simulation progress: ${progress.toFixed(0)}%`);
+      console.log("Simulation complete, preparing results...", { scenarioResults: scenarioResults.length, usedBackend });
+
+      // Show toast indicating which backend was used
+      if (usedBackend) {
+        toast.info("✨ Processed on Render backend", { description: "High-performance cloud computation" });
+      }
+
+      // Update UI state first for immediate feedback
+      setSimulationResults(scenarioResults);
+      setOrderLogResults(orderLogs);
+      setInventoryData(invData || []);
+      setProductionLogResults(productionLogs || []);
+      setProductFlowLogResults(productFlowLogs || []);
+      setTripLogResults(tripLogs || []);
+      
+      // Set default scenario filter to first scenario
+      if (scenarioResults.length > 0) {
+        setSelectedOrderLogScenario(scenarioResults[0].scenarioDescription || "all");
+        setSelectedProductionScenario(scenarioResults[0].scenarioDescription || "all");
+        setSelectedProductFlowScenario(scenarioResults[0].scenarioDescription || "all");
+        setSelectedTripScenario(scenarioResults[0].scenarioDescription || "all");
+      }
+      
+      // Show completion toast immediately
+      toast.success("Simulation completed!", {
+        description: `${scenarioResults.length} scenarios analyzed with ${replications} replications each`,
+      });
+      
+      // Auto-navigate to results immediately
+      setActiveTab("results");
+      setIsSimulating(false);
+      setSimulationProgress(0);
+      
+      // Update scenario status immediately (mark as completed)
+      if (currentScenario && updateScenario) {
+        updateScenario(currentScenario.id, { status: 'completed' }).catch(console.error);
+      }
+
+      // Auto-save output data with compression (non-blocking)
+      if (currentScenario && saveScenarioOutput) {
+        const startSaveTime = performance.now();
+        toast.info("Compressing & saving results...", { duration: 60000 });
+        
+        setTimeout(async () => {
+          try {
+            const outputData = {
+              scenarioResults,
+              orderLogs,
+              inventoryData: invData || [],
+              productionLogs: productionLogs || [],
+              productFlowLogs: productFlowLogs || [],
+              tripLogs: tripLogs || [],
+              metadata: {
+                totalScenarios: scenarioResults.length,
+                totalOrders: orderLogs.length,
+                totalTrips: tripLogs.length,
+                totalProduction: productionLogs?.length || 0,
+                totalProductFlow: productFlowLogs?.length || 0,
+                replications,
+                completedAt: new Date().toISOString(),
+                usedBackend
+              }
+            };
+            
+            const originalSize = new Blob([JSON.stringify(outputData)]).size;
+            const compressed = compressData(outputData);
+            const compressedSize = new Blob([compressed]).size;
+            const ratio = ((1 - compressedSize / originalSize) * 100).toFixed(1);
+            
+            await saveScenarioOutput(currentScenario.id, { compressed, isCompressed: true }, true);
+            
+            const saveTime = ((performance.now() - startSaveTime) / 1000).toFixed(2);
+            toast.success(`Results saved: ${formatBytes(compressedSize)} (${ratio}% smaller) in ${saveTime}s`);
+          } catch (error) {
+            console.error("Auto-save error:", error);
+            toast.error("Failed to save results", {
+              description: error instanceof Error ? error.message : "Unknown error"
+            });
           }
-        );
-
-        console.log("Simulation complete, preparing results...", { scenarioResults: scenarioResults.length });
-
-        // Update UI state first for immediate feedback
-        setSimulationResults(scenarioResults);
-        setOrderLogResults(orderLogs);
-        setInventoryData(invData || []);
-        setProductionLogResults(productionLogs || []);
-        setProductFlowLogResults(productFlowLogs || []);
-        setTripLogResults(tripLogs || []);
-        
-        // Set default scenario filter to first scenario
-        if (scenarioResults.length > 0) {
-          setSelectedOrderLogScenario(scenarioResults[0].scenarioDescription || "all");
-          setSelectedProductionScenario(scenarioResults[0].scenarioDescription || "all");
-          setSelectedProductFlowScenario(scenarioResults[0].scenarioDescription || "all");
-          setSelectedTripScenario(scenarioResults[0].scenarioDescription || "all");
-        }
-        
-        // Show completion toast immediately
-        toast.success("Simulation completed!", {
-          description: `${scenarioResults.length} scenarios analyzed with ${replications} replications each`,
-        });
-        
-        // Auto-navigate to results immediately
-        setActiveTab("results");
-        setIsSimulating(false);
-        setSimulationProgress(0);
-        
-        // Update scenario status immediately (mark as completed)
-        if (currentScenario && updateScenario) {
-          updateScenario(currentScenario.id, { status: 'completed' }).catch(console.error);
-        }
-
-        // Auto-save output data with compression (non-blocking)
-        if (currentScenario && saveScenarioOutput) {
-          const startSaveTime = performance.now();
-          toast.info("Compressing & saving results...", { duration: 60000 });
-          
-          setTimeout(async () => {
-            try {
-              const outputData = {
-                scenarioResults,
-                orderLogs,
-                inventoryData: invData || [],
-                productionLogs: productionLogs || [],
-                productFlowLogs: productFlowLogs || [],
-                tripLogs: tripLogs || [],
-                metadata: {
-                  totalScenarios: scenarioResults.length,
-                  totalOrders: orderLogs.length,
-                  totalTrips: tripLogs.length,
-                  totalProduction: productionLogs?.length || 0,
-                  totalProductFlow: productFlowLogs?.length || 0,
-                  replications,
-                  completedAt: new Date().toISOString()
-                }
-              };
-              
-              const originalSize = new Blob([JSON.stringify(outputData)]).size;
-              const compressed = compressData(outputData);
-              const compressedSize = new Blob([compressed]).size;
-              const ratio = ((1 - compressedSize / originalSize) * 100).toFixed(1);
-              
-              await saveScenarioOutput(currentScenario.id, { compressed, isCompressed: true }, true);
-              
-              const saveTime = ((performance.now() - startSaveTime) / 1000).toFixed(2);
-              toast.success(`Results saved: ${formatBytes(compressedSize)} (${ratio}% smaller) in ${saveTime}s`);
-            } catch (error) {
-              console.error("Auto-save error:", error);
-              toast.error("Failed to save results", {
-                description: error instanceof Error ? error.message : "Unknown error"
-              });
-            }
-          }, 100); // Delay 100ms to not block UI update
-        }
-      } else {
-        // Back-compat fallback — old engine (no order logs)
-        const results = await sim.runSimulation(
-          {
-            customerData,
-            facilityData,
-            productData,
-            customerFulfillmentData,
-            replenishmentData,
-            productionData,
-            inventoryPolicyData,
-            warehousingData,
-            orderFulfillmentData,
-            transportationData,
-            customerOrderData,
-            inputFactorsData,
-            bomData,
-          },
-          replications,
-          (progress: number) => {
-            setSimulationProgress(progress);
-            console.log(`Simulation progress: ${progress.toFixed(0)}%`);
-          }
-        );
-
-        // Update UI state first
-        setSimulationResults(results);
-        setOrderLogResults([]);
-        
-        // Show completion and navigate immediately
-        toast.success("Simulation completed!", {
-          description: `${results.length} scenarios analyzed with ${replications} replications each`,
-        });
-        setActiveTab("results");
-        setIsSimulating(false);
-        setSimulationProgress(0);
-        
-        // Update scenario status immediately
-        if (currentScenario && updateScenario) {
-          updateScenario(currentScenario.id, { status: 'completed' }).catch(console.error);
-        }
+        }, 100); // Delay 100ms to not block UI update
       }
     } catch (error) {
       console.error("Simulation error:", error);
