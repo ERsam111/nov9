@@ -584,6 +584,77 @@ const GFA = () => {
             </TabsTrigger>
           </TabsList>
 
+          {/* Upload Data Panel - Shows only when Input tab is active */}
+          {activeTab === "input" && (
+            <Card className="shadow-sm">
+              <CardContent className="p-3">
+                <div className="flex items-center gap-3">
+                  <Upload className="h-5 w-5 text-primary shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm font-medium">Upload Customer Data</h3>
+                    <p className="text-xs text-muted-foreground truncate">Import Excel file to populate customer table</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="relative">
+                      <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                      <Input
+                        type="text"
+                        placeholder="Search..."
+                        value={globalSearch}
+                        onChange={(e) => setGlobalSearch(e.target.value)}
+                        className="h-8 w-40 pl-8 pr-8 text-xs"
+                      />
+                      {globalSearch && (
+                        <button
+                          onClick={() => setGlobalSearch("")}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      )}
+                    </div>
+                    <QuickStartDialog 
+                      module="gfa"
+                      onLoadSampleData={handleLoadSampleData}
+                      trigger={
+                        <Button variant="outline" size="sm" className="gap-2">
+                          <Play className="h-4 w-4" />
+                          Quick Start
+                        </Button>
+                      }
+                    />
+                    <ExcelUploadCompact 
+                      onBulkUpload={handleBulkUpload}
+                      onProductsUpload={handleProductsUpload}
+                      onExistingSitesUpload={handleExistingSitesUpload}
+                      onCostParametersUpload={handleCostParametersUpload}
+                    />
+                    <Button
+                      onClick={handleExportCurrentData} 
+                      variant="outline" 
+                      size="sm"
+                      disabled={customers.length === 0}
+                      className="gap-2"
+                    >
+                      <FileDown className="h-4 w-4" />
+                      Export
+                    </Button>
+                    <Button
+                      onClick={handleSaveScenario} 
+                      variant="default" 
+                      size="sm"
+                      className="gap-2"
+                      disabled={!currentScenario}
+                    >
+                      <Download className="h-4 w-4" />
+                      Save
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <TabsContent value="input" className="space-y-6">
             <div className="flex gap-4 h-[calc(100vh-300px)] overflow-hidden">
               <GFASidebarNav 
@@ -594,75 +665,6 @@ const GFA = () => {
                 existingSiteCount={existingSites.length}
               />
               <div className="flex-1 min-w-0 flex flex-col gap-4 max-w-[calc(100vw-500px)]">
-                {/* Compact Upload Section */}
-                <Card className="shadow-sm shrink-0">
-                  <CardContent className="p-3">
-                    <div className="flex items-center gap-3">
-                      <Upload className="h-5 w-5 text-primary shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-sm font-medium">Upload Customer Data</h3>
-                        <p className="text-xs text-muted-foreground truncate">Import Excel file to populate customer table</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="relative">
-                          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                          <Input
-                            type="text"
-                            placeholder="Search..."
-                            value={globalSearch}
-                            onChange={(e) => setGlobalSearch(e.target.value)}
-                            className="h-8 w-40 pl-8 pr-8 text-xs"
-                          />
-                          {globalSearch && (
-                            <button
-                              onClick={() => setGlobalSearch("")}
-                              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          )}
-                        </div>
-                        <QuickStartDialog
-                          module="gfa"
-                          onLoadSampleData={handleLoadSampleData}
-                          trigger={
-                            <Button variant="outline" size="sm" className="gap-2">
-                              <Play className="h-4 w-4" />
-                              Quick Start
-                            </Button>
-                          }
-                        />
-                        <ExcelUploadCompact 
-                          onBulkUpload={handleBulkUpload}
-                          onProductsUpload={handleProductsUpload}
-                          onExistingSitesUpload={handleExistingSitesUpload}
-                          onCostParametersUpload={handleCostParametersUpload}
-                        />
-                        <Button
-                          onClick={handleExportCurrentData} 
-                          variant="outline" 
-                          size="sm"
-                          disabled={customers.length === 0}
-                          className="gap-2"
-                        >
-                          <FileDown className="h-4 w-4" />
-                          Export
-                        </Button>
-                        <Button
-                          onClick={handleSaveScenario} 
-                          variant="default" 
-                          size="sm"
-                          className="gap-2"
-                          disabled={!currentScenario}
-                        >
-                          <Download className="h-4 w-4" />
-                          Save
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
                 {/* Active Table Content with horizontal scroll */}
                 <div className="flex-1 min-w-0 overflow-hidden">
                   {activeTable === "customers" && <GFAEditableTable tableType="customers" data={filteredCustomers} onDataChange={setCustomers} onGeocode={handleGeocodeCustomer} products={products} />}
