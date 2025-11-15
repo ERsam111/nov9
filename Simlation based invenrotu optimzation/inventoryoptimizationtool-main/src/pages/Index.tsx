@@ -55,6 +55,7 @@ const Index = ({ currentScenario, updateScenario, saveScenarioOutput, saveScenar
   const [simulationProgress, setSimulationProgress] = useState(0);
   const [activeTab, setActiveTab] = useState("input");
   const [useCloudCompute, setUseCloudCompute] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   
   // Filters for inventory graph and order log
   const [selectedSite, setSelectedSite] = useState<string>("all");
@@ -728,31 +729,34 @@ const Index = ({ currentScenario, updateScenario, saveScenarioOutput, saveScenar
 
   return (
     <div className="h-full bg-background">
-      <div className="max-w-[1800px] mx-auto w-full px-4 py-2 h-full">
+      <div className="max-w-[1800px] mx-auto w-full px-2 py-2 h-full">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList>
-            <TabsTrigger value="input">Input Tables</TabsTrigger>
-            <TabsTrigger value="network">Map View</TabsTrigger>
-            <TabsTrigger value="simulation">Run Simulation</TabsTrigger>
-            <TabsTrigger value="results">Results</TabsTrigger>
-            <TabsTrigger value="datasupport">
-              <Bot className="h-4 w-4 mr-2" />
-              Data Support
-            </TabsTrigger>
-          </TabsList>
+          {!isFullscreen && (
+            <TabsList>
+              <TabsTrigger value="input">Input Tables</TabsTrigger>
+              <TabsTrigger value="network">Map View</TabsTrigger>
+              <TabsTrigger value="simulation">Run Simulation</TabsTrigger>
+              <TabsTrigger value="results">Results</TabsTrigger>
+              <TabsTrigger value="datasupport">
+                <Bot className="h-4 w-4 mr-2" />
+                Data Support
+              </TabsTrigger>
+            </TabsList>
+          )}
 
           {/* --- Input Tables --- */}
           <TabsContent value="input" className="mt-1">
-            <div className="flex gap-4 h-[calc(100vh-250px)]">
+            <div className={`flex gap-2 ${isFullscreen ? 'h-[calc(100vh-60px)]' : 'h-[calc(100vh-200px)]'}`}>
               {/* Left Sidebar - Table Names */}
-              <Card className="w-80 flex-shrink-0 flex flex-col">
-                <CardHeader className="pb-2 border-b">
-                  <CardTitle className="text-sm flex items-center gap-1.5">
-                    <Database className="h-4 w-4" />
-                    Input Tables
-                  </CardTitle>
-                  <CardDescription className="text-xs">Select a table to edit</CardDescription>
-                </CardHeader>
+              {!isFullscreen && (
+                <Card className="w-64 flex-shrink-0 flex flex-col">
+                  <CardHeader className="pb-2 border-b">
+                    <CardTitle className="text-sm flex items-center gap-1.5">
+                      <Database className="h-4 w-4" />
+                      Input Tables
+                    </CardTitle>
+                    <CardDescription className="text-xs">Select a table to edit</CardDescription>
+                  </CardHeader>
                 <CardContent className="p-0 flex-1 flex flex-col min-h-0">
                   <div className="p-3 flex flex-col gap-2 border-b">
                     <QuickStartDialog 
@@ -811,9 +815,10 @@ const Index = ({ currentScenario, updateScenario, saveScenarioOutput, saveScenar
                   </ScrollArea>
                 </CardContent>
               </Card>
+              )}
 
               {/* Right Panel - Selected Table */}
-              <div className="flex-1 overflow-auto">
+              <div className={`flex-1 overflow-auto ${isFullscreen ? 'w-full' : ''}`}>
                 {currentTable && (
                   <EditableTable
                     title={currentTable.name}
@@ -823,6 +828,8 @@ const Index = ({ currentScenario, updateScenario, saveScenarioOutput, saveScenar
                     onDataChange={currentTable.setData}
                     dropdownOptions={currentTable.dropdownOptions}
                     inventoryPolicyData={(currentTable as any).inventoryPolicyData}
+                    isFullscreen={isFullscreen}
+                    onToggleFullscreen={() => setIsFullscreen(!isFullscreen)}
                   />
                 )}
               </div>
