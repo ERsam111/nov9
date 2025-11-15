@@ -32,6 +32,13 @@ export function DataHandlingGuide() {
         <Alert>
           <Keyboard className="h-4 w-4" />
           <AlertDescription>
+            <strong>Column Resizing:</strong> Hover over the right edge of any column header and drag the resize handle to adjust column width. Your preferences are saved during the session.
+          </AlertDescription>
+        </Alert>
+
+        <Alert>
+          <Keyboard className="h-4 w-4" />
+          <AlertDescription>
             <strong>Alternative Method:</strong> After Ctrl+clicking a column, you can also press <kbd className="px-2 py-1 bg-muted rounded text-xs font-mono">Space</kbd> to open the bulk editor (if it didn't open automatically).
           </AlertDescription>
         </Alert>
