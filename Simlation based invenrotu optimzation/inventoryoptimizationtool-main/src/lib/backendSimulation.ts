@@ -155,11 +155,14 @@ function transformFromBackendFormat(backendResults: any, input: SimulationInput)
 /**
  * Run simulation using backend or fallback to local
  */
+/**
+ * Run inventory simulation with backend or local fallback
+ */
 export async function runSimulationWithBackend(
   input: SimulationInput,
   replications: number,
   onProgress?: (progress: number) => void,
-  useBackend: boolean = true
+  useBackend: boolean = false // Default to local unless explicitly requested
 ): Promise<{
   scenarioResults: SimulationResult[];
   orderLogs: any[];

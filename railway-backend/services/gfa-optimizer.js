@@ -213,15 +213,16 @@ export async function optimizeGFA(requestData) {
   try {
     const { data, settings } = requestData;
     
-    const optimizer = new GFAOptimizer(data, settings);
-    const result = optimizer.optimize();
+    // Use the local GFA optimizer which matches frontend logic exactly
+    const { optimizeGFA: localOptimize } = await import('./local-gfa-optimizer.js');
+    const result = localOptimize(data, settings);
     
-    return {
-      success: true,
-      ...result
-    };
+    return result;
   } catch (error) {
     console.error('GFA optimization error:', error);
-    throw error;
+    return {
+      success: false,
+      error: error.message
+    };
   }
 }

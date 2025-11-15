@@ -40,6 +40,7 @@ import { InventoryDataSupport } from "../components/InventoryDataSupport";
 import { QuickStartDialog } from "@/components/QuickStartDialog";
 import { sampleInventoryData } from "@/data/sampleData";
 import { BackendConnectionTest } from "@/components/inventory/BackendConnectionTest";
+import { ComputeToggle } from "@/components/inventory/ComputeToggle";
 
 const Index = ({ currentScenario, updateScenario, saveScenarioOutput, saveScenarioInput, loadScenarioOutput }: any) => {
   const [replications, setReplications] = useState(10);
@@ -53,6 +54,7 @@ const Index = ({ currentScenario, updateScenario, saveScenarioOutput, saveScenar
   const [isSimulating, setIsSimulating] = useState(false);
   const [simulationProgress, setSimulationProgress] = useState(0);
   const [activeTab, setActiveTab] = useState("input");
+  const [useCloudCompute, setUseCloudCompute] = useState(false);
   
   // Filters for inventory graph and order log
   const [selectedSite, setSelectedSite] = useState<string>("all");
@@ -608,7 +610,7 @@ const Index = ({ currentScenario, updateScenario, saveScenarioOutput, saveScenar
           setSimulationProgress(progress);
           console.log(`Simulation progress: ${progress.toFixed(0)}%`);
         },
-        true // Use backend if available
+        useCloudCompute // Use cloud compute toggle
       );
 
       console.log("Simulation complete, preparing results...", { scenarioResults: scenarioResults.length, usedBackend });
@@ -897,6 +899,12 @@ const Index = ({ currentScenario, updateScenario, saveScenarioOutput, saveScenar
                     <p>Total simulations: {totalScenarios} scenarios × {replications} replications = {totalScenarios * replications} runs</p>
                   </div>
                 </div>
+
+                <ComputeToggle 
+                  useCloud={useCloudCompute}
+                  onToggle={setUseCloudCompute}
+                  disabled={isSimulating}
+                />
 
 
                 {isSimulating && (

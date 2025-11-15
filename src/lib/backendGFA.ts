@@ -144,7 +144,7 @@ export async function runGFAWithBackend(
   existingSites: ExistingSite[],
   settings: OptimizationSettings,
   localOptimizeFn: () => any,
-  useBackend: boolean = true
+  useBackend: boolean = false // Default to local unless explicitly requested
 ): Promise<{
   dcs: DistributionCenter[];
   feasible: boolean;
