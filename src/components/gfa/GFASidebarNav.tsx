@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { ChevronDown, ChevronRight, Table2, Search, Settings, Info, Edit2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Table2, Search, Settings, Info, Edit2, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { DataHandlingGuide } from "./DataHandlingGuide";
@@ -137,10 +137,10 @@ export function GFASidebarNav({ activeTable, onTableSelect, customerCount, produ
           <CollapsibleContent className="mt-2 px-3">
             <div className="text-xs space-y-2 text-muted-foreground">
               <p><kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">Ctrl+Click</kbd> column name to bulk edit</p>
+              <p>Drag <GripVertical className="h-3 w-3 inline" /> to reorder columns</p>
               <p>Drag column edges to resize widths</p>
-              <p>Use checkboxes for multi-row selection</p>
-              <p>Delete multiple rows at once</p>
-              <p><strong>Sr No</strong> column shows row numbers</p>
+              <p>Use width presets for quick layouts</p>
+              <p>Headers stay visible when scrolling</p>
             </div>
           </CollapsibleContent>
         </Collapsible>

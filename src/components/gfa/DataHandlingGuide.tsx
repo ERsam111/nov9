@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Info, MousePointerClick, Keyboard, Trash2, CheckSquare, Edit2, ArrowLeftRight } from "lucide-react";
+import { Info, MousePointerClick, Keyboard, Trash2, CheckSquare, Edit2, ArrowLeftRight, GripVertical, RotateCcw } from "lucide-react";
 
 export function DataHandlingGuide() {
   return (
@@ -50,12 +50,29 @@ export function DataHandlingGuide() {
           </AlertDescription>
         </Alert>
 
+        <Alert>
+          <GripVertical className="h-4 w-4" />
+          <AlertDescription>
+            <strong>Column Reordering:</strong> Drag and drop column headers to reorder them. The grip icon indicates draggable columns.
+          </AlertDescription>
+        </Alert>
+
+        <Alert>
+          <RotateCcw className="h-4 w-4" />
+          <AlertDescription>
+            <strong>Width Presets:</strong> Use the preset buttons (Compact/Normal/Wide) to quickly apply uniform widths to all columns, or click Reset to restore defaults.
+          </AlertDescription>
+        </Alert>
+
         <div className="p-4 bg-muted/50 rounded-lg space-y-2 text-sm">
           <p className="font-semibold">Quick Tips:</p>
           <ul className="list-disc list-inside space-y-1 text-muted-foreground">
             <li>Ctrl+Click any column header to instantly open bulk editor</li>
             <li>Drag the right edge of column headers to resize columns</li>
+            <li>Drag column headers by the grip icon to reorder them</li>
+            <li>Use width presets for quick layout adjustments</li>
             <li>Column headers stay frozen when scrolling down</li>
+            <li>Vertical lines separate all columns for clarity</li>
             <li>Sr No column automatically shows row numbers for reference</li>
             <li>Bulk edit works for all column types including dropdowns</li>
             <li>You can clear an entire column using the "Clear All" button</li>
