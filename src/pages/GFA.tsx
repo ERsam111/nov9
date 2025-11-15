@@ -299,14 +299,18 @@ const GFA = () => {
       
       if (result.feasible) {
         if (settings.mode === 'cost' && result.costBreakdown) {
-          toast.success(`Optimization complete! Optimal solution: ${result.costBreakdown.numSites} sites with total cost $${result.costBreakdown.totalCost.toLocaleString()}`);
+          toast.success(`Optimization complete! Optimal solution: ${result.costBreakdown.numSites} sites with total cost $${result.costBreakdown.totalCost.toLocaleString()}`, {
+            description: "View results in the Results tab"
+          });
         } else {
-          toast.success("Optimization complete! All constraints satisfied.");
+          toast.success("Optimization complete! All constraints satisfied.", {
+            description: "View results in the Results tab"
+          });
         }
-        setActiveTab("results");
       } else {
-        toast.warning("Optimization complete with constraint violations. See warnings in Results tab.");
-        setActiveTab("results");
+        toast.warning("Optimization complete with constraint violations.", {
+          description: "See warnings in Results tab"
+        });
       }
     } catch (error) {
       console.error("Optimization error:", error);
