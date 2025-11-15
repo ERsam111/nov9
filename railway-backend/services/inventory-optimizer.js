@@ -300,7 +300,10 @@ export async function optimizeInventory(requestData) {
       return avgCost + penalty;
     };
     
-    const [optimizedS, optimizedS_val] = de.optimize(objectiveFn);
+    const optimizationResult = de.optimize(objectiveFn);
+    const [optimizedS, optimizedS_val] = optimizationResult.solution;
+    
+    console.log(`Optimized s=${optimizedS}, S=${optimizedS_val}`);
     
     // Run final simulation with optimized values
     const finalResults = runSimulation(
