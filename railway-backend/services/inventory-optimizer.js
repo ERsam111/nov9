@@ -280,6 +280,8 @@ export async function optimizeInventory(requestData) {
         shortageCost: parseFloat(policyRow['Shortage Cost ($/unit)']) || 10
       };
       
+      const serviceLevel = parseFloat(policyRow['Service Level Target']) || 95;
+      
       console.log(`Demand params:`, demandParams);
       console.log(`Lead time params:`, leadTimeParams);
       console.log(`Costs:`, costs);
