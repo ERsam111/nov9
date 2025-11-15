@@ -58,8 +58,8 @@ export function GFASidebarNav({ activeTable, onTableSelect, customerCount, produ
 
   if (isCollapsed) {
     return (
-      <Card className="w-14 flex flex-col h-full shrink-0">
-        <div className="flex-1 flex flex-col items-center gap-3 p-2">
+      <Card className="w-12 flex flex-col h-full shrink-0">
+        <div className="flex-1 flex flex-col items-center gap-2 p-1">
           <button
             onClick={() => onTableSelect("customers")}
             className={cn(
@@ -116,10 +116,10 @@ export function GFASidebarNav({ activeTable, onTableSelect, customerCount, produ
             <Settings className="h-4 w-4" />
           </button>
         </div>
-        <div className="p-2 border-t">
+        <div className="p-1 border-t">
           <button
             onClick={() => setIsCollapsed(false)}
-            className="w-full h-9 rounded-md hover:bg-accent flex items-center justify-center"
+            className="w-full h-8 rounded-md hover:bg-accent flex items-center justify-center"
             title="Expand sidebar"
           >
             <ChevronRight className="h-4 w-4" />
@@ -130,8 +130,8 @@ export function GFASidebarNav({ activeTable, onTableSelect, customerCount, produ
   }
 
   return (
-    <Card className="w-80 flex flex-col h-full">
-      <div className="p-4 border-b">
+    <Card className="w-72 flex flex-col h-full">
+      <div className="p-3 border-b">
         <h2 className="font-semibold mb-3 flex items-center gap-2">
           <Table2 className="h-5 w-5" />
           GFA Setup
@@ -147,7 +147,7 @@ export function GFASidebarNav({ activeTable, onTableSelect, customerCount, produ
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-2">
+      <div className="flex-1 overflow-y-auto p-1.5">
         {filteredSections.map((section) => (
           <div key={section.id} className="mb-2">
             <button
@@ -221,10 +221,10 @@ export function GFASidebarNav({ activeTable, onTableSelect, customerCount, produ
       </div>
 
       {/* Collapse Button at Bottom */}
-      <div className="p-2 border-t">
+      <div className="p-1.5 border-t">
         <button
           onClick={() => setIsCollapsed(true)}
-          className="w-full h-9 rounded-md hover:bg-accent flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+          className="w-full h-8 rounded-md hover:bg-accent flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
           title="Collapse sidebar"
         >
           <ChevronLeft className="h-4 w-4" />
