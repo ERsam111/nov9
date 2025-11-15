@@ -74,7 +74,11 @@ function transformToBackendFormat(
 /**
  * Transform backend response to local GFA result format
  */
-function transformFromBackendFormat(backendResults: any): {
+function transformFromBackendFormat(
+  backendResults: any,
+  customers: Customer[],
+  facilities: any[]
+): {
   dcs: DistributionCenter[];
   feasible: boolean;
   warnings: string[];
@@ -87,29 +91,40 @@ function transformFromBackendFormat(backendResults: any): {
 } {
   const dcs: DistributionCenter[] = [];
   
+  // Create customer lookup for easy access
+  const customerMap = new Map<string, Customer>();
+  customers.forEach(c => customerMap.set(c.id, c));
+  
+  // Create facility lookup for coordinates
+  const facilityMap = new Map<string, any>();
+  facilities.forEach(f => facilityMap.set(f.id, f));
+  
   // Backend returns allocation array with facility assignments
   if (backendResults.allocation && Array.isArray(backendResults.allocation)) {
     // Group allocations by facility
-    const facilityMap = new Map<string, any>();
+    const dcMap = new Map<string, DistributionCenter>();
     
     backendResults.allocation.forEach((alloc: any) => {
-      if (!facilityMap.has(alloc.facilityId)) {
-        facilityMap.set(alloc.facilityId, {
+      if (!dcMap.has(alloc.facilityId)) {
+        const facility = facilityMap.get(alloc.facilityId);
+        dcMap.set(alloc.facilityId, {
           id: alloc.facilityId,
-          name: alloc.facilityName,
-          latitude: 0, // Will be set from facility data
-          longitude: 0,
+          latitude: facility?.latitude || 0,
+          longitude: facility?.longitude || 0,
           assignedCustomers: [],
           totalDemand: 0,
         });
       }
       
-      const facility = facilityMap.get(alloc.facilityId)!;
-      facility.assignedCustomers.push(alloc.customerId);
-      facility.totalDemand += alloc.quantity;
+      const dc = dcMap.get(alloc.facilityId)!;
+      const customer = customerMap.get(alloc.customerId);
+      if (customer) {
+        dc.assignedCustomers.push(customer);
+        dc.totalDemand += alloc.quantity;
+      }
     });
     
-    dcs.push(...Array.from(facilityMap.values()));
+    dcs.push(...Array.from(dcMap.values()));
   }
 
   const feasible = backendResults.success !== false;
@@ -182,7 +197,7 @@ export async function runGFAWithBackend(
       
       console.log("📥 Received GFA results from backend:", backendResults);
       
-      const result = transformFromBackendFormat(backendResults);
+      const result = transformFromBackendFormat(backendResults, customers, existingSites);
       
       console.log("✅ Backend GFA optimization completed:", {
         dcs: result.dcs.length,
