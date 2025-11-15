@@ -89,6 +89,7 @@ const Index = ({ currentScenario, updateScenario, saveScenarioOutput, saveScenar
   const customerNames = Array.from(new Set(customerData.map((c: any) => c["Customer Name"])));
   const facilityNames = Array.from(new Set(facilityData.map((f: any) => f["Facility Name"])));
   const productNames = Array.from(new Set(productData.map((p: any) => p["Product Name"])));
+  const modeNames = Array.from(new Set(transportationModeData.map((m: any) => m["Mode Name"])));
 
   // Load saved scenario data when scenario changes
   useEffect(() => {
@@ -327,15 +328,15 @@ const Index = ({ currentScenario, updateScenario, saveScenarioOutput, saveScenar
         "Origin Name": facilityNames,
         "Destination Name": [...facilityNames, ...customerNames],
         "Product Name": productNames,
+        "Mode Name": modeNames,
+        "Optimization Policy": ["Minimize Cost", "Minimize Time"],
+        "Simulation Policy": ["By Preference", "Random"],
         "Unit Cost UOM": ["USD"],
+        "Product UOM": ["EA", "PLT"],
+        "Fixed Cost UOM": ["USD"],
+        "Fixed Cost Rule": ["Per Shipment", "Per Product Unit"],
         "Average Shipment Size UOM": ["EA", "PLT"],
         "Transport Distance UOM": ["MI"],
-        "Transport Time Distribution": [
-          "Constant(value)",
-          "Normal(mean, std)",
-          "Uniform(min, max)",
-          "Triangular(min, mode, max)"
-        ],
         "Transport Time Distribution UOM": ["DAY", "HR", "MIN"]
       }
     },
@@ -364,32 +365,8 @@ const Index = ({ currentScenario, updateScenario, saveScenarioOutput, saveScenar
         "Status": ["Include", "Exclude"],
         "Customer Name": customerNames,
         "Product Name": productNames,
-        "Quantity": [
-          "Normal(mean, std)",
-          "Uniform(min, max)",
-          "Exponential(lambda)",
-          "Poisson(lambda)",
-          "Lognormal(mean, std)",
-          "Gamma(shape, scale)",
-          "Weibull(shape, scale)",
-          "Triangular(min, mode, max)",
-          "Beta(alpha, beta)",
-          "Constant(value)"
-        ],
         "Quantity UOM": ["EA", "PLT"],
         "Service Level UOM": ["DAY", "HR"],
-        "Time Between Orders": [
-          "Normal(mean, std)",
-          "Uniform(min, max)",
-          "Exponential(lambda)",
-          "Poisson(lambda)",
-          "Lognormal(mean, std)",
-          "Gamma(shape, scale)",
-          "Weibull(shape, scale)",
-          "Triangular(min, mode, max)",
-          "Beta(alpha, beta)",
-          "Constant(value)"
-        ],
         "Time Between Orders UOM": ["DAY", "HR"]
       }
     },
