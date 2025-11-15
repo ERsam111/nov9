@@ -8,12 +8,21 @@ import type { SimulationInput, SimulationResult } from "./simulationEngine";
  * Transform local simulation input to backend format
  */
 function transformToBackendFormat(input: SimulationInput, replications: number) {
-  // Extract product and inventory data from the input tables
-  const tableData = input.inventoryPolicyData.map((policy: any) => {
-    const product = input.productData.find((p: any) => p["Product Name"] === policy["Product Name"]);
-    const facility = input.facilityData.find((f: any) => f["Facility Name"] === policy["Facility Name"]);
+  // The backend expects data in this format:
+  // tableData: { policy: [...], demand: [...], transport: [...] }
+  // Each with matching 'Policy ID' fields
+  
+  const policyTable: any[] = [];
+  const demandTable: any[] = [];
+  const transportTable: any[] = [];
+
+  input.inventoryPolicyData.forEach((policy: any, index: number) => {
+    const policyId = `${policy["Facility Name"]}_${policy["Product Name"]}_${index}`;
     
-    // Get demand statistics from customer order data
+    // Get product data
+    const product = input.productData.find((p: any) => p["Product Name"] === policy["Product Name"]);
+    
+    // Get customer orders to calculate demand statistics
     const customerOrders = input.customerOrderData.filter(
       (order: any) => order["Product Name"] === policy["Product Name"]
     );
@@ -26,39 +35,53 @@ function transformToBackendFormat(input: SimulationInput, replications: number) 
       ? Math.sqrt(demands.map(x => Math.pow(x - demandMean, 2)).reduce((a, b) => a + b, 0) / (demands.length - 1))
       : demandMean * 0.2;
     
-    // Get lead time from replenishment data
+    // Get replenishment data for lead time
     const replenishment = input.replenishmentData.find(
       (r: any) => r["Product Name"] === policy["Product Name"] && r["Facility Name"] === policy["Facility Name"]
     );
     const leadTimeMean = replenishment ? parseFloat(replenishment["Lead Time"]) || 5 : 5;
-    const leadTimeStd = leadTimeMean * 0.2; // 20% variation
+    const leadTimeStd = leadTimeMean * 0.2;
     
-    return {
-      product: policy["Product Name"],
-      facility: policy["Facility Name"],
-      demandMean,
-      demandStd,
-      demandDist: "normal",
-      leadTimeMean,
-      leadTimeStd,
-      leadTimeDist: "normal",
-      holdingCost: product ? parseFloat(product["Unit Value"]) * 0.2 : 2, // 20% of product value per year
-      orderCost: 50, // Default order cost
-      backorderCost: product ? parseFloat(product["Unit Value"]) * 0.5 : 10, // 50% of product value
-      initialInventory: parseFloat(policy["Simulation Policy Value 2"]) || 150,
-      policy: policy["Simulation Policy"] || "(s,S)",
-      policyParams: {
-        s: parseFloat(policy["Simulation Policy Value 1"]) || 0,
-        S: parseFloat(policy["Simulation Policy Value 2"]) || 0,
-      }
-    };
+    // Build policy table entry
+    policyTable.push({
+      'Policy ID': policyId,
+      'Facility Name': policy["Facility Name"],
+      'Product Name': policy["Product Name"],
+      'Policy Type': policy["Simulation Policy"] || "(s,S)",
+      'Reorder Point (s)': parseFloat(policy["Simulation Policy Value 1"]) || 0,
+      'Order-up-to Level (S)': parseFloat(policy["Simulation Policy Value 2"]) || 0,
+    });
+    
+    // Build demand table entry
+    demandTable.push({
+      'Policy ID': policyId,
+      'Average Daily Demand (units)': demandMean,
+      'Demand Std. Dev.': demandStd,
+      'Demand Distribution': 'normal',
+    });
+    
+    // Build transport table entry  
+    transportTable.push({
+      'Policy ID': policyId,
+      'Lead Time Mean (days)': leadTimeMean,
+      'Lead Time Std. Dev.': leadTimeStd,
+      'Lead Time Distribution': 'normal',
+      'Holding Cost per Unit': product ? parseFloat(product["Unit Value"]) * 0.2 : 2,
+      'Order Cost': 50,
+      'Backorder Cost per Unit': product ? parseFloat(product["Unit Value"]) * 0.5 : 10,
+    });
   });
 
+  const tableData = {
+    policy: policyTable,
+    demand: demandTable,
+    transport: transportTable,
+  };
+
   const config = {
-    numDays: 365,
+    simulationDays: 365,
     numReplications: replications,
-    serviceLevel: 0.95,
-    policies: ["(s,S)", "(R,S)"]
+    targetServiceLevel: 0.95,
   };
 
   return { tableData, config };
@@ -70,30 +93,45 @@ function transformToBackendFormat(input: SimulationInput, replications: number) 
 function transformFromBackendFormat(backendResults: any, input: SimulationInput): SimulationResult[] {
   const results: SimulationResult[] = [];
   
-  // The backend returns results grouped by product/facility/policy
-  if (backendResults.results) {
-    backendResults.results.forEach((result: any, index: number) => {
+  // The backend returns an array of results, one per policy
+  if (backendResults && Array.isArray(backendResults)) {
+    backendResults.forEach((result: any, index: number) => {
+      // Calculate statistics from replications if available
+      const replications = result.replications || [];
+      const costs = replications.map((r: any) => r.totalCost);
+      const serviceLevels = replications.map((r: any) => r.serviceLevel);
+      
+      const costMean = costs.length > 0 ? costs.reduce((a: number, b: number) => a + b, 0) / costs.length : result.expectedAnnualCost || 0;
+      const costMin = costs.length > 0 ? Math.min(...costs) : costMean * 0.9;
+      const costMax = costs.length > 0 ? Math.max(...costs) : costMean * 1.1;
+      const costSD = costs.length > 1 ? Math.sqrt(costs.map((x: number) => Math.pow(x - costMean, 2)).reduce((a: number, b: number) => a + b, 0) / costs.length) : costMean * 0.05;
+      
+      const serviceLevelMean = serviceLevels.length > 0 ? serviceLevels.reduce((a: number, b: number) => a + b, 0) / serviceLevels.length : result.achievedServiceLevel || 0.95;
+      const serviceLevelMin = serviceLevels.length > 0 ? Math.min(...serviceLevels) : Math.max(0, serviceLevelMean - 0.05);
+      const serviceLevelMax = serviceLevels.length > 0 ? Math.max(...serviceLevels) : Math.min(1, serviceLevelMean + 0.05);
+      const serviceLevelSD = serviceLevels.length > 1 ? Math.sqrt(serviceLevels.map((x: number) => Math.pow(x - serviceLevelMean, 2)).reduce((a: number, b: number) => a + b, 0) / serviceLevels.length) : 0.02;
+      
       results.push({
         srNo: index + 1,
-        scenarioDescription: `${result.product} at ${result.facility} - ${result.bestPolicy}`,
-        costMin: result.totalCost * 0.9, // Approximate min/max
-        costMax: result.totalCost * 1.1,
-        costMean: result.totalCost,
-        costSD: result.totalCost * 0.05,
-        serviceLevelMin: Math.max(0, result.serviceLevel - 0.05),
-        serviceLevelMax: Math.min(1, result.serviceLevel + 0.05),
-        serviceLevelMean: result.serviceLevel,
-        serviceLevelSD: 0.02,
-        eltServiceLevelMin: Math.max(0, result.serviceLevel - 0.05),
-        eltServiceLevelMax: Math.min(1, result.serviceLevel + 0.05),
-        eltServiceLevelMean: result.serviceLevel,
-        eltServiceLevelSD: 0.02,
+        scenarioDescription: `Policy ${result.policyId} - Optimal (s,S): (${result.optimalReorderPoint}, ${result.optimalOrderUpToLevel})`,
+        costMin,
+        costMax,
+        costMean,
+        costSD,
+        serviceLevelMin,
+        serviceLevelMax,
+        serviceLevelMean,
+        serviceLevelSD,
+        eltServiceLevelMin: serviceLevelMin,
+        eltServiceLevelMax: serviceLevelMax,
+        eltServiceLevelMean: serviceLevelMean,
+        eltServiceLevelSD: serviceLevelSD,
         costBreakdown: {
           transportation: 0,
           production: 0,
           handling: 0,
-          inventory: result.holdingCost,
-          replenishment: result.orderingCost,
+          inventory: result.costs?.holdingCost || 0,
+          replenishment: result.costs?.orderCost || 0,
         },
       });
     });
