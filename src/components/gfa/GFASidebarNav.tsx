@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { ChevronDown, ChevronRight, Table2, Search, Settings, Info, Edit2, GripVertical } from "lucide-react";
+import { ChevronDown, ChevronRight, ChevronLeft, Table2, Search, Settings, Info, Edit2, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { DataHandlingGuide } from "./DataHandlingGuide";
@@ -34,6 +34,7 @@ const SECTIONS = [
 export function GFASidebarNav({ activeTable, onTableSelect, customerCount, productCount, existingSiteCount }: GFASidebarNavProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedSections, setExpandedSections] = useState<string[]>(["data", "settings"]);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   const getCounts = (itemId: string) => {
     if (itemId === "customers") return customerCount;
@@ -54,6 +55,79 @@ export function GFASidebarNav({ activeTable, onTableSelect, customerCount, produ
       prev.includes(sectionId) ? prev.filter((id) => id !== sectionId) : [...prev, sectionId],
     );
   };
+
+  if (isCollapsed) {
+    return (
+      <Card className="w-14 flex flex-col h-full shrink-0">
+        <div className="flex-1 flex flex-col items-center gap-3 p-2">
+          <button
+            onClick={() => onTableSelect("customers")}
+            className={cn(
+              "w-10 h-10 rounded-md flex items-center justify-center hover:bg-accent relative",
+              activeTable === "customers" && "bg-primary/10 text-primary"
+            )}
+            title="Customers"
+          >
+            <Table2 className="h-4 w-4" />
+            {customerCount > 0 && (
+              <span className="absolute -top-1 -right-1 h-4 w-4 bg-primary text-primary-foreground rounded-full text-[10px] flex items-center justify-center">
+                {customerCount}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => onTableSelect("products")}
+            className={cn(
+              "w-10 h-10 rounded-md flex items-center justify-center hover:bg-accent relative",
+              activeTable === "products" && "bg-primary/10 text-primary"
+            )}
+            title="Products"
+          >
+            <Edit2 className="h-4 w-4" />
+            {productCount > 0 && (
+              <span className="absolute -top-1 -right-1 h-4 w-4 bg-primary text-primary-foreground rounded-full text-[10px] flex items-center justify-center">
+                {productCount}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => onTableSelect("existing-sites")}
+            className={cn(
+              "w-10 h-10 rounded-md flex items-center justify-center hover:bg-accent relative",
+              activeTable === "existing-sites" && "bg-primary/10 text-primary"
+            )}
+            title="Existing Sites"
+          >
+            <GripVertical className="h-4 w-4" />
+            {existingSiteCount > 0 && (
+              <span className="absolute -top-1 -right-1 h-4 w-4 bg-primary text-primary-foreground rounded-full text-[10px] flex items-center justify-center">
+                {existingSiteCount}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => onTableSelect("costs")}
+            className={cn(
+              "w-10 h-10 rounded-md flex items-center justify-center hover:bg-accent",
+              activeTable === "costs" && "bg-primary/10 text-primary"
+            )}
+            title="Cost Parameters"
+          >
+            <Settings className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="p-2 border-t">
+          <button
+            onClick={() => setIsCollapsed(false)}
+            className="w-full h-9 rounded-md hover:bg-accent flex items-center justify-center"
+            title="Expand sidebar"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <Card className="w-80 flex flex-col h-full">
@@ -144,6 +218,18 @@ export function GFASidebarNav({ activeTable, onTableSelect, customerCount, produ
             </div>
           </CollapsibleContent>
         </Collapsible>
+      </div>
+
+      {/* Collapse Button at Bottom */}
+      <div className="p-2 border-t">
+        <button
+          onClick={() => setIsCollapsed(true)}
+          className="w-full h-9 rounded-md hover:bg-accent flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+          title="Collapse sidebar"
+        >
+          <ChevronLeft className="h-4 w-4" />
+          Collapse
+        </button>
       </div>
     </Card>
   );
