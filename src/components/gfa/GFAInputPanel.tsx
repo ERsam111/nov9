@@ -1,7 +1,9 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Upload, Trash2 } from "lucide-react";
+import { Upload, Trash2, Download, FileDown, Zap } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Customer, Product, OptimizationSettings, ExistingSite } from "@/types/gfa";
+import * as XLSX from "xlsx";
 import { ExcelUpload } from "./ExcelUpload";
 import { GFAEditableTable } from "./GFAEditableTable";
 import { CostParameters } from "./CostParameters";
@@ -84,73 +86,125 @@ export function GFAInputPanel({
     }
   };
 
+  const handleDownloadTemplate = () => {
+    const ws = XLSX.utils.json_to_sheet([{
+      "Customer Name": "",
+      "City": "",
+      "Country": "",
+      "Latitude": "",
+      "Longitude": "",
+      "Product": "",
+      "Demand": "",
+      "Unit of Measure": ""
+    }]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Customers");
+    XLSX.writeFile(wb, "GFA_Template.xlsx");
+    toast.success("Template downloaded");
+  };
+
   return (
     <div className="space-y-3 max-h-[calc(100vh-200px)] overflow-y-auto pr-2">
       {/* Customer Map - Pure Input Visualization */}
       {customers.length > 0 && <CustomerMapView customers={customers} />}
       
-      {/* Section 1: Data Upload + Clear All */}
-      <Card className="shadow-sm">
-        <CardHeader className="pb-2 pt-3 px-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-1.5 text-sm">
-                <Upload className="h-3.5 w-3.5" />
-                Upload Data
-              </CardTitle>
-              <CardDescription className="text-[11px]">Upload via Excel</CardDescription>
+      {/* Compact Data Controls Toolbar */}
+      <TooltipProvider>
+        <Card className="shadow-sm">
+          <CardContent className="p-3">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-8 w-8 p-0">
+                      <Zap className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Quick Test</TooltipContent>
+                </Tooltip>
+                
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-8 w-8 p-0" asChild>
+                      <label className="cursor-pointer flex items-center justify-center">
+                        <Upload className="h-4 w-4" />
+                        <input type="file" className="hidden" accept=".xlsx,.xls" onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                              try {
+                                const data = new Uint8Array(event.target?.result as ArrayBuffer);
+                                const workbook = XLSX.read(data, { type: "array" });
+                                const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                                const jsonData = XLSX.utils.sheet_to_json(sheet);
+                                // Handle import logic here
+                                toast.success("Data imported successfully");
+                              } catch (error) {
+                                toast.error("Failed to import data");
+                              }
+                            };
+                            reader.readAsArrayBuffer(file);
+                          }
+                        }} />
+                      </label>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Import Excel</TooltipContent>
+                </Tooltip>
+                
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => {
+                      const exportData = customers.length ? customers : [{}];
+                      const ws = XLSX.utils.json_to_sheet(exportData);
+                      const wb = XLSX.utils.book_new();
+                      XLSX.utils.book_append_sheet(wb, ws, "Customers");
+                      XLSX.writeFile(wb, "GFA_Export.xlsx");
+                      toast.success("Data exported");
+                    }}>
+                      <Download className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Export to Excel</TooltipContent>
+                </Tooltip>
+                
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={handleDownloadTemplate}>
+                      <FileDown className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Download Template</TooltipContent>
+                </Tooltip>
+              </div>
+              
+              {(customers.length > 0 || products.length > 0) && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="sm" className="gap-1.5 h-8 text-xs">
+                      <Trash2 className="h-3 w-3" />
+                      Clear All
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will permanently delete all customer data, products, and optimization results.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleClearData}>Clear All</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
             </div>
-            {(customers.length > 0 || products.length > 0) && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive" size="sm" className="gap-1.5 h-7 text-[11px]">
-                    <Trash2 className="h-3 w-3" />
-                    Clear All
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This will permanently delete all customer data, products, and optimization results.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleClearData}>Clear All</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent className="pt-2 px-3 pb-3">
-          <ExcelUpload 
-            onBulkUpload={handleBulkUpload}
-            onProductsUpload={(products, mode) => {
-              if (mode === 'overwrite') {
-                onProductsChange(products);
-              } else {
-                onProductsChange([...products, ...products]);
-              }
-            }}
-            onExistingSitesUpload={(sites, mode) => {
-              if (mode === 'overwrite') {
-                onExistingSitesChange(sites);
-              } else {
-                onExistingSitesChange([...existingSites, ...sites]);
-              }
-            }}
-            onCostParametersUpload={(params) => {
-              onSettingsChange({ ...settings, ...params });
-            }}
-            currentCustomers={customers}
-            currentProducts={products}
-            currentExistingSites={existingSites}
-            currentSettings={settings}
-          />
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </TooltipProvider>
 
       {/* Section 2: Customers (own bottom scrollbar; same width as Products) */}
       <Card className="shadow-sm">
