@@ -208,17 +208,55 @@ const GFA = () => {
       status: 'running'
     });
 
-    // Use backend optimization adapter
-    const { runGFAWithBackend } = await import("@/lib/backendGFA");
-    
-    const result = await runGFAWithBackend(
-      customers,
-      products,
-      existingSites,
-      settings,
-      () => {
-        // Local optimization fallback
-        return optimizeWithConstraints(
+    try {
+      let result;
+      
+      if (useCloudCompute) {
+        // Backend optimization on Lovable Cloud
+        console.log("Running optimization on Lovable Cloud...");
+        const { supabase } = await import('@/integrations/supabase/client');
+        
+        const { data, error } = await supabase.functions.invoke('optimize-gfa', {
+          body: {
+            customers,
+            existingSites,
+            settings,
+          }
+        });
+
+        if (error) {
+          console.error("Cloud optimization error:", error);
+          toast.error("Cloud optimization failed. Falling back to local computation.");
+          // Fallback to local
+          result = optimizeWithConstraints(
+            customers, 
+            settings.numDCs, 
+            {
+              maxRadius: settings.maxRadius,
+              demandPercentage: settings.demandPercentage,
+              dcCapacity: settings.dcCapacity,
+              capacityUnit: settings.capacityUnit
+            }, 
+            settings.mode, 
+            {
+              transportationCostPerMilePerUnit: settings.transportationCostPerMilePerUnit,
+              facilityCost: settings.facilityCost,
+              distanceUnit: settings.distanceUnit,
+              costUnit: settings.costUnit
+            },
+            products,
+            settings.includeExistingSites ? existingSites : undefined,
+            settings.includeExistingSites ? settings.existingSitesMode : undefined
+          );
+        } else {
+          console.log("Cloud optimization completed:", data);
+          result = data;
+          toast.success("✨ Optimization completed on cloud");
+        }
+      } else {
+        // Local optimization
+        console.log("Running optimization locally...");
+        result = optimizeWithConstraints(
           customers, 
           settings.numDCs, 
           {
@@ -238,43 +276,44 @@ const GFA = () => {
           settings.includeExistingSites ? existingSites : undefined,
           settings.includeExistingSites ? settings.existingSitesMode : undefined
         );
-      },
-      useCloudCompute // Use cloud compute toggle
-    );
-
-    // Show toast indicating which backend was used
-    if (result.usedBackend) {
-      toast.info("✨ Processed on Render backend", { description: "High-performance cloud computation" });
-    }
-
-    setDcs(result.dcs);
-    setFeasible(result.feasible);
-    setWarnings(result.warnings);
-    setCostBreakdown(result.costBreakdown);
-
-    // Save output data in background (non-blocking)
-    saveScenarioOutput(currentScenario.id, {
-      dcs: result.dcs,
-      feasible: result.feasible,
-      warnings: result.warnings,
-      costBreakdown: result.costBreakdown,
-      usedBackend: result.usedBackend
-    }, true);
-
-    // Update scenario status to completed
-    await updateScenario(currentScenario.id, {
-      status: 'completed'
-    });
-    if (result.feasible) {
-      if (settings.mode === 'cost' && result.costBreakdown) {
-        toast.success(`Optimization complete! Optimal solution: ${result.costBreakdown.numSites} sites with total cost $${result.costBreakdown.totalCost.toLocaleString()}`);
-      } else {
-        toast.success("Optimization complete! All constraints satisfied.");
+        toast.success("Optimization completed locally");
       }
-      setActiveTab("results");
-    } else {
-      toast.warning("Optimization complete with constraint violations. See warnings in Results tab.");
-      setActiveTab("results");
+
+      setDcs(result.dcs);
+      setFeasible(result.feasible);
+      setWarnings(result.warnings);
+      setCostBreakdown(result.costBreakdown);
+
+      // Save output data in background (non-blocking)
+      saveScenarioOutput(currentScenario.id, {
+        dcs: result.dcs,
+        feasible: result.feasible,
+        warnings: result.warnings,
+        costBreakdown: result.costBreakdown,
+      }, true);
+
+      // Update scenario status to completed
+      await updateScenario(currentScenario.id, {
+        status: 'completed'
+      });
+      
+      if (result.feasible) {
+        if (settings.mode === 'cost' && result.costBreakdown) {
+          toast.success(`Optimization complete! Optimal solution: ${result.costBreakdown.numSites} sites with total cost $${result.costBreakdown.totalCost.toLocaleString()}`);
+        } else {
+          toast.success("Optimization complete! All constraints satisfied.");
+        }
+        setActiveTab("results");
+      } else {
+        toast.warning("Optimization complete with constraint violations. See warnings in Results tab.");
+        setActiveTab("results");
+      }
+    } catch (error) {
+      console.error("Optimization error:", error);
+      toast.error("Optimization failed");
+      await updateScenario(currentScenario.id, {
+        status: 'failed'
+      });
     }
   };
   const handleExportReport = () => {
