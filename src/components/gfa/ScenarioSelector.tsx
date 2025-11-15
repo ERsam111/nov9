@@ -123,7 +123,7 @@ export const ScenarioSelector = ({ toolType, onScenarioReady }: ScenarioSelector
           <Label>Project</Label>
           <div className="flex gap-2">
             <Select
-              value={selectedProject?.id}
+              value={selectedProject?.id || undefined}
               onValueChange={(id) => {
                 const project = filteredProjects.find(p => p.id === id);
                 setSelectedProject(project || null);
@@ -175,7 +175,7 @@ export const ScenarioSelector = ({ toolType, onScenarioReady }: ScenarioSelector
             <Label>Scenario</Label>
             <div className="flex gap-2">
               <Select
-                value={currentScenario?.id}
+                value={currentScenario?.id || undefined}
                 onValueChange={handleSelectScenario}
               >
                 <SelectTrigger>
