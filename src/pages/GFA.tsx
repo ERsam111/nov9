@@ -171,26 +171,46 @@ const GFA = () => {
     await updateScenario(currentScenario.id, {
       status: 'running'
     });
-    const result = optimizeWithConstraints(
-      customers, 
-      settings.numDCs, 
-      {
-        maxRadius: settings.maxRadius,
-        demandPercentage: settings.demandPercentage,
-        dcCapacity: settings.dcCapacity,
-        capacityUnit: settings.capacityUnit
-      }, 
-      settings.mode, 
-      {
-        transportationCostPerMilePerUnit: settings.transportationCostPerMilePerUnit,
-        facilityCost: settings.facilityCost,
-        distanceUnit: settings.distanceUnit,
-        costUnit: settings.costUnit
-      },
+
+    // Use backend optimization adapter
+    const { runGFAWithBackend } = await import("@/lib/backendGFA");
+    
+    const result = await runGFAWithBackend(
+      customers,
       products,
-      settings.includeExistingSites ? existingSites : undefined,
-      settings.includeExistingSites ? settings.existingSitesMode : undefined
+      existingSites,
+      settings,
+      () => {
+        // Local optimization fallback
+        return optimizeWithConstraints(
+          customers, 
+          settings.numDCs, 
+          {
+            maxRadius: settings.maxRadius,
+            demandPercentage: settings.demandPercentage,
+            dcCapacity: settings.dcCapacity,
+            capacityUnit: settings.capacityUnit
+          }, 
+          settings.mode, 
+          {
+            transportationCostPerMilePerUnit: settings.transportationCostPerMilePerUnit,
+            facilityCost: settings.facilityCost,
+            distanceUnit: settings.distanceUnit,
+            costUnit: settings.costUnit
+          },
+          products,
+          settings.includeExistingSites ? existingSites : undefined,
+          settings.includeExistingSites ? settings.existingSitesMode : undefined
+        );
+      },
+      true // Use backend if available
     );
+
+    // Show toast indicating which backend was used
+    if (result.usedBackend) {
+      toast.info("✨ Processed on Render backend", { description: "High-performance cloud computation" });
+    }
+
     setDcs(result.dcs);
     setFeasible(result.feasible);
     setWarnings(result.warnings);
@@ -201,7 +221,8 @@ const GFA = () => {
       dcs: result.dcs,
       feasible: result.feasible,
       warnings: result.warnings,
-      costBreakdown: result.costBreakdown
+      costBreakdown: result.costBreakdown,
+      usedBackend: result.usedBackend
     }, true);
 
     // Update scenario status to completed
