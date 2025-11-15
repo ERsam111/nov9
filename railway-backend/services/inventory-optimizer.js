@@ -230,7 +230,7 @@ function runSimulation(s, S, demandParams, leadTimeParams, costs, numDays, numRe
 }
 
 // Main optimization function - EXACT MATCH TO LOCAL SIMULATION
-// Main optimization function - EXACT same logic as local
+// Main optimization function - Uses iteration logic like local
 export async function optimizeInventory(requestData) {
   const { tableData, config } = requestData;
   
@@ -275,36 +275,40 @@ export async function optimizeInventory(requestData) {
       };
       
       const costs = {
-        holdingCost: parseFloat(policyRow['Holding Cost ($/unit/day)']) || 1,
-        orderingCost: parseFloat(policyRow['Ordering Cost ($/order)']) || 100,
-        shortageCost: parseFloat(policyRow['Shortage Cost ($/unit)']) || 10
+        holding: parseFloat(policyRow['Holding Cost ($/unit/day)']) || 1,
+        ordering: parseFloat(policyRow['Ordering Cost ($/order)']) || 100,
+        shortage: parseFloat(policyRow['Shortage Cost ($/unit)']) || 10
       };
-      
-      const serviceLevel = parseFloat(policyRow['Service Level Target']) || 95;
       
       console.log(`Demand params:`, demandParams);
       console.log(`Lead time params:`, leadTimeParams);
       console.log(`Costs:`, costs);
-      console.log(`Service level: ${serviceLevel}`);
       
-      // Calculate initial estimates
-      console.log(`Calculating zScore for serviceLevel/100 = ${serviceLevel / 100}`);
-      const zScore = normalPPF(serviceLevel / 100);
-      const leadTimeDemand = demandParams.mean * leadTimeParams.mean;
-      const leadTimeDemandStd = Math.sqrt(
-        (leadTimeParams.mean * Math.pow(demandParams.std, 2)) +
-        (Math.pow(demandParams.mean, 2) * Math.pow(leadTimeParams.std, 2))
-      );
-      const safetyStock = zScore * leadTimeDemandStd;
-      const reorderPoint = leadTimeDemand + safetyStock;
+      // Use provided s,S or calculate initial estimates
+      let initialS = parseFloat(policyRow['Reorder Point (s)']);
+      let initialS_val = parseFloat(policyRow['Order-up-to Level (S)']);
       
-      const annualDemand = Math.max(demandParams.mean * 365, 1);
-      const eoq = Math.sqrt((2 * annualDemand * costs.orderingCost) / Math.max(costs.holdingCost, 0.001));
+      if (!initialS || !initialS_val) {
+        const leadTimeDemand = demandParams.mean * leadTimeParams.mean;
+        const leadTimeDemandStd = Math.sqrt(
+          (leadTimeParams.mean * Math.pow(demandParams.std, 2)) +
+          (Math.pow(demandParams.mean, 2) * Math.pow(leadTimeParams.std, 2))
+        );
+        const zScore = 1.645; // ~95% service level
+        const safetyStock = zScore * leadTimeDemandStd;
+        const reorderPoint = leadTimeDemand + safetyStock;
+        
+        const annualDemand = Math.max(demandParams.mean * 365, 1);
+        const eoq = Math.sqrt((2 * annualDemand * costs.ordering) / Math.max(costs.holding, 0.001));
+        
+        initialS = reorderPoint;
+        initialS_val = reorderPoint + eoq;
+      }
       
       // Set optimization bounds
       const bounds = [
-        [Math.max(leadTimeDemand * 0.5, 1), leadTimeDemand * 2],
-        [Math.max(reorderPoint + eoq * 0.5, 10), reorderPoint + eoq * 2]
+        [Math.max(initialS * 0.5, 1), initialS * 2],
+        [Math.max(initialS_val * 0.5, 10), initialS_val * 2]
       ];
       
       const de = new DifferentialEvolution(bounds, 20, 50);
@@ -312,9 +316,7 @@ export async function optimizeInventory(requestData) {
       const objectiveFn = ([s, S]) => {
         const results = runSimulation(s, S, demandParams, leadTimeParams, costs, 365, 10);
         const avgCost = results.reduce((sum, r) => sum + r.totalCost, 0) / results.length;
-        const avgServiceLevel = results.reduce((sum, r) => sum + r.serviceLevel, 0) / results.length;
-        const penalty = avgServiceLevel < (serviceLevel / 100) ? 100000 : 0;
-        return avgCost + penalty;
+        return avgCost;
       };
       
       const optimizationResult = de.optimize(objectiveFn);
@@ -341,8 +343,8 @@ export async function optimizeInventory(requestData) {
         expectedServiceLevel: Math.round(avgServiceLevel * 100 * 10) / 10,
         avgInventory: Math.round(avgInventory),
         avgOrders: Math.round(totalOrders),
-        holdingCost: Math.round(avgInventory * costs.holdingCost * 365),
-        orderCost: Math.round(totalOrders * costs.orderingCost),
+        holdingCost: Math.round(avgInventory * costs.holding * 365),
+        orderCost: Math.round(totalOrders * costs.ordering),
         replications: finalResults
       });
       
