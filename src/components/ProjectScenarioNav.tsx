@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ChevronDown, FolderOpen, GitBranch, Plus, Trash2, Pencil } from "lucide-react";
+import { ChevronDown, FolderOpen, GitBranch, Plus, Trash2, Pencil, Download } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,7 +46,7 @@ export const ProjectScenarioNav = ({
   onScenarioChange,
 }: ProjectScenarioNavProps) => {
   const { projects, currentProject, setCurrentProject } = useProjects();
-  const { scenarios, loadScenariosByProject, createScenario, deleteScenario, updateScenario, setCurrentScenario, currentScenario } = useScenarios();
+  const { scenarios, loadScenariosByProject, createScenario, deleteScenario, updateScenario, setCurrentScenario, currentScenario, loadScenarioInput, saveScenarioInput } = useScenarios();
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   // Sync selectedProject with global currentProject from context
@@ -64,9 +64,32 @@ export const ProjectScenarioNav = ({
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [scenarioToRename, setScenarioToRename] = useState<string | null>(null);
   const [newScenarioName, setNewScenarioName] = useState('');
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importScenarioName, setImportScenarioName] = useState('');
+  const [selectedImportScenario, setSelectedImportScenario] = useState<string | null>(null);
+  const [allModuleScenarios, setAllModuleScenarios] = useState<Scenario[]>([]);
 
   // Filter projects by module type
   const moduleProjects = projects.filter(p => p.tool_type === moduleType);
+  
+  // Auto-select latest scenario when scenarios change for selected project
+  useEffect(() => {
+    if (selectedProject && scenarios.length > 0 && !currentScenario) {
+      const projectScenarios = scenarios.filter(
+        s => s.project_id === selectedProject.id && s.module_type === moduleType
+      );
+      
+      if (projectScenarios.length > 0) {
+        // Sort by created_at descending to get the latest
+        const sortedScenarios = [...projectScenarios].sort((a, b) => 
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+        const latestScenario = sortedScenarios[0];
+        setCurrentScenario(latestScenario);
+        onScenarioChange?.(latestScenario);
+      }
+    }
+  }, [scenarios, selectedProject, moduleType]);
 
   // Load project and scenarios on mount or when IDs change
   useEffect(() => {
@@ -91,7 +114,7 @@ export const ProjectScenarioNav = ({
   const handleProjectSelect = async (project: Project) => {
     setSelectedProject(project);
     setCurrentProject(project); // Update global context so sidebar highlights
-    setCurrentScenario(null);
+    setCurrentScenario(null); // Clear current scenario so useEffect can auto-select latest
     await loadScenariosByProject(project.id, moduleType);
     onProjectChange?.(project);
   };
@@ -162,6 +185,62 @@ export const ProjectScenarioNav = ({
     } else {
       toast.error("Failed to create scenario");
     }
+  };
+
+  const handleImportScenario = async () => {
+    if (!selectedProject || !selectedImportScenario || !importScenarioName.trim()) {
+      toast.error("Please select a scenario and provide a name");
+      return;
+    }
+
+    // Load the input data from the selected scenario
+    const inputData = await loadScenarioInput(selectedImportScenario);
+    
+    // Create new scenario in current project
+    const newScenario = await createScenario({
+      name: importScenarioName,
+      description: `Imported from another project`,
+      project_id: selectedProject.id,
+      module_type: moduleType,
+      status: 'pending',
+    });
+
+    if (newScenario && inputData) {
+      // Save the imported input data to the new scenario
+      await saveScenarioInput(newScenario.id, inputData);
+      await loadScenariosByProject(selectedProject.id, moduleType);
+      
+      toast.success("Scenario imported successfully");
+      setImportDialogOpen(false);
+      setImportScenarioName('');
+      setSelectedImportScenario(null);
+      setCurrentScenario(newScenario);
+      onScenarioChange?.(newScenario);
+    } else {
+      toast.error("Failed to import scenario");
+    }
+  };
+
+  const loadAllModuleScenarios = async () => {
+    // Load all scenarios from all projects of this module type, excluding current project
+    const otherProjects = moduleProjects.filter(p => p.id !== selectedProject?.id);
+    const allScenarios: Scenario[] = [];
+    
+    for (const project of otherProjects) {
+      const { supabase } = await import('@/integrations/supabase/client');
+      const { data } = await supabase
+        .from('scenarios')
+        .select('*')
+        .eq('project_id', project.id)
+        .eq('module_type', moduleType)
+        .order('created_at', { ascending: false });
+      
+      if (data) {
+        allScenarios.push(...(data as any));
+      }
+    }
+    
+    setAllModuleScenarios(allScenarios);
   };
 
   const getStatusColor = (status: string) => {
@@ -299,6 +378,16 @@ export const ProjectScenarioNav = ({
                   <Plus className="h-4 w-4" />
                   Create New Scenario
                 </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => {
+                    loadAllModuleScenarios();
+                    setImportDialogOpen(true);
+                  }} 
+                  className="gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  Import Scenario
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </>
@@ -380,6 +469,58 @@ export const ProjectScenarioNav = ({
             </Button>
             <Button onClick={handleRenameScenario} disabled={!newScenarioName.trim()}>
               Rename
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import Scenario Dialog */}
+      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+        <DialogContent className="bg-background">
+          <DialogHeader>
+            <DialogTitle>Import Scenario</DialogTitle>
+            <DialogDescription>
+              Select a scenario from another project to import into {selectedProject?.name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Select Scenario to Import</Label>
+              <select 
+                className="w-full mt-1.5 px-3 py-2 bg-background border border-input rounded-md"
+                value={selectedImportScenario || ''}
+                onChange={(e) => setSelectedImportScenario(e.target.value)}
+              >
+                <option value="">Select a scenario...</option>
+                {allModuleScenarios.map(scenario => {
+                  const project = moduleProjects.find(p => p.id === scenario.project_id);
+                  return (
+                    <option key={scenario.id} value={scenario.id}>
+                      {project?.name} / {scenario.name}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+            <div>
+              <Label>New Scenario Name</Label>
+              <Input
+                placeholder="Enter name for imported scenario"
+                value={importScenarioName}
+                onChange={(e) => setImportScenarioName(e.target.value)}
+                className="mt-1.5"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setImportDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleImportScenario} 
+              disabled={!selectedImportScenario || !importScenarioName.trim()}
+            >
+              Import Scenario
             </Button>
           </DialogFooter>
         </DialogContent>
