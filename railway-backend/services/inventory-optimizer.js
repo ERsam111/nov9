@@ -234,34 +234,45 @@ export async function optimizeInventory(requestData) {
   const { tableData, config } = requestData;
   
   console.log('Starting inventory optimization...');
+  console.log('Received tableData keys:', Object.keys(tableData));
+  console.log('Number of policies:', tableData.policy?.length);
   const startTime = Date.now();
   
-  const policies = tableData.inventoryPolicyData || [];
+  // Accept both formats: inventoryPolicyData (old) and policy (new)
+  const policyTable = tableData.policy || tableData.inventoryPolicyData || [];
+  const demandTable = tableData.demand || [];
+  const transportTable = tableData.transport || [];
+  
+  console.log(`Processing ${policyTable.length} policies`);
   const optimizedResults = [];
   
-  for (let i = 0; i < policies.length; i++) {
-    const policy = policies[i];
-    console.log(`Optimizing policy: ${policy.policyName}_${i}`);
+  for (let i = 0; i < policyTable.length; i++) {
+    const policyRow = policyTable[i];
+    const demandRow = demandTable[i] || {};
+    const transportRow = transportTable[i] || {};
+    
+    const policyId = policyRow['Policy ID'] || `Policy_${i}`;
+    console.log(`Optimizing policy: ${policyId}`);
     
     const demandParams = {
-      mean: parseFloat(policy.demandMean) || 100,
-      std: parseFloat(policy.demandStdDev) || 20,
-      distribution: policy.demandDistribution || 'normal'
+      mean: parseFloat(demandRow['Average Daily Demand (units)']) || 100,
+      std: parseFloat(demandRow['Demand Std. Dev.']) || 20,
+      distribution: demandRow['Demand Distribution'] || 'normal'
     };
     
     const leadTimeParams = {
-      mean: parseFloat(policy.leadTimeMean) || 5,
-      std: parseFloat(policy.leadTimeStdDev) || 1,
-      distribution: policy.leadTimeDistribution || 'normal'
+      mean: parseFloat(transportRow['Lead Time (days)']) || 5,
+      std: parseFloat(transportRow['Lead Time Std. Dev.']) || 1,
+      distribution: transportRow['Lead Time Distribution'] || 'normal'
     };
     
     const costs = {
-      holdingCost: parseFloat(policy.holdingCostPerUnit) || 1,
-      orderingCost: parseFloat(policy.orderingCost) || 100,
-      shortageCost: parseFloat(policy.shortageCost) || 10
+      holdingCost: parseFloat(policyRow['Holding Cost ($/unit/day)']) || 1,
+      orderingCost: parseFloat(policyRow['Ordering Cost ($/order)']) || 100,
+      shortageCost: parseFloat(policyRow['Shortage Cost ($/unit)']) || 10
     };
     
-    const serviceLevel = parseFloat(policy.targetServiceLevel) || 95;
+    const serviceLevel = parseFloat(policyRow['Service Level Target']) || 95;
     
     // Calculate initial safety stock and reorder point
     const zScore = normalPPF(serviceLevel / 100);
@@ -322,7 +333,8 @@ export async function optimizeInventory(requestData) {
     const totalOrders = finalResults.reduce((sum, r) => sum + r.numOrders, 0) / finalResults.length;
     
     optimizedResults.push({
-      policyName: policy.policyName || `Policy_${i}`,
+      policyId: policyId,
+      policyName: policyRow['Facility Name'] + ' - ' + policyRow['Product Name'],
       policyIndex: i,
       reorderPoint: Math.round(optimizedS),
       orderUpToLevel: Math.round(optimizedS_val),

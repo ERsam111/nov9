@@ -172,9 +172,20 @@ export async function runSimulationWithBackend(
         replications: config.numReplications,
       });
       
-      const backendResults = await railwayClient.optimizeInventory(tableData, config);
+      const backendResponse = await railwayClient.optimizeInventory(tableData, config) as {
+        success: boolean;
+        optimizedPolicies: any[];
+        executionTime: number;
+      };
       
-      console.log("📥 Received backend results:", backendResults);
+      console.log("📥 Received backend results:", {
+        success: backendResponse.success,
+        policies: backendResponse.optimizedPolicies?.length || 0,
+        executionTime: backendResponse.executionTime
+      });
+      
+      // Extract the optimizedPolicies array from the response
+      const backendResults = backendResponse.optimizedPolicies || [];
       
       const { results: scenarioResults, inventoryData } = transformFromBackendFormat(backendResults, input);
       
