@@ -167,12 +167,26 @@ export async function runSimulationWithBackend(
       onProgress?.(10);
       
       const { tableData, config } = transformToBackendFormat(input, replications);
+      console.log("📤 Sending to backend:", { 
+        policies: tableData.policy.length,
+        config 
+      });
       
       onProgress?.(20);
-      const backendResults = await railwayClient.optimizeInventory(tableData, config);
+      const backendResults: any = await railwayClient.optimizeInventory(tableData, config);
+      
+      console.log("📥 Received from backend:", {
+        resultsCount: backendResults?.results?.length || backendResults?.length || 0,
+        rawResponse: backendResults
+      });
       
       onProgress?.(80);
-      const scenarioResults = transformFromBackendFormat(backendResults, input);
+      const scenarioResults = transformFromBackendFormat(backendResults.results || backendResults, input);
+      
+      console.log("✅ Transformed results:", {
+        scenarioCount: scenarioResults.length,
+        firstScenario: scenarioResults[0]
+      });
       
       onProgress?.(100);
       
