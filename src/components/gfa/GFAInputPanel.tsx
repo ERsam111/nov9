@@ -104,7 +104,7 @@ export function GFAInputPanel({
   };
 
   return (
-    <div className="space-y-3 max-h-[calc(100vh-200px)] overflow-y-auto pr-2">
+    <div className="space-y-2 max-h-[calc(100vh-200px)] overflow-y-auto pr-1">
       {/* Customer Map - Pure Input Visualization */}
       {customers.length > 0 && <CustomerMapView customers={customers} />}
       

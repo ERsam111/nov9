@@ -10,12 +10,12 @@ interface GFACostParametersPanelProps {
 export function GFACostParametersPanel({ settings, onSettingsChange }: GFACostParametersPanelProps) {
   return (
     <Card className="flex flex-col h-full">
-      <div className="p-4 border-b">
-        <h2 className="text-lg font-semibold">Cost Parameters</h2>
-        <p className="text-sm text-muted-foreground mt-1">Configure transportation and facility costs</p>
+      <div className="p-3 border-b">
+        <h2 className="text-base font-semibold">Cost Parameters</h2>
+        <p className="text-xs text-muted-foreground mt-0.5">Configure transportation and facility costs</p>
       </div>
 
-      <div className="flex-1 overflow-auto p-6">
+      <div className="flex-1 overflow-auto p-4">
         <CostParameters
           transportationCostPerMilePerUnit={settings.transportationCostPerMilePerUnit}
           facilityCost={settings.facilityCost}

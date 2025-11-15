@@ -466,9 +466,9 @@ export function GFAEditableTable({
   }, [displayRows, currentPage, rowsPerPage]);
 
   return <Card className="flex flex-col h-full overflow-hidden">
-      <div className="p-4 border-b shrink-0">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-4 flex-1">
+      <div className="p-3 border-b shrink-0">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 flex-1">
             <h2 className="text-base font-semibold whitespace-nowrap">{getTableTitle(tableType)}</h2>
             <span className="text-sm text-muted-foreground whitespace-nowrap">
               {displayRows.length > rowsPerPage 
@@ -477,7 +477,7 @@ export function GFAEditableTable({
             </span>
             
             {/* Compact horizontal controls */}
-            <div className="flex items-center gap-3 ml-4">
+            <div className="flex items-center gap-2 ml-3">
               {/* Column Width Controls */}
               <div className="flex items-center gap-1">
                 <button
