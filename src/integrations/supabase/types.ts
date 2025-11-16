@@ -96,6 +96,51 @@ export type Database = {
           },
         ]
       }
+      data_transformation_history: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          scenario_id: string
+          sequence_order: number
+          sql_query: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          scenario_id: string
+          sequence_order: number
+          sql_query: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          scenario_id?: string
+          sequence_order?: number
+          sql_query?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "data_transformation_history_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "data_transformation_history_scenario_id_fkey"
+            columns: ["scenario_id"]
+            isOneToOne: false
+            referencedRelation: "scenarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -384,7 +429,12 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
-      module_type: "gfa" | "inventory" | "forecasting" | "network"
+      module_type:
+        | "gfa"
+        | "inventory"
+        | "forecasting"
+        | "network"
+        | "data_preparation"
       scenario_status: "pending" | "running" | "completed" | "failed"
     }
     CompositeTypes: {
@@ -514,7 +564,13 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
-      module_type: ["gfa", "inventory", "forecasting", "network"],
+      module_type: [
+        "gfa",
+        "inventory",
+        "forecasting",
+        "network",
+        "data_preparation",
+      ],
       scenario_status: ["pending", "running", "completed", "failed"],
     },
   },

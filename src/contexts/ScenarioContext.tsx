@@ -8,7 +8,7 @@ export interface Scenario {
   user_id: string;
   name: string;
   description: string | null;
-  module_type: 'gfa' | 'forecasting' | 'network' | 'inventory';
+  module_type: 'gfa' | 'forecasting' | 'network' | 'inventory' | 'data_preparation';
   status: 'pending' | 'running' | 'completed' | 'failed';
   created_at: string;
   updated_at: string;
