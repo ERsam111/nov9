@@ -79,9 +79,9 @@ export function CreateProjectDialog({
         };
       case 'data_preparation':
         return {
-          gradient: 'from-purple-500 via-purple-400 to-purple-300',
-          text: 'text-purple-500',
-          button: 'bg-purple-500 hover:bg-purple-600',
+          gradient: 'from-blue-400 via-blue-500 to-blue-600',
+          text: 'text-blue-500',
+          button: 'bg-blue-500 hover:bg-blue-600',
         };
       default:
         return {

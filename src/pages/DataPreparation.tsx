@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { ProjectScenarioNav } from '@/components/ProjectScenarioNav';
 import { DataPrepWorkflow } from '@/components/dataprep/DataPrepWorkflow';
-import { useScenarios } from '@/contexts/ScenarioContext';
+import { useProjects } from '@/contexts/ProjectContext';
 
 const DataPreparation = () => {
-  const { currentScenario } = useScenarios();
+  const { currentProject } = useProjects();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
@@ -21,12 +21,12 @@ const DataPreparation = () => {
           </p>
         </div>
 
-        {currentScenario ? (
-          <DataPrepWorkflow scenario={currentScenario} />
+        {currentProject ? (
+          <DataPrepWorkflow project={currentProject} />
         ) : (
           <div className="flex items-center justify-center h-[60vh]">
             <div className="text-center">
-              <p className="text-muted-foreground mb-4">Please select or create a scenario to begin</p>
+              <p className="text-muted-foreground mb-4">Please create a Data Preparation project to begin</p>
             </div>
           </div>
         )}

@@ -1,33 +1,36 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileUp, MessageSquare, Code, Download } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { FileUp, Download } from 'lucide-react';
 import { DataUploadPanel } from './DataUploadPanel';
+import { ModuleSelector } from './ModuleSelector';
 import { TransformationChat } from './TransformationChat';
 import { SQLHistory } from './SQLHistory';
 import { DataPreview } from './DataPreview';
 import { ExportPanel } from './ExportPanel';
 
 interface DataPrepWorkflowProps {
-  scenario: any;
+  project: any;
 }
 
-export const DataPrepWorkflow = ({ scenario }: DataPrepWorkflowProps) => {
-  const [activeTab, setActiveTab] = useState('upload');
+export const DataPrepWorkflow = ({ project }: DataPrepWorkflowProps) => {
+  const [step, setStep] = useState<'upload' | 'module' | 'transform' | 'export'>('upload');
+  const [targetModule, setTargetModule] = useState<'gfa' | 'inventory' | 'forecasting' | null>(null);
   const [rawData, setRawData] = useState<any[]>([]);
   const [transformedData, setTransformedData] = useState<any[]>([]);
   const [sqlHistory, setSqlHistory] = useState<any[]>([]);
+  const [dataUnderstanding, setDataUnderstanding] = useState<string>('');
 
-  // Load existing data and history when scenario changes
+  // Load existing data and history when project changes
   useEffect(() => {
-    if (scenario?.id) {
-      loadScenarioData();
+    if (project?.id) {
+      loadProjectData();
       loadSQLHistory();
     }
-  }, [scenario?.id]);
+  }, [project?.id]);
 
-  const loadScenarioData = async () => {
-    // Load raw and transformed data from scenario_inputs/outputs
+  const loadProjectData = async () => {
+    // Load raw and transformed data from project
     // Implementation depends on your data structure
   };
 
@@ -39,7 +42,15 @@ export const DataPrepWorkflow = ({ scenario }: DataPrepWorkflowProps) => {
   const handleDataUpload = (data: any[]) => {
     setRawData(data);
     setTransformedData(data); // Initially same as raw
-    setActiveTab('chat');
+    setStep('module');
+  };
+
+  const handleModuleSelect = (module: 'gfa' | 'inventory' | 'forecasting') => {
+    setTargetModule(module);
+    // Generate initial understanding based on module
+    const understanding = `I've analyzed your data for ${module.toUpperCase()} optimization. I can see ${rawData.length} rows with ${Object.keys(rawData[0] || {}).length} columns.`;
+    setDataUnderstanding(understanding);
+    setStep('transform');
   };
 
   const handleTransformation = (newData: any[], sqlQuery: string, description: string) => {
@@ -54,58 +65,79 @@ export const DataPrepWorkflow = ({ scenario }: DataPrepWorkflowProps) => {
 
   return (
     <div className="space-y-4">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="upload" className="flex items-center gap-2">
-            <FileUp className="h-4 w-4" />
-            <span className="hidden sm:inline">Upload</span>
-          </TabsTrigger>
-          <TabsTrigger value="chat" className="flex items-center gap-2" disabled={rawData.length === 0}>
-            <MessageSquare className="h-4 w-4" />
-            <span className="hidden sm:inline">Transform</span>
-          </TabsTrigger>
-          <TabsTrigger value="sql" className="flex items-center gap-2" disabled={sqlHistory.length === 0}>
-            <Code className="h-4 w-4" />
-            <span className="hidden sm:inline">SQL History</span>
-          </TabsTrigger>
-          <TabsTrigger value="preview" className="flex items-center gap-2" disabled={transformedData.length === 0}>
-            <FileUp className="h-4 w-4" />
-            <span className="hidden sm:inline">Preview</span>
-          </TabsTrigger>
-          <TabsTrigger value="export" className="flex items-center gap-2" disabled={transformedData.length === 0}>
+      {/* Module Badge */}
+      {targetModule && (
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Target Module:</span>
+          <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20">
+            {targetModule.toUpperCase()}
+          </Badge>
+        </div>
+      )}
+
+      {/* Step 1: Upload */}
+      {step === 'upload' && (
+        <DataUploadPanel onDataUpload={handleDataUpload} project={project} />
+      )}
+
+      {/* Step 2: Module Selection */}
+      {step === 'module' && (
+        <ModuleSelector onSelect={handleModuleSelect} />
+      )}
+
+      {/* Step 3: Transform (3-column layout) */}
+      {step === 'transform' && targetModule && (
+        <div className="grid grid-cols-12 gap-4">
+          {/* Left: Chat */}
+          <div className="col-span-4">
+            <TransformationChat
+              project={project}
+              rawData={rawData}
+              currentData={transformedData}
+              targetModule={targetModule}
+              dataUnderstanding={dataUnderstanding}
+              onTransformation={handleTransformation}
+            />
+          </div>
+
+          {/* Middle: SQL History */}
+          <div className="col-span-4">
+            <SQLHistory 
+              history={sqlHistory} 
+              onRevert={(index) => {
+                setSqlHistory(sqlHistory.slice(0, index + 1));
+              }} 
+            />
+          </div>
+
+          {/* Right: Data Preview */}
+          <div className="col-span-4">
+            <DataPreview data={transformedData} />
+          </div>
+        </div>
+      )}
+
+      {/* Export Button */}
+      {step === 'transform' && transformedData.length > 0 && (
+        <div className="flex justify-end">
+          <button
+            onClick={() => setStep('export')}
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90"
+          >
             <Download className="h-4 w-4" />
-            <span className="hidden sm:inline">Export</span>
-          </TabsTrigger>
-        </TabsList>
+            Export Data
+          </button>
+        </div>
+      )}
 
-        <TabsContent value="upload" className="mt-6">
-          <DataUploadPanel onDataUpload={handleDataUpload} scenario={scenario} />
-        </TabsContent>
-
-        <TabsContent value="chat" className="mt-6">
-          <TransformationChat
-            scenario={scenario}
-            rawData={rawData}
-            currentData={transformedData}
-            onTransformation={handleTransformation}
-          />
-        </TabsContent>
-
-        <TabsContent value="sql" className="mt-6">
-          <SQLHistory history={sqlHistory} onRevert={(index) => {
-            // Handle reverting to a specific transformation
-            setSqlHistory(sqlHistory.slice(0, index + 1));
-          }} />
-        </TabsContent>
-
-        <TabsContent value="preview" className="mt-6">
-          <DataPreview data={transformedData} />
-        </TabsContent>
-
-        <TabsContent value="export" className="mt-6">
-          <ExportPanel data={transformedData} scenario={scenario} />
-        </TabsContent>
-      </Tabs>
+      {/* Step 4: Export */}
+      {step === 'export' && targetModule && (
+        <ExportPanel 
+          data={transformedData} 
+          project={project}
+          targetModule={targetModule}
+        />
+      )}
     </div>
   );
 };
