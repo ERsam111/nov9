@@ -671,7 +671,7 @@ const GFA = () => {
                   existingSiteCount={existingSites.length}
                 />
               )}
-              <div className={`flex-1 min-w-0 flex flex-col gap-2 ${isFullscreen ? 'max-w-full' : 'max-w-[calc(100vw-400px)]'}`}>
+              <div className="flex-1 w-full min-w-0 flex flex-col gap-2">
                 {/* Active Table Content with horizontal scroll */}
                 <div className="flex-1 min-w-0 overflow-hidden">
                   {activeTable === "customers" && <GFAEditableTable tableType="customers" data={filteredCustomers} onDataChange={setCustomers} onGeocode={handleGeocodeCustomer} products={products} isFullscreen={isFullscreen} onToggleFullscreen={() => setIsFullscreen(!isFullscreen)} />}
@@ -684,7 +684,7 @@ const GFA = () => {
           </TabsContent>
 
           <TabsContent value="data-support" className="space-y-6">
-            <div className="max-w-[calc(100vw-300px)] overflow-x-hidden">
+            <div className="w-full">
             <DataSupportPanel
               customers={customers} 
               products={products} 
@@ -698,14 +698,14 @@ const GFA = () => {
           </TabsContent>
 
           <TabsContent value="map" className="space-y-6">
-            <div className="max-w-[calc(100vw-300px)] overflow-x-hidden">
+            <div className="w-full">
             <GFAMapPanel customers={customers} dcs={dcs} settings={settings} />
             </div>
           </TabsContent>
 
           <TabsContent value="optimization" className="space-y-6">
-            <div className="max-w-[calc(100vw-300px)] overflow-x-hidden space-y-4">
-              <ComputeToggle 
+            <div className="w-full space-y-4">
+              <ComputeToggle
                 useCloud={useCloudCompute}
                 onToggle={setUseCloudCompute}
                 disabled={false}
