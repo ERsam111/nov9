@@ -896,7 +896,7 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
   const promptCount = Math.floor(messages.length / 2);
 
   return (
-    <Card className="h-[calc(100vh-280px)] flex flex-col shadow-lg border-primary/20">
+    <Card className="h-[calc(100vh-200px)] flex flex-col shadow-lg border-primary/20">
       <CardHeader className="border-b border-border/50 py-3 shrink-0">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
