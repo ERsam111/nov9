@@ -1,12 +1,11 @@
 import { useState, useRef, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { Send, Bot, User, Loader2, Trash2, Mic, MicOff, Sparkles, Database, Play, CheckCircle, ArrowRight } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
@@ -898,92 +897,63 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
 
   return (
     <Card className="h-[calc(100vh-280px)] flex flex-col shadow-lg border-primary/20">
-      <CardHeader className="border-b border-border/50 pb-4 shrink-0">
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2 text-primary">
-              <Bot className="h-5 w-5" />
-              Data Support Assistant
-            </CardTitle>
-            <CardDescription className="mt-1">
-              Get insights or transform your data with AI assistance
-            </CardDescription>
-          </div>
+      <CardHeader className="border-b border-border/50 py-3 shrink-0">
+        <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Bot className="h-4 w-4 text-primary" />
+              <CardTitle className="text-base">Data Assistant</CardTitle>
+            </div>
+            
+            {/* Compact Mode Selection */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setActiveTab("insights")}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
+                  activeTab === "insights"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                }`}
+              >
+                {activeTab === "insights" && <CheckCircle className="h-3 w-3" />}
+                <Sparkles className="h-3 w-3" />
+                Insights
+              </button>
+              <button
+                onClick={() => setActiveTab("transformation")}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
+                  activeTab === "transformation"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                }`}
+              >
+                {activeTab === "transformation" && <CheckCircle className="h-3 w-3" />}
+                <Database className="h-3 w-3" />
+                Transform
+              </button>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
             {messages.length > 0 && (
-              <Button variant="ghost" size="sm" onClick={handleClearChat} className="h-8">
-                <Trash2 className="h-4 w-4 mr-1" />
+              <Button variant="ghost" size="sm" onClick={handleClearChat} className="h-7 px-2">
+                <Trash2 className="h-3 w-3 mr-1" />
                 Clear
               </Button>
             )}
             <Select value={selectedModel} onValueChange={setSelectedModel}>
-              <SelectTrigger className="w-[240px] h-8 text-xs">
+              <SelectTrigger className="w-[180px] h-7 text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="gpt-4o-mini">GPT-4o Mini (Fast & Cheap) ⭐</SelectItem>
-                <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo (Legacy Cheap)</SelectItem>
-                <SelectItem value="gpt-4o">GPT-4o (Balanced)</SelectItem>
+                <SelectItem value="gpt-4o-mini">GPT-4o Mini ⭐</SelectItem>
+                <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
+                <SelectItem value="gpt-4o">GPT-4o</SelectItem>
                 <SelectItem value="gpt-4-turbo">GPT-4 Turbo</SelectItem>
-                <SelectItem value="gpt-4">GPT-4 (Capable)</SelectItem>
-                <SelectItem value="gpt-4.1-2025-04-14">GPT-4.1 (Latest)</SelectItem>
+                <SelectItem value="gpt-4">GPT-4</SelectItem>
+                <SelectItem value="gpt-4.1-2025-04-14">GPT-4.1</SelectItem>
               </SelectContent>
             </Select>
-          </div>
-        </div>
-        
-        {/* Mode Selection with Checkboxes */}
-        <div className="mt-4 space-y-3">
-          <Label className="text-sm font-medium">Mode Selection</Label>
-          <div className="flex gap-4">
-            <button
-              onClick={() => setActiveTab("insights")}
-              className={`flex-1 flex items-center gap-3 p-4 rounded-lg border-2 transition-all duration-300 ${
-                activeTab === "insights"
-                  ? "border-primary bg-primary/10 shadow-md scale-105"
-                  : "border-border hover:border-primary/50 hover:bg-accent/50"
-              }`}
-            >
-              <div className={`h-5 w-5 rounded border-2 flex items-center justify-center transition-all ${
-                activeTab === "insights" 
-                  ? "border-primary bg-primary" 
-                  : "border-muted-foreground"
-              }`}>
-                {activeTab === "insights" && (
-                  <CheckCircle className="h-4 w-4 text-primary-foreground animate-scale-in" />
-                )}
-              </div>
-              <div className="flex items-center gap-2 flex-1">
-                <Sparkles className={`h-4 w-4 transition-colors ${activeTab === "insights" ? "text-primary" : "text-muted-foreground"}`} />
-                <span className={`font-medium transition-colors ${activeTab === "insights" ? "text-foreground" : "text-muted-foreground"}`}>
-                  Insights
-                </span>
-              </div>
-            </button>
-            <button
-              onClick={() => setActiveTab("transformation")}
-              className={`flex-1 flex items-center gap-3 p-4 rounded-lg border-2 transition-all duration-300 ${
-                activeTab === "transformation"
-                  ? "border-primary bg-primary/10 shadow-md scale-105"
-                  : "border-border hover:border-primary/50 hover:bg-accent/50"
-              }`}
-            >
-              <div className={`h-5 w-5 rounded border-2 flex items-center justify-center transition-all ${
-                activeTab === "transformation" 
-                  ? "border-primary bg-primary" 
-                  : "border-muted-foreground"
-              }`}>
-                {activeTab === "transformation" && (
-                  <CheckCircle className="h-4 w-4 text-primary-foreground animate-scale-in" />
-                )}
-              </div>
-              <div className="flex items-center gap-2 flex-1">
-                <Database className={`h-4 w-4 transition-colors ${activeTab === "transformation" ? "text-primary" : "text-muted-foreground"}`} />
-                <span className={`font-medium transition-colors ${activeTab === "transformation" ? "text-foreground" : "text-muted-foreground"}`}>
-                  Transformation
-                </span>
-              </div>
-            </button>
           </div>
         </div>
       </CardHeader>
