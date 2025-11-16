@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   FileUp,
   Filter,
@@ -62,38 +63,42 @@ export const ToolPalette = () => {
       </CardHeader>
       <CardContent className="p-0">
         <ScrollArea className="h-[calc(100vh-200px)]">
-          <div className="px-4 pb-4 space-y-4">
+          <div className="px-3 pb-4 space-y-3">
             {tools.map((category) => (
               <div key={category.category}>
-                <h3 className="text-sm font-semibold mb-2 text-muted-foreground">
+                <h3 className="text-xs font-semibold mb-2 text-muted-foreground px-1">
                   {category.category}
                 </h3>
-                <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-2">
                   {category.items.map((tool) => {
                     const Icon = tool.icon;
                     return (
-                      <div
-                        key={tool.type}
-                        draggable
-                        onDragStart={(e) => onDragStart(e, tool.type)}
-                        className="p-3 bg-card border rounded-lg cursor-move hover:border-primary hover:bg-accent transition-all group"
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className="p-2 rounded-md bg-primary/10 group-hover:bg-primary/20 transition-colors">
-                            <Icon className="h-4 w-4 text-primary" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium">{tool.label}</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              {tool.description}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
+                      <TooltipProvider key={tool.type}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div
+                              draggable
+                              onDragStart={(e) => onDragStart(e, tool.type)}
+                              className="p-2 bg-card border rounded-md cursor-move hover:border-primary hover:bg-accent hover:scale-105 transition-all group"
+                            >
+                              <div className="flex flex-col items-center gap-1">
+                                <div className="p-1.5 rounded-md bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                                  <Icon className="h-3.5 w-3.5 text-primary" />
+                                </div>
+                                <p className="text-[10px] font-medium text-center leading-tight">{tool.label}</p>
+                              </div>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent side="right" className="max-w-xs">
+                            <p className="font-semibold mb-1">{tool.label}</p>
+                            <p className="text-xs text-muted-foreground">{tool.description}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     );
                   })}
                 </div>
-                <Separator className="mt-4" />
+                <Separator className="mt-3" />
               </div>
             ))}
           </div>
