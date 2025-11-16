@@ -42,7 +42,7 @@ const navigationItems = [{
   icon: Gauge,
   type: 'inventory' as const
 }, {
-  title: 'Data Preparation',
+  title: 'Data',
   url: '/data-preparation',
   icon: Sparkles,
   type: 'data_preparation' as const
