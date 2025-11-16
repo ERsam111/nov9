@@ -47,6 +47,14 @@ const tools = [
       { type: 'aggregate', label: 'Aggregate', icon: Calculator, description: 'Sum, count, avg, etc.' },
     ],
   },
+  {
+    category: 'Supervised Learning',
+    items: [
+      { type: 'ml_classification', label: 'Classification', icon: Split, description: 'Train classification models' },
+      { type: 'ml_regression', label: 'Regression', icon: Calculator, description: 'Train regression models' },
+      { type: 'ml_clustering', label: 'Clustering', icon: Database, description: 'Cluster analysis' },
+    ],
+  },
 ];
 
 export const ToolPalette = () => {

@@ -290,11 +290,28 @@ export const ProjectScenarioNav = ({
                   onClick={() => handleProjectSelect(project)}
                   className={selectedProject?.id === project.id ? "bg-accent" : ""}
                 >
-                  <div className="flex flex-col gap-1">
-                    <span className="font-medium">{project.name}</span>
-                    {project.description && (
-                      <span className="text-xs text-muted-foreground truncate">{project.description}</span>
+                  <div className="flex items-center gap-2">
+                    {moduleType === 'data_preparation' && (
+                      <Badge className="bg-blue-500 text-white text-[10px] px-1.5 py-0 font-semibold">AZ</Badge>
                     )}
+                    {moduleType === 'gfa' && (
+                      <Badge className="bg-gfa text-white text-[10px] px-1.5 py-0 font-semibold">GFA</Badge>
+                    )}
+                    {moduleType === 'inventory' && (
+                      <Badge className="bg-inventory text-white text-[10px] px-1.5 py-0 font-semibold">IO</Badge>
+                    )}
+                    {moduleType === 'forecasting' && (
+                      <Badge className="bg-forecasting text-white text-[10px] px-1.5 py-0 font-semibold">DF</Badge>
+                    )}
+                    {moduleType === 'network' && (
+                      <Badge className="bg-network text-white text-[10px] px-1.5 py-0 font-semibold">NA</Badge>
+                    )}
+                    <div className="flex flex-col gap-1">
+                      <span className="font-medium">{project.name}</span>
+                      {project.description && (
+                        <span className="text-xs text-muted-foreground truncate">{project.description}</span>
+                      )}
+                    </div>
                   </div>
                 </DropdownMenuItem>
               ))
