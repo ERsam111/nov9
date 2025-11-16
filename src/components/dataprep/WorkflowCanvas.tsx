@@ -19,6 +19,10 @@ import { TransformNode } from './nodes/TransformNode';
 import { OutputNode } from './nodes/OutputNode';
 import { AggregateNode } from './nodes/AggregateNode';
 import { SortNode } from './nodes/SortNode';
+import { SelectNode } from './nodes/SelectNode';
+import { MLClassificationNode } from './nodes/MLClassificationNode';
+import { MLRegressionNode } from './nodes/MLRegressionNode';
+import { MLClusteringNode } from './nodes/MLClusteringNode';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Trash2 } from 'lucide-react';
@@ -31,6 +35,10 @@ const nodeTypes: NodeTypes = {
   output: OutputNode,
   aggregate: AggregateNode,
   sort: SortNode,
+  select: SelectNode,
+  ml_classification: MLClassificationNode,
+  ml_regression: MLRegressionNode,
+  ml_clustering: MLClusteringNode,
 };
 
 interface WorkflowCanvasProps {
