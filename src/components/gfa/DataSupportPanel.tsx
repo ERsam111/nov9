@@ -1310,44 +1310,57 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
                   )}
                   {/* Customer Demand Comparison */}
                   {comparisonData.customerDemand && comparisonData.customerDemand.length > 0 && (
-                    <Alert className="border-green-500/30 bg-green-500/5">
-                      <CheckCircle className="h-4 w-4 text-green-600" />
+                    <Alert className="border-green-500/30 bg-gradient-to-br from-green-500/5 to-emerald-500/5 animate-fade-in backdrop-blur-sm">
+                      <CheckCircle className="h-4 w-4 text-green-600 animate-scale-in" />
                       <AlertDescription className="mt-2">
-                        <h4 className="font-semibold mb-3 text-green-600">Customer Demand Changes</h4>
-                        <div className="bg-background rounded-lg border overflow-hidden">
+                        <h4 className="font-semibold mb-3 text-green-600 flex items-center gap-2">
+                          <Sparkles className="h-4 w-4" />
+                          Customer Demand Changes
+                        </h4>
+                        <div className="bg-background/80 rounded-lg border border-green-500/20 overflow-hidden shadow-sm">
                           <Table>
                             <TableHeader>
-                              <TableRow>
-                                <TableHead className="w-[30%]">Customer</TableHead>
-                                <TableHead className="text-right">Old Demand</TableHead>
+                              <TableRow className="bg-gradient-to-r from-green-500/5 to-emerald-500/5 hover:from-green-500/10 hover:to-emerald-500/10 transition-all duration-300">
+                                <TableHead className="w-[30%] font-semibold">Customer</TableHead>
+                                <TableHead className="text-right font-semibold">Old Demand</TableHead>
                                 <TableHead className="w-10 text-center"></TableHead>
-                                <TableHead className="text-right">New Demand</TableHead>
-                                <TableHead className="text-right">Change</TableHead>
+                                <TableHead className="text-right font-semibold">New Demand</TableHead>
+                                <TableHead className="text-right font-semibold">Change</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
                               {comparisonData.customerDemand.slice(0, 10).map((row, idx) => (
-                                <TableRow key={idx}>
-                                  <TableCell className="font-medium">{row.name}</TableCell>
+                                <TableRow 
+                                  key={idx} 
+                                  className="hover:bg-green-500/5 transition-all duration-200 animate-fade-in group"
+                                  style={{ animationDelay: `${idx * 50}ms` }}
+                                >
+                                  <TableCell className="font-medium group-hover:text-green-700 transition-colors">{row.name}</TableCell>
                                   <TableCell className="text-right text-muted-foreground">
-                                    {row.oldDemand.toFixed(2)}
+                                    <span className="group-hover:scale-105 inline-block transition-transform">
+                                      {row.oldDemand.toFixed(2)}
+                                    </span>
                                   </TableCell>
                                   <TableCell className="text-center">
-                                    <ArrowRight className="h-4 w-4 text-primary mx-auto" />
+                                    <ArrowRight className="h-4 w-4 text-green-600 mx-auto group-hover:translate-x-1 transition-transform duration-300" />
                                   </TableCell>
-                                  <TableCell className="text-right font-semibold">
-                                    {row.newDemand.toFixed(2)}
+                                  <TableCell className="text-right font-semibold text-green-700">
+                                    <span className="group-hover:scale-110 inline-block transition-transform">
+                                      {row.newDemand.toFixed(2)}
+                                    </span>
                                   </TableCell>
-                                  <TableCell className={`text-right font-medium ${row.change > 0 ? 'text-green-600' : row.change < 0 ? 'text-red-600' : ''}`}>
-                                    {row.change > 0 ? '+' : ''}{row.change.toFixed(2)} ({row.changePercent > 0 ? '+' : ''}{row.changePercent.toFixed(1)}%)
+                                  <TableCell className={`text-right font-semibold ${row.change > 0 ? 'text-green-600' : row.change < 0 ? 'text-red-600' : ''}`}>
+                                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-900/20 dark:to-emerald-900/20 group-hover:scale-105 transition-transform">
+                                      {row.change > 0 ? '+' : ''}{row.change.toFixed(2)} ({row.changePercent > 0 ? '+' : ''}{row.changePercent.toFixed(1)}%)
+                                    </span>
                                   </TableCell>
                                 </TableRow>
                               ))}
                             </TableBody>
                           </Table>
                           {comparisonData.customerDemand.length > 10 && (
-                            <div className="text-xs text-muted-foreground text-center py-2 bg-muted/30">
-                              Showing 10 of {comparisonData.customerDemand.length} changed customers
+                            <div className="text-xs text-muted-foreground text-center py-3 bg-gradient-to-r from-green-500/5 to-emerald-500/5 border-t border-green-500/10">
+                              <span className="font-medium">Showing 10 of {comparisonData.customerDemand.length} changed customers</span>
                             </div>
                           )}
                         </div>
@@ -1357,31 +1370,42 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
                   
                   {/* Customer Location/Attributes Comparison */}
                   {comparisonData.customerLocation && comparisonData.customerLocation.length > 0 && (
-                    <Alert className="border-amber-500/30 bg-amber-500/5">
-                      <CheckCircle className="h-4 w-4 text-amber-600" />
+                    <Alert className="border-amber-500/30 bg-gradient-to-br from-amber-500/5 to-orange-500/5 animate-fade-in backdrop-blur-sm">
+                      <CheckCircle className="h-4 w-4 text-amber-600 animate-scale-in" />
                       <AlertDescription className="mt-2">
-                        <h4 className="font-semibold mb-3 text-amber-600">Customer Location/Attributes Changes</h4>
-                        <div className="bg-background rounded-lg border overflow-hidden">
+                        <h4 className="font-semibold mb-3 text-amber-600 flex items-center gap-2">
+                          <Sparkles className="h-4 w-4" />
+                          Customer Location/Attributes Changes
+                        </h4>
+                        <div className="bg-background/80 rounded-lg border border-amber-500/20 overflow-hidden shadow-sm">
                           <Table>
                             <TableHeader>
-                              <TableRow>
-                                <TableHead className="w-[30%]">Customer</TableHead>
-                                <TableHead>Field</TableHead>
-                                <TableHead>Old Value</TableHead>
+                              <TableRow className="bg-gradient-to-r from-amber-500/5 to-orange-500/5 hover:from-amber-500/10 hover:to-orange-500/10 transition-all duration-300">
+                                <TableHead className="w-[30%] font-semibold">Customer</TableHead>
+                                <TableHead className="font-semibold">Field</TableHead>
+                                <TableHead className="font-semibold">Old Value</TableHead>
                                 <TableHead className="w-10 text-center"></TableHead>
-                                <TableHead>New Value</TableHead>
+                                <TableHead className="font-semibold">New Value</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
                               {comparisonData.customerLocation.map((row, idx) => (
-                                <TableRow key={idx}>
-                                  <TableCell className="font-medium">{row.name}</TableCell>
-                                  <TableCell className="text-muted-foreground">{row.field}</TableCell>
-                                  <TableCell className="text-muted-foreground">{String(row.oldValue)}</TableCell>
-                                  <TableCell className="text-center">
-                                    <ArrowRight className="h-4 w-4 text-primary mx-auto" />
+                                <TableRow 
+                                  key={idx}
+                                  className="hover:bg-amber-500/5 transition-all duration-200 animate-fade-in group"
+                                  style={{ animationDelay: `${idx * 50}ms` }}
+                                >
+                                  <TableCell className="font-medium group-hover:text-amber-700 transition-colors">{row.name}</TableCell>
+                                  <TableCell className="text-muted-foreground">
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-100 dark:bg-amber-900/20 text-xs font-medium">
+                                      {row.field}
+                                    </span>
                                   </TableCell>
-                                  <TableCell className="font-semibold text-amber-600">{String(row.newValue)}</TableCell>
+                                  <TableCell className="text-muted-foreground group-hover:scale-105 transition-transform">{String(row.oldValue)}</TableCell>
+                                  <TableCell className="text-center">
+                                    <ArrowRight className="h-4 w-4 text-amber-600 mx-auto group-hover:translate-x-1 transition-transform duration-300" />
+                                  </TableCell>
+                                  <TableCell className="font-semibold text-amber-700 group-hover:scale-105 transition-transform">{String(row.newValue)}</TableCell>
                                 </TableRow>
                               ))}
                             </TableBody>
@@ -1393,31 +1417,42 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
 
                   {/* Product Changes */}
                   {comparisonData.products && comparisonData.products.length > 0 && (
-                    <Alert className="border-blue-500/30 bg-blue-500/5">
-                      <CheckCircle className="h-4 w-4 text-blue-600" />
+                    <Alert className="border-blue-500/30 bg-gradient-to-br from-blue-500/5 to-cyan-500/5 animate-fade-in backdrop-blur-sm">
+                      <CheckCircle className="h-4 w-4 text-blue-600 animate-scale-in" />
                       <AlertDescription className="mt-2">
-                        <h4 className="font-semibold mb-3 text-blue-600">Product Changes</h4>
-                        <div className="bg-background rounded-lg border overflow-hidden">
+                        <h4 className="font-semibold mb-3 text-blue-600 flex items-center gap-2">
+                          <Sparkles className="h-4 w-4" />
+                          Product Changes
+                        </h4>
+                        <div className="bg-background/80 rounded-lg border border-blue-500/20 overflow-hidden shadow-sm">
                           <Table>
                             <TableHeader>
-                              <TableRow>
-                                <TableHead className="w-[30%]">Product Name</TableHead>
-                                <TableHead>Field</TableHead>
-                                <TableHead>Old Value</TableHead>
+                              <TableRow className="bg-gradient-to-r from-blue-500/5 to-cyan-500/5 hover:from-blue-500/10 hover:to-cyan-500/10 transition-all duration-300">
+                                <TableHead className="w-[30%] font-semibold">Product Name</TableHead>
+                                <TableHead className="font-semibold">Field</TableHead>
+                                <TableHead className="font-semibold">Old Value</TableHead>
                                 <TableHead className="w-10 text-center"></TableHead>
-                                <TableHead>New Value</TableHead>
+                                <TableHead className="font-semibold">New Value</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
                               {comparisonData.products.map((row, idx) => (
-                                <TableRow key={idx}>
-                                  <TableCell className="font-medium">{row.name}</TableCell>
-                                  <TableCell className="text-muted-foreground">{row.field}</TableCell>
-                                  <TableCell className="text-muted-foreground">{String(row.oldValue)}</TableCell>
-                                  <TableCell className="text-center">
-                                    <ArrowRight className="h-4 w-4 text-primary mx-auto" />
+                                <TableRow 
+                                  key={idx}
+                                  className="hover:bg-blue-500/5 transition-all duration-200 animate-fade-in group"
+                                  style={{ animationDelay: `${idx * 50}ms` }}
+                                >
+                                  <TableCell className="font-medium group-hover:text-blue-700 transition-colors">{row.name}</TableCell>
+                                  <TableCell className="text-muted-foreground">
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-100 dark:bg-blue-900/20 text-xs font-medium">
+                                      {row.field}
+                                    </span>
                                   </TableCell>
-                                  <TableCell className="font-semibold text-blue-600">{String(row.newValue)}</TableCell>
+                                  <TableCell className="text-muted-foreground group-hover:scale-105 transition-transform">{String(row.oldValue)}</TableCell>
+                                  <TableCell className="text-center">
+                                    <ArrowRight className="h-4 w-4 text-blue-600 mx-auto group-hover:translate-x-1 transition-transform duration-300" />
+                                  </TableCell>
+                                  <TableCell className="font-semibold text-blue-700 group-hover:scale-105 transition-transform">{String(row.newValue)}</TableCell>
                                 </TableRow>
                               ))}
                             </TableBody>
@@ -1429,24 +1464,37 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
 
                   {/* Existing Sites Changes */}
                   {comparisonData.existingSites && comparisonData.existingSites.length > 0 && (
-                    <Alert className="border-purple-500/30 bg-purple-500/5">
-                      <CheckCircle className="h-4 w-4 text-purple-600" />
+                    <Alert className="border-purple-500/30 bg-gradient-to-br from-purple-500/5 to-pink-500/5 animate-fade-in backdrop-blur-sm">
+                      <CheckCircle className="h-4 w-4 text-purple-600 animate-scale-in" />
                       <AlertDescription className="mt-2">
-                        <h4 className="font-semibold mb-3 text-purple-600">Existing Sites Changes</h4>
-                        <div className="bg-background rounded-lg border overflow-hidden">
+                        <h4 className="font-semibold mb-3 text-purple-600 flex items-center gap-2">
+                          <Sparkles className="h-4 w-4" />
+                          Existing Sites Changes
+                        </h4>
+                        <div className="bg-background/80 rounded-lg border border-purple-500/20 overflow-hidden shadow-sm">
                           <Table>
                             <TableHeader>
-                              <TableRow>
-                                <TableHead>Site Name</TableHead>
-                                <TableHead>Action</TableHead>
+                              <TableRow className="bg-gradient-to-r from-purple-500/5 to-pink-500/5 hover:from-purple-500/10 hover:to-pink-500/10 transition-all duration-300">
+                                <TableHead className="font-semibold">Site Name</TableHead>
+                                <TableHead className="font-semibold">Action</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
                               {comparisonData.existingSites.map((row, idx) => (
-                                <TableRow key={idx}>
-                                  <TableCell className="font-medium">{row.name}</TableCell>
-                                  <TableCell className={row.action === 'added' ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
-                                    {row.action === 'added' ? '✓ Added' : '✗ Removed'}
+                                <TableRow 
+                                  key={idx}
+                                  className="hover:bg-purple-500/5 transition-all duration-200 animate-fade-in group"
+                                  style={{ animationDelay: `${idx * 50}ms` }}
+                                >
+                                  <TableCell className="font-medium group-hover:text-purple-700 transition-colors">{row.name}</TableCell>
+                                  <TableCell>
+                                    <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full font-semibold text-sm transition-all group-hover:scale-105 ${
+                                      row.action === 'added' 
+                                        ? 'bg-gradient-to-r from-green-100 to-emerald-100 text-green-700 dark:from-green-900/20 dark:to-emerald-900/20 dark:text-green-400' 
+                                        : 'bg-gradient-to-r from-red-100 to-rose-100 text-red-700 dark:from-red-900/20 dark:to-rose-900/20 dark:text-red-400'
+                                    }`}>
+                                      {row.action === 'added' ? '✓ Added' : '✗ Removed'}
+                                    </span>
                                   </TableCell>
                                 </TableRow>
                               ))}
@@ -1459,29 +1507,40 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
 
                   {/* Cost Parameters Changes */}
                   {comparisonData.settings && comparisonData.settings.changes.length > 0 && (
-                    <Alert className="border-orange-500/30 bg-orange-500/5">
-                      <CheckCircle className="h-4 w-4 text-orange-600" />
+                    <Alert className="border-orange-500/30 bg-gradient-to-br from-orange-500/5 to-amber-500/5 animate-fade-in backdrop-blur-sm">
+                      <CheckCircle className="h-4 w-4 text-orange-600 animate-scale-in" />
                       <AlertDescription className="mt-2">
-                        <h4 className="font-semibold mb-3 text-orange-600">Cost Parameters Changes</h4>
-                        <div className="bg-background rounded-lg border overflow-hidden">
+                        <h4 className="font-semibold mb-3 text-orange-600 flex items-center gap-2">
+                          <Sparkles className="h-4 w-4" />
+                          Cost Parameters Changes
+                        </h4>
+                        <div className="bg-background/80 rounded-lg border border-orange-500/20 overflow-hidden shadow-sm">
                           <Table>
                             <TableHeader>
-                              <TableRow>
-                                <TableHead>Parameter</TableHead>
-                                <TableHead>Old Value</TableHead>
+                              <TableRow className="bg-gradient-to-r from-orange-500/5 to-amber-500/5 hover:from-orange-500/10 hover:to-amber-500/10 transition-all duration-300">
+                                <TableHead className="font-semibold">Parameter</TableHead>
+                                <TableHead className="font-semibold">Old Value</TableHead>
                                 <TableHead className="w-10 text-center"></TableHead>
-                                <TableHead>New Value</TableHead>
+                                <TableHead className="font-semibold">New Value</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
                               {comparisonData.settings.changes.map((row, idx) => (
-                                <TableRow key={idx}>
-                                  <TableCell className="font-medium">{row.field}</TableCell>
-                                  <TableCell className="text-muted-foreground">{String(row.oldValue)}</TableCell>
-                                  <TableCell className="text-center">
-                                    <ArrowRight className="h-4 w-4 text-primary mx-auto" />
+                                <TableRow 
+                                  key={idx}
+                                  className="hover:bg-orange-500/5 transition-all duration-200 animate-fade-in group"
+                                  style={{ animationDelay: `${idx * 50}ms` }}
+                                >
+                                  <TableCell className="font-medium group-hover:text-orange-700 transition-colors">
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-orange-100 dark:bg-orange-900/20 text-xs font-medium">
+                                      {row.field}
+                                    </span>
                                   </TableCell>
-                                  <TableCell className="font-semibold text-orange-600">{String(row.newValue)}</TableCell>
+                                  <TableCell className="text-muted-foreground group-hover:scale-105 transition-transform">{String(row.oldValue)}</TableCell>
+                                  <TableCell className="text-center">
+                                    <ArrowRight className="h-4 w-4 text-orange-600 mx-auto group-hover:translate-x-1 transition-transform duration-300" />
+                                  </TableCell>
+                                  <TableCell className="font-semibold text-orange-700 group-hover:scale-105 transition-transform">{String(row.newValue)}</TableCell>
                                 </TableRow>
                               ))}
                             </TableBody>
