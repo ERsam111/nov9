@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ChevronDown, FolderOpen, GitBranch, Plus, Trash2, Pencil, Download } from "lucide-react";
+import { ChevronDown, FolderOpen, Layers, Plus, Trash2, Pencil, Download } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -318,7 +318,7 @@ export const ProjectScenarioNav = ({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="gap-2 bg-background hover:bg-accent">
-                  <GitBranch className="h-4 w-4" />
+                  <Layers className="h-4 w-4" />
                   <span className="font-semibold">
                     {currentScenario ? currentScenario.name : "Select Scenario"}
                   </span>

@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Send, Bot, User, Loader2, Trash2, Mic, MicOff, Sparkles, Database, Play, CheckCircle, ArrowRight } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
@@ -931,19 +932,60 @@ export function DataSupportPanel({ customers, products, dcs, settings, existingS
           </div>
         </div>
         
-        {/* Tabs for Insights and Transformation */}
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "insights" | "transformation")} className="mt-4">
-          <TabsList className="grid w-full max-w-md grid-cols-2">
-            <TabsTrigger value="insights" className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4" />
-              Insights
-            </TabsTrigger>
-            <TabsTrigger value="transformation" className="flex items-center gap-2">
-              <Database className="h-4 w-4" />
-              Transformation
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+        {/* Mode Selection with Checkboxes */}
+        <div className="mt-4 space-y-3">
+          <Label className="text-sm font-medium">Mode Selection</Label>
+          <div className="flex gap-4">
+            <button
+              onClick={() => setActiveTab("insights")}
+              className={`flex-1 flex items-center gap-3 p-4 rounded-lg border-2 transition-all duration-300 ${
+                activeTab === "insights"
+                  ? "border-primary bg-primary/10 shadow-md scale-105"
+                  : "border-border hover:border-primary/50 hover:bg-accent/50"
+              }`}
+            >
+              <div className={`h-5 w-5 rounded border-2 flex items-center justify-center transition-all ${
+                activeTab === "insights" 
+                  ? "border-primary bg-primary" 
+                  : "border-muted-foreground"
+              }`}>
+                {activeTab === "insights" && (
+                  <CheckCircle className="h-4 w-4 text-primary-foreground animate-scale-in" />
+                )}
+              </div>
+              <div className="flex items-center gap-2 flex-1">
+                <Sparkles className={`h-4 w-4 transition-colors ${activeTab === "insights" ? "text-primary" : "text-muted-foreground"}`} />
+                <span className={`font-medium transition-colors ${activeTab === "insights" ? "text-foreground" : "text-muted-foreground"}`}>
+                  Insights
+                </span>
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab("transformation")}
+              className={`flex-1 flex items-center gap-3 p-4 rounded-lg border-2 transition-all duration-300 ${
+                activeTab === "transformation"
+                  ? "border-primary bg-primary/10 shadow-md scale-105"
+                  : "border-border hover:border-primary/50 hover:bg-accent/50"
+              }`}
+            >
+              <div className={`h-5 w-5 rounded border-2 flex items-center justify-center transition-all ${
+                activeTab === "transformation" 
+                  ? "border-primary bg-primary" 
+                  : "border-muted-foreground"
+              }`}>
+                {activeTab === "transformation" && (
+                  <CheckCircle className="h-4 w-4 text-primary-foreground animate-scale-in" />
+                )}
+              </div>
+              <div className="flex items-center gap-2 flex-1">
+                <Database className={`h-4 w-4 transition-colors ${activeTab === "transformation" ? "text-primary" : "text-muted-foreground"}`} />
+                <span className={`font-medium transition-colors ${activeTab === "transformation" ? "text-foreground" : "text-muted-foreground"}`}>
+                  Transformation
+                </span>
+              </div>
+            </button>
+          </div>
+        </div>
       </CardHeader>
 
       <CardContent className="flex-1 flex flex-col p-0 overflow-hidden">
