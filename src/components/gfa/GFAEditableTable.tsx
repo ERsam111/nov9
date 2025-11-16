@@ -583,9 +583,9 @@ export function GFAEditableTable({
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto relative">
-        <div className="w-full h-full overflow-auto">
-          <Table className="min-w-full relative" style={{ paddingLeft: '112px' }}>
+      <div className="flex-1 overflow-x-hidden overflow-y-auto relative">
+        <div className="w-full h-full overflow-x-hidden overflow-y-auto">
+          <Table className="w-full relative" style={{ paddingLeft: '112px' }}>
             <TableHeader className="sticky top-0 z-30 bg-background shadow-sm">
               <TableRow className="bg-background">
                 <TableHead 
