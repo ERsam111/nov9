@@ -62,7 +62,7 @@ export function GFAResultsPanel({
   };
 
   return (
-    <div className="max-w-[calc(100vw-300px)] overflow-x-hidden">
+    <div className="w-full">
     <Tabs defaultValue="overview" className="space-y-6">
       <div className="flex justify-between items-center">
         <TabsList>
