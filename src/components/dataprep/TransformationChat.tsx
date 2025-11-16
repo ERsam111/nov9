@@ -9,14 +9,18 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 interface TransformationChatProps {
-  scenario: any;
+  project: any;
   rawData: any[];
   currentData: any[];
+  targetModule: 'gfa' | 'inventory' | 'forecasting';
+  dataUnderstanding: string;
   onTransformation: (newData: any[], sqlQuery: string, description: string) => void;
 }
 
-export const TransformationChat = ({ scenario, rawData, currentData, onTransformation }: TransformationChatProps) => {
-  const [messages, setMessages] = useState<any[]>([]);
+export const TransformationChat = ({ project, rawData, currentData, targetModule, dataUnderstanding, onTransformation }: TransformationChatProps) => {
+  const [messages, setMessages] = useState<any[]>([
+    { role: 'assistant', content: dataUnderstanding }
+  ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [model, setModel] = useState('google/gemini-2.5-flash');
@@ -42,6 +46,7 @@ export const TransformationChat = ({ scenario, rawData, currentData, onTransform
           prompt: input,
           currentData,
           columns: Object.keys(currentData[0] || {}),
+          targetModule,
           model
         }
       });

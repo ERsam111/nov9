@@ -8,10 +8,10 @@ import * as XLSX from 'xlsx';
 
 interface DataUploadPanelProps {
   onDataUpload: (data: any[]) => void;
-  scenario: any;
+  project: any;
 }
 
-export const DataUploadPanel = ({ onDataUpload, scenario }: DataUploadPanelProps) => {
+export const DataUploadPanel = ({ onDataUpload, project }: DataUploadPanelProps) => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [fileInfo, setFileInfo] = useState<any>(null);
 
