@@ -13,6 +13,7 @@ import NetworkAnalysis from "./pages/NetworkAnalysis";
 import NotFound from "./pages/NotFound";
 import InventoryOptimizationV2 from "./pages/InventoryOptimizationV2";
 import ProductionPlanning from "./pages/ProductionPlanning";
+import DataPreparation from "./pages/DataPreparation";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ProjectProvider } from "./contexts/ProjectContext";
 import { ScenarioProvider } from "./contexts/ScenarioContext";
@@ -37,6 +38,7 @@ const App = () => (
               <Route path="/network" element={<NetworkAnalysis />} />
               <Route path="/inventory-optimization-v2" element={<InventoryOptimizationV2 />} />
               <Route path="/production-planning" element={<ProductionPlanning />} />
+              <Route path="/data-preparation" element={<DataPreparation />} />
               <Route path="/project-management" element={<ProjectManagement />} />
             </Route>
             <Route path="*" element={<NotFound />} />

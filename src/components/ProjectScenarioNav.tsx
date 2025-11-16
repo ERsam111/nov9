@@ -31,7 +31,7 @@ import { toast } from "sonner";
 interface ProjectScenarioNavProps {
   currentProjectId?: string;
   currentScenarioId?: string;
-  moduleType: 'gfa' | 'forecasting' | 'network' | 'inventory';
+  moduleType: 'gfa' | 'forecasting' | 'network' | 'inventory' | 'data_preparation';
   moduleName: string;
   onProjectChange?: (project: Project) => void;
   onScenarioChange?: (scenario: Scenario) => void;

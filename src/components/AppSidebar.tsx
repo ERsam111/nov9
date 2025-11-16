@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { MapPin, TrendingUp, Network, Gauge, Home, User, FolderOpen, Plus, ChevronDown, Calendar, HardDrive, Trash2, MoreVertical, Pencil, Database, Filter, FolderKanban } from 'lucide-react';
+import { MapPin, TrendingUp, Network, Gauge, Home, User, FolderOpen, Plus, ChevronDown, Calendar, HardDrive, Trash2, MoreVertical, Pencil, Database, Filter, FolderKanban, Sparkles } from 'lucide-react';
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, useSidebar } from '@/components/ui/sidebar';
 import { useProjects } from '@/contexts/ProjectContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -41,6 +41,11 @@ const navigationItems = [{
   url: '/inventory-optimization-v2',
   icon: Gauge,
   type: 'inventory' as const
+}, {
+  title: 'Data Preparation',
+  url: '/data-preparation',
+  icon: Sparkles,
+  type: 'data_preparation' as const
 }];
 export function AppSidebar() {
   const {
@@ -91,7 +96,8 @@ export function AppSidebar() {
       gfa: '/gfa',
       forecasting: '/demand-forecasting',
       network: '/network',
-      inventory: '/inventory-optimization-v2'
+      inventory: '/inventory-optimization-v2',
+      data_preparation: '/data-preparation'
     };
     const route = routeMap[toolType] || '/dashboard';
     // Navigate with project ID in state
