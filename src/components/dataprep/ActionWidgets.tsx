@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { 
   Filter, ArrowUpDown, Columns, Edit2, Type, Calculator, 
   Layers, Users, Droplet, Columns3, Link2, GitMerge, GitBranch,
-  Table2, Shuffle, ListFilter, ArrowDownUp, BarChart3, Download
+  Table2, Shuffle, ListFilter, Replace, BarChart3, Download
 } from 'lucide-react';
 import { ActionWidget } from '@/types/dataprep';
 import { cn } from '@/lib/utils';
@@ -30,7 +30,7 @@ const widgets: ActionWidget[] = [
   { type: 'pivot', name: 'Pivot', icon: 'Table2', description: 'Turn rows into columns', category: 'advanced' },
   { type: 'unpivot', name: 'Unpivot', icon: 'Shuffle', description: 'Turn columns into rows', category: 'advanced' },
   { type: 'sample', name: 'Sample / Limit', icon: 'ListFilter', description: 'Limit or sample rows', category: 'basic' },
-  { type: 'conditionalReplace', name: 'Conditional Replace', icon: 'ArrowDownUp', description: 'Find and replace values', category: 'transform' },
+  { type: 'conditionalReplace', name: 'Conditional Replace', icon: 'Replace', description: 'Find and replace values', category: 'transform' },
   { type: 'reorderColumns', name: 'Reorder Columns', icon: 'ArrowUpDown', description: 'Change column order', category: 'basic' },
   { type: 'dataProfile', name: 'Data Profile', icon: 'BarChart3', description: 'Show stats and validation', category: 'advanced' },
   { type: 'exportDataset', name: 'Export Dataset', icon: 'Download', description: 'Save or download data', category: 'export' },
@@ -39,7 +39,7 @@ const widgets: ActionWidget[] = [
 const iconMap: Record<string, any> = {
   Columns, Filter, ArrowUpDown, Edit2, Type, Calculator, Layers, Users,
   Droplet, Columns3, Link2, GitMerge, GitBranch, Table2, Shuffle,
-  ListFilter, ArrowDownUp, BarChart3, Download
+  ListFilter, Replace, BarChart3, Download
 };
 
 const categoryColors: Record<string, string> = {
