@@ -1,0 +1,320 @@
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Play, Upload } from 'lucide-react';
+import { DataStep, ColumnInfo, DatasetPreview } from '@/types/dataprep';
+import { ActionWidgets } from './ActionWidgets';
+import { StepPipeline } from './StepPipeline';
+import { StepConfig } from './StepConfig';
+import { ColumnPanel } from './ColumnPanel';
+import { Input } from '@/components/ui/input';
+import * as XLSX from 'xlsx';
+import { toast } from 'sonner';
+
+interface DataPipelineWorkflowProps {
+  project: any;
+}
+
+export const DataPipelineWorkflow = ({ project }: DataPipelineWorkflowProps) => {
+  const [steps, setSteps] = useState<DataStep[]>([]);
+  const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
+  const [sourceData, setSourceData] = useState<any[] | null>(null);
+  const [currentData, setCurrentData] = useState<any[] | null>(null);
+  const [columns, setColumns] = useState<ColumnInfo[]>([]);
+
+  const selectedStep = steps.find((s) => s.id === selectedStepId) || null;
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const data = e.target?.result;
+        const workbook = XLSX.read(data, { type: 'binary' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+        if (jsonData.length === 0) {
+          toast.error('No data found in file');
+          return;
+        }
+
+        const cols: ColumnInfo[] = Object.keys(jsonData[0]).map((name) => ({
+          name,
+          type: inferType(jsonData[0][name]),
+          sampleValue: jsonData[0][name],
+        }));
+
+        setSourceData(jsonData);
+        setCurrentData(jsonData);
+        setColumns(cols);
+        toast.success(`Loaded ${jsonData.length} rows from ${file.name}`);
+      };
+      reader.readAsBinaryString(file);
+    } catch (error) {
+      toast.error('Failed to load file');
+      console.error(error);
+    }
+  };
+
+  const inferType = (value: any): ColumnInfo['type'] => {
+    if (value === null || value === undefined) return 'string';
+    if (typeof value === 'number') {
+      return Number.isInteger(value) ? 'integer' : 'number';
+    }
+    if (typeof value === 'boolean') return 'boolean';
+    if (!isNaN(Date.parse(value))) return 'date';
+    return 'string';
+  };
+
+  const handleAddStep = (type: string) => {
+    const newStep: DataStep = {
+      id: `step-${Date.now()}`,
+      type: type as any,
+      label: type.replace(/([A-Z])/g, ' $1').trim(),
+      isActive: true,
+      config: {},
+      usedColumns: [],
+      order: steps.length,
+    };
+    setSteps([...steps, newStep]);
+    setSelectedStepId(newStep.id);
+    toast.success('Step added to pipeline');
+  };
+
+  const handleStepUpdate = (stepId: string, updates: Partial<DataStep>) => {
+    setSteps(steps.map((s) => (s.id === stepId ? { ...s, ...updates } : s)));
+  };
+
+  const handleConfigUpdate = (config: any) => {
+    if (!selectedStepId) return;
+    const step = steps.find((s) => s.id === selectedStepId);
+    if (!step) return;
+
+    // Extract used columns from config
+    let usedColumns: string[] = [];
+    if (config.columns) usedColumns = config.columns;
+    if (config.conditions) usedColumns = config.conditions.map((c: any) => c.column).filter(Boolean);
+    if (config.sortKeys) usedColumns = config.sortKeys.map((k: any) => k.column).filter(Boolean);
+    if (config.groupBy) usedColumns = [...config.groupBy, ...(config.aggregations || []).map((a: any) => a.column)];
+
+    // Handle label update
+    if (config._label !== undefined) {
+      handleStepUpdate(selectedStepId, { label: config._label, config: { ...step.config, ...config } });
+      return;
+    }
+
+    handleStepUpdate(selectedStepId, { config, usedColumns });
+  };
+
+  const handleStepDelete = (stepId: string) => {
+    setSteps(steps.filter((s) => s.id !== stepId).map((s, i) => ({ ...s, order: i })));
+    if (selectedStepId === stepId) setSelectedStepId(null);
+    toast.success('Step deleted');
+  };
+
+  const handleStepDuplicate = (stepId: string) => {
+    const step = steps.find((s) => s.id === stepId);
+    if (!step) return;
+    const newStep = { ...step, id: `step-${Date.now()}`, order: steps.length };
+    setSteps([...steps, newStep]);
+    toast.success('Step duplicated');
+  };
+
+  const handleStepReorder = (stepId: string, newOrder: number) => {
+    const oldIndex = steps.findIndex((s) => s.id === stepId);
+    const newIndex = steps.findIndex((s) => s.order === newOrder);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reordered = [...steps];
+    const [movedStep] = reordered.splice(oldIndex, 1);
+    reordered.splice(newIndex, 0, movedStep);
+    setSteps(reordered.map((s, i) => ({ ...s, order: i })));
+  };
+
+  const handleRunToStep = (stepId: string) => {
+    if (!sourceData) {
+      toast.error('Please upload data first');
+      return;
+    }
+    // Mock execution - in production this would process data through steps
+    toast.success('Executed steps up to this point');
+    setCurrentData(sourceData);
+  };
+
+  const handleRunAll = () => {
+    if (!sourceData) {
+      toast.error('Please upload data first');
+      return;
+    }
+    toast.success(`Executed ${steps.filter((s) => s.isActive).length} active steps`);
+    setCurrentData(sourceData);
+  };
+
+  const handleColumnAction = (action: 'filter' | 'sort' | 'rename' | 'delete', columnName: string) => {
+    let newStep: DataStep;
+    switch (action) {
+      case 'filter':
+        newStep = {
+          id: `step-${Date.now()}`,
+          type: 'filterRows',
+          label: `Filter by ${columnName}`,
+          isActive: true,
+          config: { conditions: [{ column: columnName, operator: 'equals', value: '' }], logic: 'AND' },
+          usedColumns: [columnName],
+          order: steps.length,
+        };
+        break;
+      case 'sort':
+        newStep = {
+          id: `step-${Date.now()}`,
+          type: 'sortRows',
+          label: `Sort by ${columnName}`,
+          isActive: true,
+          config: { sortKeys: [{ column: columnName, direction: 'asc' }] },
+          usedColumns: [columnName],
+          order: steps.length,
+        };
+        break;
+      case 'rename':
+        newStep = {
+          id: `step-${Date.now()}`,
+          type: 'renameColumn',
+          label: `Rename ${columnName}`,
+          isActive: true,
+          config: { renames: { [columnName]: '' } },
+          usedColumns: [columnName],
+          order: steps.length,
+        };
+        break;
+      case 'delete':
+        newStep = {
+          id: `step-${Date.now()}`,
+          type: 'selectColumns',
+          label: `Drop ${columnName}`,
+          isActive: true,
+          config: { mode: 'drop', columns: [columnName] },
+          usedColumns: [columnName],
+          order: steps.length,
+        };
+        break;
+    }
+    setSteps([...steps, newStep]);
+    setSelectedStepId(newStep.id);
+    toast.success(`Added ${action} step for ${columnName}`);
+  };
+
+  return (
+    <div className="h-screen flex flex-col p-4 gap-4">
+      {/* Top Action Bar */}
+      <Card className="border-2">
+        <CardContent className="py-3 px-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Input
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                onChange={handleFileUpload}
+                className="w-64"
+                id="file-upload"
+              />
+              <label htmlFor="file-upload">
+                <Button variant="outline" size="sm" asChild>
+                  <span>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload Data
+                  </span>
+                </Button>
+              </label>
+            </div>
+            <Button onClick={handleRunAll} disabled={!sourceData || steps.length === 0}>
+              <Play className="h-4 w-4 mr-2" />
+              Run All Steps
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Main Workspace */}
+      <div className="flex-1 grid grid-cols-12 gap-4 min-h-0">
+        {/* Left: Action Widgets */}
+        <div className="col-span-2 overflow-hidden">
+          <ActionWidgets onAddStep={handleAddStep} />
+        </div>
+
+        {/* Center: Step Pipeline */}
+        <div className="col-span-5 overflow-hidden">
+          <Card className="h-full border-2">
+            <ScrollArea className="h-full">
+              <StepPipeline
+                steps={steps}
+                selectedStepId={selectedStepId}
+                onStepSelect={setSelectedStepId}
+                onStepUpdate={handleStepUpdate}
+                onStepDelete={handleStepDelete}
+                onStepDuplicate={handleStepDuplicate}
+                onStepReorder={handleStepReorder}
+                onRunToStep={handleRunToStep}
+              />
+            </ScrollArea>
+          </Card>
+        </div>
+
+        {/* Right: Step Config + Column Panel */}
+        <div className="col-span-5 overflow-hidden flex flex-col gap-4">
+          <StepConfig
+            step={selectedStep}
+            columns={columns}
+            onConfigUpdate={handleConfigUpdate}
+          />
+          {columns.length > 0 && (
+            <ColumnPanel
+              columns={columns}
+              usedColumns={selectedStep?.usedColumns || []}
+              onColumnAction={handleColumnAction}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* Bottom: Data Preview */}
+      {currentData && (
+        <Card className="border-2 h-80">
+          <CardContent className="p-0 h-full">
+            <ScrollArea className="h-full">
+              <Table>
+                <TableHeader className="sticky top-0 bg-background z-10">
+                  <TableRow>
+                    {columns.map((col) => (
+                      <TableHead key={col.name} className="font-semibold whitespace-nowrap">
+                        {col.name}
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {currentData.slice(0, 100).map((row, idx) => (
+                    <TableRow key={idx}>
+                      {columns.map((col) => (
+                        <TableCell key={col.name} className="whitespace-nowrap">
+                          {row[col.name] !== null && row[col.name] !== undefined
+                            ? String(row[col.name])
+                            : <span className="text-muted-foreground italic">(empty)</span>}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+};
