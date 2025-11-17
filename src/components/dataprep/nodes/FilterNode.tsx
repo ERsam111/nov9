@@ -40,12 +40,18 @@ export type FilterDataset = {
 };
 
 export type FilterNodeData = {
+  // full dataset from previous node (ideal)
   dataset?: FilterDataset;
 
-  // optional initial config (from saved scenario)
+  // optional config (for saving scenarios)
   config?: Partial<FilterConfig>;
 
-  // called whenever filter changes + filtered dataset recalculated
+  // OPTIONAL: if you don’t have dataset, you can just pass columns:
+  // headers?: string[];
+  // columns?: string[];
+  // availableColumns?: string[];
+
+  // optional callback if you want filtered data back in parent
   onFilterChange?: (
     nodeId: string,
     payload: {
@@ -54,14 +60,10 @@ export type FilterNodeData = {
       output: FilterDataset;
     },
   ) => void;
-
-  // OPTIONAL: if you don't pass dataset yet, you can pass columns directly:
-  // headers?: string[];
-  // columns?: string[];
-  // availableColumns?: string[];
 };
 
-// ---- helper functions ----
+// ---------- helpers ----------
+
 const createDefaultCondition = (column = ""): FilterCondition => ({
   id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
   column,
@@ -112,29 +114,17 @@ const evaluateCondition = (
   const vStr = value == null ? "" : String(value);
   const tStr = target ?? "";
 
-  // numeric comparison if possible
   const vNum = typeof value === "number" ? value : Number(vStr);
   const tNum = Number(tStr);
   const bothNumeric = !Number.isNaN(vNum) && !Number.isNaN(tNum);
 
-  if (op === "eq") {
-    return bothNumeric ? vNum === tNum : vStr === tStr;
-  }
-  if (op === "neq") {
-    return bothNumeric ? vNum !== tNum : vStr !== tStr;
-  }
-  if (op === "gt") {
-    return bothNumeric ? vNum > tNum : vStr > tStr;
-  }
-  if (op === "gte") {
-    return bothNumeric ? vNum >= tNum : vStr >= tStr;
-  }
-  if (op === "lt") {
-    return bothNumeric ? vNum < tNum : vStr < tNum;
-  }
-  if (op === "lte") {
-    return bothNumeric ? vNum <= tNum : vStr <= tNum;
-  }
+  if (op === "eq") return bothNumeric ? vNum === tNum : vStr === tStr;
+  if (op === "neq") return bothNumeric ? vNum !== tNum : vStr !== tStr;
+  if (op === "gt") return bothNumeric ? vNum > tNum : vStr > tNum;
+  if (op === "gte") return bothNumeric ? vNum >= tNum : vStr >= tNum;
+  if (op === "lt") return bothNumeric ? vNum < tNum : vStr < tNum;
+  if (op === "lte") return bothNumeric ? vNum <= tNum : vStr <= tNum;
+
   if (op === "contains") {
     return vStr.toLowerCase().includes(tStr.toLowerCase());
   }
@@ -181,38 +171,44 @@ const applyFilter = (dataset: FilterDataset, config: FilterConfig): FilterDatase
   };
 };
 
-export const FilterNode = memo(({ id, data, selected }: NodeProps<FilterNodeData>) => {
-  const dataset = data?.dataset;
+// ---------- node component ----------
 
+export const FilterNode = memo(({ id, data, selected }: NodeProps<FilterNodeData>) => {
   // 1) Try columns from dataset.headers
+  const dataset = data?.dataset;
   const datasetHeaders = dataset?.headers ?? [];
 
-  // 2) Fallback columns from data.headers / data.columns / data.availableColumns
+  // 2) Fallback: columns passed directly on data
   const manualHeaders: string[] =
     ((data as any)?.headers as string[] | undefined) ??
     ((data as any)?.columns as string[] | undefined) ??
     ((data as any)?.availableColumns as string[] | undefined) ??
     [];
 
-  // 3) Final headers used by UI
+  // 3) Final headers for UI
   const headers: string[] = datasetHeaders.length > 0 ? datasetHeaders : manualHeaders;
 
   const hasDataset = !!dataset && datasetHeaders.length > 0;
+
+  // 🔍 helpful dev log so you can see what this node receives
+  useEffect(() => {
+    // eslint-disable-next-line no-console
+    console.log("FilterNode data for node", id, { data, headers, dataset });
+  }, [id, data, headers.length]);
 
   const [config, setConfig] = useState<FilterConfig>(() => normalizeConfig(data?.config, headers));
   const [filteredRowCount, setFilteredRowCount] = useState<number>(dataset?.rows?.length ?? 0);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-  // keep config synced with incoming headers (e.g., when new dataset arrives)
+  // keep config in sync when headers change
   useEffect(() => {
     if (!headers.length) return;
     setConfig((prev) => normalizeConfig(prev, headers));
   }, [headers.length]);
 
-  // recompute filtered dataset whenever dataset or config changes
+  // recompute whenever dataset or config changes
   useEffect(() => {
     if (!hasDataset || !dataset) {
-      // if no dataset (only manual headers), we can still update message
       const summary =
         config.enabled && config.conditions.length
           ? `${config.conditions.length} condition${
@@ -242,6 +238,7 @@ export const FilterNode = memo(({ id, data, selected }: NodeProps<FilterNodeData
   }, [config, dataset, hasDataset, data, id]);
 
   // ---- handlers ----
+
   const handleToggleEnabled = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     const enabled = e.target.checked;
     setConfig((prev) => ({ ...prev, enabled }));
@@ -252,24 +249,24 @@ export const FilterNode = memo(({ id, data, selected }: NodeProps<FilterNodeData
     setConfig((prev) => ({ ...prev, logic }));
   }, []);
 
-  const handleConditionColumnChange = useCallback((idCond: string, column: string) => {
+  const handleConditionColumnChange = useCallback((condId: string, column: string) => {
     setConfig((prev) => ({
       ...prev,
-      conditions: prev.conditions.map((c) => (c.id === idCond ? { ...c, column } : c)),
+      conditions: prev.conditions.map((c) => (c.id === condId ? { ...c, column } : c)),
     }));
   }, []);
 
-  const handleConditionOperatorChange = useCallback((idCond: string, operator: FilterOperator) => {
+  const handleConditionOperatorChange = useCallback((condId: string, operator: FilterOperator) => {
     setConfig((prev) => ({
       ...prev,
-      conditions: prev.conditions.map((c) => (c.id === idCond ? { ...c, operator } : c)),
+      conditions: prev.conditions.map((c) => (c.id === condId ? { ...c, operator } : c)),
     }));
   }, []);
 
-  const handleConditionValueChange = useCallback((idCond: string, value: string) => {
+  const handleConditionValueChange = useCallback((condId: string, value: string) => {
     setConfig((prev) => ({
       ...prev,
-      conditions: prev.conditions.map((c) => (c.id === idCond ? { ...c, value } : c)),
+      conditions: prev.conditions.map((c) => (c.id === condId ? { ...c, value } : c)),
     }));
   }, []);
 
@@ -281,9 +278,9 @@ export const FilterNode = memo(({ id, data, selected }: NodeProps<FilterNodeData
   }, [headers]);
 
   const handleRemoveCondition = useCallback(
-    (idCond: string) => {
+    (condId: string) => {
       setConfig((prev) => {
-        const next = prev.conditions.filter((c) => c.id !== idCond);
+        const next = prev.conditions.filter((c) => c.id !== condId);
         return {
           ...prev,
           conditions: next.length ? next : [createDefaultCondition(headers[0] ?? "")],
@@ -317,29 +314,20 @@ export const FilterNode = memo(({ id, data, selected }: NodeProps<FilterNodeData
         </label>
       </div>
 
-      {/* No columns / dataset state */}
+      {/* No columns at all */}
       {!headers.length && (
         <div className="mt-2 text-[10px] text-muted-foreground flex items-start gap-1">
           <AlertCircle className="h-3 w-3 text-yellow-500 mt-[2px]" />
           <span>
-            No columns available. Make sure you pass either
-            <code className="mx-0.5">data.dataset.headers</code> or
-            <code className="mx-0.5">data.headers</code>.
+            No columns found. Pass <code className="mx-0.5">data.dataset.headers</code> or{" "}
+            <code className="mx-0.5">data.headers</code> /<code className="mx-0.5">data.columns</code>.
           </span>
         </div>
       )}
 
-      {/* No dataset but we do have headers */}
-      {!hasDataset && headers.length > 0 && (
-        <div className="mt-2 text-[10px] text-muted-foreground">
-          Columns loaded, but no data rows yet. Filter config can still be set.
-        </div>
-      )}
-
-      {/* Main controls (only when we have headers) */}
+      {/* Info when headers exist */}
       {headers.length > 0 && (
         <>
-          {/* Summary */}
           <div className="mt-2 text-[9px] text-muted-foreground flex justify-between gap-2">
             <span>
               In: {inputRows} r × {inputCols} c
@@ -347,11 +335,9 @@ export const FilterNode = memo(({ id, data, selected }: NodeProps<FilterNodeData
             {hasDataset && <span>Out: {filteredRowCount} r</span>}
           </div>
 
-          {/* Logic */}
+          {/* Logic selector */}
           <div className="mt-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[9px] uppercase tracking-wide text-muted-foreground">Logic</span>
-            </div>
+            <span className="text-[9px] uppercase tracking-wide text-muted-foreground">Logic</span>
             <select
               className="mt-0.5 w-full rounded border bg-background text-[10px] px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary"
               value={config.logic}
@@ -387,6 +373,7 @@ export const FilterNode = memo(({ id, data, selected }: NodeProps<FilterNodeData
                       </button>
                     )}
                   </div>
+
                   <div className="flex items-center gap-1">
                     {/* Column */}
                     <select
@@ -452,7 +439,7 @@ export const FilterNode = memo(({ id, data, selected }: NodeProps<FilterNodeData
         </>
       )}
 
-      {/* Small status line (hover) */}
+      {/* Hover status line */}
       <div className="text-[10px] text-muted-foreground mt-1 truncate opacity-0 group-hover:opacity-100 transition-opacity">
         {statusMessage || "No filter"}
       </div>
