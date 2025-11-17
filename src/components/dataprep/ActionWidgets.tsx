@@ -3,7 +3,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { 
   Filter, ArrowUpDown, Columns, Edit2, Type, Calculator, 
-  Group, Users, Droplet, Split, Merge, GitMerge, GitBranch,
+  Layers, Users, Droplet, Columns3, Link2, GitMerge, GitBranch,
   Table2, Shuffle, ListFilter, ArrowDownUp, BarChart3, Download
 } from 'lucide-react';
 import { ActionWidget } from '@/types/dataprep';
@@ -20,14 +20,14 @@ const widgets: ActionWidget[] = [
   { type: 'renameColumn', name: 'Rename Column', icon: 'Edit2', description: 'Change column names', category: 'basic' },
   { type: 'changeType', name: 'Change Data Type', icon: 'Type', description: 'Convert column types', category: 'transform' },
   { type: 'calculatedColumn', name: 'Calculated Column', icon: 'Calculator', description: 'Create from formula', category: 'transform' },
-  { type: 'groupAggregate', name: 'Group & Aggregate', icon: 'Group', description: 'Group and compute aggregates', category: 'transform' },
+  { type: 'groupAggregate', name: 'Group & Aggregate', icon: 'Layers', description: 'Group and compute aggregates', category: 'transform' },
   { type: 'removeDuplicates', name: 'Remove Duplicates', icon: 'Users', description: 'Drop duplicate rows', category: 'basic' },
   { type: 'fillMissing', name: 'Fill Missing Values', icon: 'Droplet', description: 'Handle null values', category: 'transform' },
-  { type: 'splitColumn', name: 'Split Column', icon: 'Split', description: 'Split into multiple columns', category: 'transform' },
-  { type: 'mergeColumns', name: 'Merge Columns', icon: 'Merge', description: 'Combine columns', category: 'transform' },
+  { type: 'splitColumn', name: 'Split Column', icon: 'Columns3', description: 'Split into multiple columns', category: 'transform' },
+  { type: 'mergeColumns', name: 'Merge Columns', icon: 'Link2', description: 'Combine columns', category: 'transform' },
   { type: 'joinDatasets', name: 'Join Datasets', icon: 'GitMerge', description: 'Join with another dataset', category: 'combine' },
   { type: 'unionDatasets', name: 'Union Datasets', icon: 'GitBranch', description: 'Append rows from dataset', category: 'combine' },
-  { type: 'pivot', name: 'Pivot', icon: 'PivotTable', description: 'Turn rows into columns', category: 'advanced' },
+  { type: 'pivot', name: 'Pivot', icon: 'Table2', description: 'Turn rows into columns', category: 'advanced' },
   { type: 'unpivot', name: 'Unpivot', icon: 'Shuffle', description: 'Turn columns into rows', category: 'advanced' },
   { type: 'sample', name: 'Sample / Limit', icon: 'ListFilter', description: 'Limit or sample rows', category: 'basic' },
   { type: 'conditionalReplace', name: 'Conditional Replace', icon: 'ArrowDownUp', description: 'Find and replace values', category: 'transform' },
@@ -37,8 +37,8 @@ const widgets: ActionWidget[] = [
 ];
 
 const iconMap: Record<string, any> = {
-  Columns, Filter, ArrowUpDown, Edit2, Type, Calculator, Group, Users,
-  Droplet, Split, Merge, GitMerge, GitBranch, Table2, Shuffle,
+  Columns, Filter, ArrowUpDown, Edit2, Type, Calculator, Layers, Users,
+  Droplet, Columns3, Link2, GitMerge, GitBranch, Table2, Shuffle,
   ListFilter, ArrowDownUp, BarChart3, Download
 };
 
