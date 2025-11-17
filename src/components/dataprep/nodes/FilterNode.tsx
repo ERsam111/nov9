@@ -1,10 +1,4 @@
-import {
-  memo,
-  useState,
-  useCallback,
-  useEffect,
-  ChangeEvent,
-} from "react";
+import { memo, useState, useCallback, useEffect, ChangeEvent } from "react";
 import { Handle, Position, NodeProps } from "@xyflow/react";
 import { Filter as FilterIcon, X, AlertCircle } from "lucide-react";
 
@@ -52,11 +46,14 @@ export type FilterNodeData = {
   config?: Partial<FilterConfig>;
 
   // called whenever filter changes + filtered dataset recalculated
-  onFilterChange?: (nodeId: string, payload: {
-    config: FilterConfig;
-    input: FilterDataset;
-    output: FilterDataset;
-  }) => void;
+  onFilterChange?: (
+    nodeId: string,
+    payload: {
+      config: FilterConfig;
+      input: FilterDataset;
+      output: FilterDataset;
+    },
+  ) => void;
 };
 
 // ---- helper functions ----
@@ -68,10 +65,7 @@ const createDefaultCondition = (column = ""): FilterCondition => ({
   value: "",
 });
 
-const normalizeConfig = (
-  partial: Partial<FilterConfig> | undefined,
-  headers: string[]
-): FilterConfig => {
+const normalizeConfig = (partial: Partial<FilterConfig> | undefined, headers: string[]): FilterConfig => {
   const firstColumn = headers[0] ?? "";
   const base: FilterConfig = {
     enabled: true,
@@ -84,18 +78,11 @@ const normalizeConfig = (
   return {
     enabled: partial.enabled ?? base.enabled,
     logic: partial.logic ?? base.logic,
-    conditions:
-      partial.conditions && partial.conditions.length > 0
-        ? partial.conditions
-        : base.conditions,
+    conditions: partial.conditions && partial.conditions.length > 0 ? partial.conditions : base.conditions,
   };
 };
 
-const getCell = (
-  row: (string | number | boolean | null)[],
-  headers: string[],
-  column: string
-) => {
+const getCell = (row: (string | number | boolean | null)[], headers: string[], column: string) => {
   const idx = headers.indexOf(column);
   if (idx === -1) return null;
   return row[idx] ?? null;
@@ -104,7 +91,7 @@ const getCell = (
 const evaluateCondition = (
   row: (string | number | boolean | null)[],
   headers: string[],
-  cond: FilterCondition
+  cond: FilterCondition,
 ): boolean => {
   const value = getCell(row, headers, cond.column);
   const op = cond.operator;
@@ -178,12 +165,8 @@ const applyFilter = (dataset: FilterDataset, config: FilterConfig): FilterDatase
   }
 
   const filteredRows = rows.filter((row) => {
-    const results = conditions.map((cond) =>
-      evaluateCondition(row, headers, cond)
-    );
-    return config.logic === "all"
-      ? results.every(Boolean)
-      : results.some(Boolean);
+    const results = conditions.map((cond) => evaluateCondition(row, headers, cond));
+    return config.logic === "all" ? results.every(Boolean) : results.some(Boolean);
   });
 
   return {
@@ -200,12 +183,8 @@ export const FilterNode = memo(({ id, data, selected }: NodeProps<FilterNodeData
   const hasDataset = !!dataset && dataset.headers?.length > 0;
   const headers = dataset?.headers ?? [];
 
-  const [config, setConfig] = useState<FilterConfig>(() =>
-    normalizeConfig(data?.config, headers)
-  );
-  const [filteredRowCount, setFilteredRowCount] = useState<number>(
-    dataset?.rows?.length ?? 0
-  );
+  const [config, setConfig] = useState<FilterConfig>(() => normalizeConfig(data?.config, headers));
+  const [filteredRowCount, setFilteredRowCount] = useState<number>(dataset?.rows?.length ?? 0);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   // keep config synced with incoming headers (e.g., when new dataset arrives)
@@ -238,31 +217,214 @@ export const FilterNode = memo(({ id, data, selected }: NodeProps<FilterNodeData
 
   // ---- handlers ----
 
-  const handleToggleEnabled = useCallback(
-    (e: ChangeEvent<HTMLInputElement>) => {
-      const enabled = e.target.checked;
-      setConfig((prev) => ({ ...prev, enabled }));
-    },
-    []
-  );
+  const handleToggleEnabled = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+    const enabled = e.target.checked;
+    setConfig((prev) => ({ ...prev, enabled }));
+  }, []);
 
   const handleLogicChange = useCallback((e: ChangeEvent<HTMLSelectElement>) => {
     const logic = (e.target.value as FilterLogic) || "all";
     setConfig((prev) => ({ ...prev, logic }));
   }, []);
 
-  const handleConditionColumnChange = useCallback(
-    (idCond: string, column: string) => {
-      setConfig((prev) => ({
-        ...prev,
-        conditions: prev.conditions.map((c) =>
-          c.id === idCond ? { ...c, column } : c
-        ),
-      }));
+  const handleConditionColumnChange = useCallback((idCond: string, column: string) => {
+    setConfig((prev) => ({
+      ...prev,
+      conditions: prev.conditions.map((c) => (c.id === idCond ? { ...c, column } : c)),
+    }));
+  }, []);
+
+  const handleConditionOperatorChange = useCallback((idCond: string, operator: FilterOperator) => {
+    setConfig((prev) => ({
+      ...prev,
+      conditions: prev.conditions.map((c) => (c.id === idCond ? { ...c, operator } : c)),
+    }));
+  }, []);
+
+  const handleConditionValueChange = useCallback((idCond: string, value: string) => {
+    setConfig((prev) => ({
+      ...prev,
+      conditions: prev.conditions.map((c) => (c.id === idCond ? { ...c, value } : c)),
+    }));
+  }, []);
+
+  const handleAddCondition = useCallback(() => {
+    setConfig((prev) => ({
+      ...prev,
+      conditions: [...prev.conditions, createDefaultCondition(headers[0] ?? "")],
+    }));
+  }, [headers]);
+
+  const handleRemoveCondition = useCallback(
+    (idCond: string) => {
+      setConfig((prev) => {
+        const next = prev.conditions.filter((c) => c.id !== idCond);
+        return {
+          ...prev,
+          conditions: next.length ? next : [createDefaultCondition(headers[0] ?? "")],
+        };
+      });
     },
-    []
+    [headers],
   );
 
-  const handleConditionOperatorChange = useCallback(
-    (idCond: string, operator: FilterOperator) => {
-      setConfig
+  const inputRows = dataset?.rowCount ?? dataset?.rows?.length ?? 0;
+  const inputCols = dataset?.columnCount ?? headers.length ?? 0;
+
+  return (
+    <div
+      className={`px-3 py-2 shadow-md rounded-md bg-card border-2 min-w-[230px]
+      hover:shadow-lg transition-all group
+      ${selected ? "border-primary" : "border-border"}`}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <div className="p-1 rounded bg-orange-500/10 group-hover:bg-orange-500/20 transition-colors">
+            <FilterIcon className="h-3 w-3 text-orange-500" />
+          </div>
+          <div className="font-semibold text-xs">Filter</div>
+        </div>
+
+        <label className="flex items-center gap-1 text-[9px] text-muted-foreground">
+          <input type="checkbox" className="h-3 w-3" checked={config.enabled} onChange={handleToggleEnabled} />
+          <span>{config.enabled ? "On" : "Off"}</span>
+        </label>
+      </div>
+
+      {/* No dataset state */}
+      {!hasDataset && (
+        <div className="mt-2 text-[10px] text-muted-foreground flex items-start gap-1">
+          <AlertCircle className="h-3 w-3 text-yellow-500 mt-[2px]" />
+          <span>Connect an input node with data to enable filtering.</span>
+        </div>
+      )}
+
+      {/* Main controls (only when we have data) */}
+      {hasDataset && (
+        <>
+          {/* Summary */}
+          <div className="mt-2 text-[9px] text-muted-foreground flex justify-between gap-2">
+            <span>
+              In: {inputRows} r × {inputCols} c
+            </span>
+            <span>Out: {filteredRowCount} r</span>
+          </div>
+
+          {/* Logic */}
+          <div className="mt-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[9px] uppercase tracking-wide text-muted-foreground">Logic</span>
+            </div>
+            <select
+              className="mt-0.5 w-full rounded border bg-background text-[10px] px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary"
+              value={config.logic}
+              onChange={handleLogicChange}
+              disabled={!config.enabled}
+            >
+              <option value="all">Match all conditions</option>
+              <option value="any">Match any condition</option>
+            </select>
+          </div>
+
+          {/* Conditions */}
+          <div className="mt-2 space-y-1">
+            {config.conditions.map((cond, idx) => {
+              const operator = cond.operator;
+              const usesValue = operator !== "isEmpty" && operator !== "isNotEmpty";
+
+              return (
+                <div
+                  key={cond.id}
+                  className={`border rounded px-1.5 py-1 flex flex-col gap-1 ${!config.enabled ? "opacity-60" : ""}`}
+                >
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="text-[9px] text-muted-foreground">Condition {idx + 1}</span>
+                    {config.conditions.length > 1 && (
+                      <button
+                        type="button"
+                        className="text-[9px] text-muted-foreground hover:text-red-500 inline-flex items-center gap-0.5"
+                        onClick={() => handleRemoveCondition(cond.id)}
+                      >
+                        <X className="h-3 w-3" />
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {/* Column */}
+                    <select
+                      className="flex-1 rounded border bg-background text-[10px] px-1.5 py-1 focus:outline-none focus:ring-1 focus:ring-primary"
+                      value={cond.column}
+                      onChange={(e) => handleConditionColumnChange(cond.id, e.target.value)}
+                      disabled={!config.enabled}
+                    >
+                      {headers.map((h) => (
+                        <option key={h} value={h}>
+                          {h}
+                        </option>
+                      ))}
+                    </select>
+
+                    {/* Operator */}
+                    <select
+                      className="flex-[0.9] rounded border bg-background text-[10px] px-1.5 py-1 focus:outline-none focus:ring-1 focus:ring-primary"
+                      value={operator}
+                      onChange={(e) => handleConditionOperatorChange(cond.id, e.target.value as FilterOperator)}
+                      disabled={!config.enabled}
+                    >
+                      <option value="eq">=</option>
+                      <option value="neq">≠</option>
+                      <option value="gt">&gt;</option>
+                      <option value="gte">≥</option>
+                      <option value="lt">&lt;</option>
+                      <option value="lte">≤</option>
+                      <option value="contains">contains</option>
+                      <option value="startsWith">starts with</option>
+                      <option value="endsWith">ends with</option>
+                      <option value="isEmpty">is empty</option>
+                      <option value="isNotEmpty">is not empty</option>
+                    </select>
+                  </div>
+
+                  {/* Value input */}
+                  {usesValue && (
+                    <input
+                      type="text"
+                      className="mt-0.5 w-full rounded border bg-background text-[10px] px-1.5 py-1 focus:outline-none focus:ring-1 focus:ring-primary"
+                      placeholder="Value…"
+                      value={cond.value}
+                      onChange={(e) => handleConditionValueChange(cond.id, e.target.value)}
+                      disabled={!config.enabled}
+                    />
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Add condition button */}
+            <button
+              type="button"
+              onClick={handleAddCondition}
+              disabled={!config.enabled}
+              className={`mt-1 w-full text-[10px] px-2 py-1 rounded border bg-background transition-colors
+                ${config.enabled ? "hover:bg-muted cursor-pointer" : "opacity-60 cursor-not-allowed"}`}
+            >
+              + Add condition
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* Small status line (hover) */}
+      <div className="text-[10px] text-muted-foreground mt-1 truncate opacity-0 group-hover:opacity-100 transition-opacity">
+        {statusMessage || "No filter"}
+      </div>
+
+      <Handle type="target" position={Position.Left} className="w-2 h-2" />
+      <Handle type="source" position={Position.Right} className="w-2 h-2" />
+    </div>
+  );
+});
+
+FilterNode.displayName = "FilterNode";
