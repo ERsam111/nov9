@@ -137,14 +137,166 @@ export const DataPipelineWorkflow = ({ project }: DataPipelineWorkflowProps) => 
     setSteps(reordered.map((s, i) => ({ ...s, order: i })));
   };
 
+  const executeStep = (data: any[], step: DataStep): any[] => {
+    if (!step.isActive) return data;
+
+    try {
+      switch (step.type) {
+        case 'selectColumns':
+          if (step.config.mode === 'drop') {
+            return data.map(row => {
+              const newRow = { ...row };
+              step.config.columns?.forEach((col: string) => delete newRow[col]);
+              return newRow;
+            });
+          } else {
+            return data.map(row => {
+              const newRow: any = {};
+              step.config.columns?.forEach((col: string) => {
+                if (col in row) newRow[col] = row[col];
+              });
+              return newRow;
+            });
+          }
+
+        case 'filterRows':
+          return data.filter(row => {
+            const conditions = step.config.conditions || [];
+            const logic = step.config.logic || 'AND';
+            
+            const results = conditions.map((cond: any) => {
+              const value = row[cond.column];
+              const compareValue = cond.value;
+              
+              switch (cond.operator) {
+                case 'equals': return value == compareValue;
+                case 'notEquals': return value != compareValue;
+                case 'contains': return String(value).includes(compareValue);
+                case 'startsWith': return String(value).startsWith(compareValue);
+                case 'endsWith': return String(value).endsWith(compareValue);
+                case 'greaterThan': return Number(value) > Number(compareValue);
+                case 'lessThan': return Number(value) < Number(compareValue);
+                case 'isEmpty': return value === null || value === undefined || value === '';
+                case 'isNotEmpty': return value !== null && value !== undefined && value !== '';
+                default: return true;
+              }
+            });
+
+            return logic === 'AND' ? results.every(r => r) : results.some(r => r);
+          });
+
+        case 'sortRows':
+          return [...data].sort((a, b) => {
+            for (const key of step.config.sortKeys || []) {
+              const aVal = a[key.column];
+              const bVal = b[key.column];
+              const direction = key.direction === 'asc' ? 1 : -1;
+              
+              if (aVal < bVal) return -1 * direction;
+              if (aVal > bVal) return 1 * direction;
+            }
+            return 0;
+          });
+
+        case 'renameColumn':
+          return data.map(row => {
+            const newRow: any = {};
+            Object.keys(row).forEach(key => {
+              const newKey = step.config.renames?.[key] || key;
+              newRow[newKey] = row[key];
+            });
+            return newRow;
+          });
+
+        case 'removeDuplicates':
+          const seen = new Set();
+          return data.filter(row => {
+            const key = JSON.stringify(row);
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+
+        case 'sample':
+          const limit = step.config.limit || 100;
+          return data.slice(0, limit);
+
+        case 'groupAggregate':
+          const groups = new Map();
+          const groupBy = step.config.groupBy || [];
+          
+          data.forEach(row => {
+            const key = groupBy.map((col: string) => row[col]).join('||');
+            if (!groups.has(key)) {
+              const groupRow: any = {};
+              groupBy.forEach((col: string) => groupRow[col] = row[col]);
+              groups.set(key, { row: groupRow, values: [] });
+            }
+            groups.get(key).values.push(row);
+          });
+
+          return Array.from(groups.values()).map(group => {
+            const result = { ...group.row };
+            (step.config.aggregations || []).forEach((agg: any) => {
+              const values = group.values.map((r: any) => r[agg.column]).filter((v: any) => v != null);
+              
+              switch (agg.function) {
+                case 'sum':
+                  result[agg.outputName || `${agg.column}_sum`] = values.reduce((a: number, b: number) => a + Number(b), 0);
+                  break;
+                case 'avg':
+                  result[agg.outputName || `${agg.column}_avg`] = values.reduce((a: number, b: number) => a + Number(b), 0) / values.length;
+                  break;
+                case 'count':
+                  result[agg.outputName || `${agg.column}_count`] = values.length;
+                  break;
+                case 'min':
+                  result[agg.outputName || `${agg.column}_min`] = Math.min(...values.map(Number));
+                  break;
+                case 'max':
+                  result[agg.outputName || `${agg.column}_max`] = Math.max(...values.map(Number));
+                  break;
+              }
+            });
+            return result;
+          });
+
+        default:
+          return data;
+      }
+    } catch (error) {
+      console.error(`Error executing step ${step.type}:`, error);
+      toast.error(`Error in step "${step.label}"`);
+      return data;
+    }
+  };
+
   const handleRunToStep = (stepId: string) => {
     if (!sourceData) {
       toast.error('Please upload data first');
       return;
     }
-    // Mock execution - in production this would process data through steps
-    toast.success('Executed steps up to this point');
-    setCurrentData(sourceData);
+    
+    const targetIndex = steps.findIndex(s => s.id === stepId);
+    const stepsToRun = steps.slice(0, targetIndex + 1).filter(s => s.isActive);
+    
+    let processedData = sourceData;
+    for (const step of stepsToRun) {
+      processedData = executeStep(processedData, step);
+    }
+    
+    // Update columns based on processed data
+    if (processedData.length > 0) {
+      const cols: ColumnInfo[] = Object.keys(processedData[0]).map((name) => ({
+        name,
+        type: inferType(processedData[0][name]),
+        sampleValue: processedData[0][name],
+      }));
+      setColumns(cols);
+    }
+    
+    setCurrentData(processedData);
+    toast.success(`Executed ${stepsToRun.length} steps`);
   };
 
   const handleRunAll = () => {
@@ -152,8 +304,26 @@ export const DataPipelineWorkflow = ({ project }: DataPipelineWorkflowProps) => 
       toast.error('Please upload data first');
       return;
     }
-    toast.success(`Executed ${steps.filter((s) => s.isActive).length} active steps`);
-    setCurrentData(sourceData);
+    
+    const activeSteps = steps.filter(s => s.isActive);
+    let processedData = sourceData;
+    
+    for (const step of activeSteps) {
+      processedData = executeStep(processedData, step);
+    }
+    
+    // Update columns based on processed data
+    if (processedData.length > 0) {
+      const cols: ColumnInfo[] = Object.keys(processedData[0]).map((name) => ({
+        name,
+        type: inferType(processedData[0][name]),
+        sampleValue: processedData[0][name],
+      }));
+      setColumns(cols);
+    }
+    
+    setCurrentData(processedData);
+    toast.success(`Executed ${activeSteps.length} steps - ${processedData.length} rows`);
   };
 
   const handleColumnAction = (action: 'filter' | 'sort' | 'rename' | 'delete', columnName: string) => {
