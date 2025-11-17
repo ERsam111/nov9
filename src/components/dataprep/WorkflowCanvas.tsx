@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ReactFlow,
   Background,
@@ -29,7 +29,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
 
-// ⭐ ALL NODE TYPES
+// ⭐ NODE TYPES
 const nodeTypes: NodeTypes = {
   input: InputNode,
   filter: FilterNode,
@@ -49,85 +49,85 @@ interface WorkflowCanvasProps {
   onDataPreview: (nodeId: string, data: any[]) => void;
 }
 
-export const WorkflowCanvas = ({ onNodeSelect, onDataPreview }: WorkflowCanvasProps) => {
+export const WorkflowCanvas = ({
+  onNodeSelect,
+  onDataPreview,
+}: WorkflowCanvasProps) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
   const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
 
-  // 🔥 CORE: Propagate dataset to downstream nodes
+  // 🔥 Propagate dataset to downstream nodes
   const updateDownstreamNodes = useCallback(
     (sourceId: string, dataset: any) => {
-      console.log("📢 Propagating dataset from:", sourceId, dataset);
-
       setNodes((nds) =>
         nds.map((node) => {
-          const isDownstream = edges.some((e) => e.source === sourceId && e.target === node.id);
+          const isDownstream = edges.some(
+            (e) => e.source === sourceId && e.target === node.id
+          );
 
           if (isDownstream) {
-            console.log(" → Updating node", node.id);
             return {
               ...node,
               data: {
                 ...node.data,
-                dataset, // 🔥 Key fix
+                dataset,
               },
             };
           }
           return node;
-        }),
+        })
       );
     },
-    [edges],
+    [edges]
   );
 
-  // 🔥 Always attach correct runtime callbacks
-  const attachRuntimeCallbacks = useCallback(
-    (node: Node): Node => {
-      const data = { ...(node.data || {}) };
+  // 🔥 Attach callbacks 1 time at mount
+  useEffect(() => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        const data = { ...(node.data || {}) };
 
-      // Input Node → emits parsed dataset
-      if (node.type === "input") {
-        data.onDatasetChange = (nodeId: string, dataset: any) => {
-          console.log("📥 InputNode emitted dataset:", dataset);
-          updateDownstreamNodes(nodeId, dataset);
-          onDataPreview(nodeId, dataset.rows ?? []);
-        };
-      }
+        if (node.type === "input") {
+          data.onDatasetChange = (nodeId: string, dataset: any) => {
+            updateDownstreamNodes(nodeId, dataset);
+            onDataPreview(nodeId, dataset.rows ?? []);
+          };
+        }
 
-      // Filter → output dataset
-      if (node.type === "filter") {
-        data.onFilterChange = (nodeId: string, payload: any) => {
-          console.log("🔎 Filter output:", payload.output);
-          updateDownstreamNodes(nodeId, payload.output);
-          onDataPreview(nodeId, payload.output.rows ?? []);
-        };
-      }
+        if (node.type === "filter") {
+          data.onFilterChange = (nodeId: string, payload: any) => {
+            updateDownstreamNodes(nodeId, payload.output);
+            onDataPreview(nodeId, payload.output.rows ?? []);
+          };
+        }
 
-      // Select / Sort / Aggregate / Transform
-      if (["select", "sort", "aggregate", "transform"].includes(node.type)) {
-        data.onProcess = (nodeId: string, output: any) => {
-          console.log(`⚙️ ${node.type} output:`, output);
-          updateDownstreamNodes(nodeId, output);
-          onDataPreview(nodeId, output.rows ?? []);
-        };
-      }
+        if (
+          ["select", "sort", "aggregate", "transform"].includes(node.type)
+        ) {
+          data.onProcess = (nodeId: string, output: any) => {
+            updateDownstreamNodes(nodeId, output);
+            onDataPreview(nodeId, output.rows ?? []);
+          };
+        }
 
-      return { ...node, data };
-    },
-    [updateDownstreamNodes, onDataPreview],
-  );
+        return { ...node, data };
+      })
+    );
+  }, [setNodes, updateDownstreamNodes, onDataPreview]);
 
-  // 🔥 Always attach callbacks when nodes change
+  // Node changes
   const handleNodesChange = (changes: any) => {
     onNodesChange(changes);
-    setNodes((nds) => nds.map((n) => attachRuntimeCallbacks(n)));
   };
 
-  // Normal edge connect
-  const onConnect = useCallback((params: Connection) => setEdges((eds) => addEdge(params, eds)), []);
+  const onConnect = useCallback(
+    (params: Connection) => setEdges((eds) => addEdge(params, eds)),
+    []
+  );
 
-  // Drag/drop node
+  // Drag/drop new node
   const onDrop = useCallback(
     (event: React.DragEvent) => {
       event.preventDefault();
@@ -141,17 +141,16 @@ export const WorkflowCanvas = ({ onNodeSelect, onDataPreview }: WorkflowCanvasPr
         y: event.clientY,
       });
 
-      // Create node with attached callbacks
-      const newNode: Node = attachRuntimeCallbacks({
+      const newNode: Node = {
         id: `${type}-${Date.now()}`,
         type,
         position,
-        data: { label: `${type} node`, config: {} },
-      });
+        data: { config: {} },
+      };
 
       setNodes((nds) => nds.concat(newNode));
     },
-    [reactFlowInstance, attachRuntimeCallbacks],
+    [reactFlowInstance, setNodes]
   );
 
   const onNodeClick = useCallback(
@@ -159,7 +158,7 @@ export const WorkflowCanvas = ({ onNodeSelect, onDataPreview }: WorkflowCanvasPr
       onNodeSelect(node);
       setSelectedNodes([node.id]);
     },
-    [onNodeSelect],
+    [onNodeSelect]
   );
 
   const onSelectionChange = useCallback((params: any) => {
@@ -168,7 +167,13 @@ export const WorkflowCanvas = ({ onNodeSelect, onDataPreview }: WorkflowCanvasPr
 
   const handleDeleteSelected = useCallback(() => {
     setNodes((nds) => nds.filter((n) => !selectedNodes.includes(n.id)));
-    setEdges((eds) => eds.filter((e) => !selectedNodes.includes(e.source) && !selectedNodes.includes(e.target)));
+    setEdges((eds) =>
+      eds.filter(
+        (e) =>
+          !selectedNodes.includes(e.source) &&
+          !selectedNodes.includes(e.target)
+      )
+    );
     setSelectedNodes([]);
     onNodeSelect(null);
   }, [selectedNodes]);
@@ -177,7 +182,12 @@ export const WorkflowCanvas = ({ onNodeSelect, onDataPreview }: WorkflowCanvasPr
     <Card className="h-full border-2 relative">
       {selectedNodes.length > 0 && (
         <div className="absolute top-4 right-4 z-10">
-          <Button onClick={handleDeleteSelected} size="sm" variant="destructive" className="shadow-lg">
+          <Button
+            onClick={handleDeleteSelected}
+            size="sm"
+            variant="destructive"
+            className="shadow-lg"
+          >
             <Trash2 className="h-4 w-4 mr-2" />
             Delete ({selectedNodes.length})
           </Button>
@@ -185,7 +195,7 @@ export const WorkflowCanvas = ({ onNodeSelect, onDataPreview }: WorkflowCanvasPr
       )}
 
       <ReactFlow
-        nodes={nodes.map(attachRuntimeCallbacks)}
+        nodes={nodes}        {/* ⭐ FIX: NO MORE .map() HERE */}
         edges={edges}
         onNodesChange={handleNodesChange}
         onEdgesChange={onEdgesChange}
