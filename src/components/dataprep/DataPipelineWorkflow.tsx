@@ -210,9 +210,9 @@ export const DataPipelineWorkflow = ({ project }: DataPipelineWorkflowProps) => 
   };
 
   return (
-    <div className="h-screen flex flex-col p-4 gap-4">
+    <div className="h-screen w-full flex flex-col p-4 gap-4 overflow-hidden">
       {/* Top Action Bar */}
-      <Card className="border-2">
+      <Card className="border-2 flex-shrink-0">
         <CardContent className="py-3 px-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -241,14 +241,14 @@ export const DataPipelineWorkflow = ({ project }: DataPipelineWorkflowProps) => 
       </Card>
 
       {/* Main Workspace */}
-      <div className="flex-1 grid grid-cols-12 gap-4 min-h-0">
+      <div className="flex-shrink-0 h-[calc(45vh-4rem)] grid grid-cols-12 gap-4">
         {/* Left: Action Widgets */}
-        <div className="col-span-2 overflow-hidden">
+        <div className="col-span-2 h-full overflow-hidden">
           <ActionWidgets onAddStep={handleAddStep} />
         </div>
 
         {/* Center: Step Pipeline */}
-        <div className="col-span-5 overflow-hidden">
+        <div className="col-span-5 h-full overflow-hidden">
           <Card className="h-full border-2">
             <ScrollArea className="h-full">
               <StepPipeline
@@ -266,7 +266,7 @@ export const DataPipelineWorkflow = ({ project }: DataPipelineWorkflowProps) => 
         </div>
 
         {/* Right: Step Config + Column Panel */}
-        <div className="col-span-5 overflow-hidden flex flex-col gap-4">
+        <div className="col-span-5 h-full overflow-hidden flex flex-col gap-4">
           <StepConfig
             step={selectedStep}
             columns={columns}
@@ -284,14 +284,17 @@ export const DataPipelineWorkflow = ({ project }: DataPipelineWorkflowProps) => 
 
       {/* Bottom: Data Preview */}
       {currentData && (
-        <Card className="border-2 h-80">
-          <CardContent className="p-0 h-full">
-            <ScrollArea className="h-full">
+        <Card className="border-2 flex-1 min-h-0">
+          <CardContent className="p-4 h-full flex flex-col gap-2">
+            <div className="flex items-center justify-between flex-shrink-0">
+              <h3 className="text-sm font-semibold">Data Preview ({currentData.length} rows, showing first 100)</h3>
+            </div>
+            <ScrollArea className="flex-1 border rounded-md">
               <Table>
                 <TableHeader className="sticky top-0 bg-background z-10">
                   <TableRow>
                     {columns.map((col) => (
-                      <TableHead key={col.name} className="font-semibold whitespace-nowrap">
+                      <TableHead key={col.name} className="font-semibold whitespace-nowrap min-w-[120px]">
                         {col.name}
                       </TableHead>
                     ))}
@@ -301,7 +304,7 @@ export const DataPipelineWorkflow = ({ project }: DataPipelineWorkflowProps) => 
                   {currentData.slice(0, 100).map((row, idx) => (
                     <TableRow key={idx}>
                       {columns.map((col) => (
-                        <TableCell key={col.name} className="whitespace-nowrap">
+                        <TableCell key={col.name} className="whitespace-nowrap min-w-[120px]">
                           {row[col.name] !== null && row[col.name] !== undefined
                             ? String(row[col.name])
                             : <span className="text-muted-foreground italic">(empty)</span>}
