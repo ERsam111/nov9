@@ -29,7 +29,6 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
 
-// ⭐ NODE TYPES
 const nodeTypes: NodeTypes = {
   input: InputNode,
   filter: FilterNode,
@@ -49,24 +48,17 @@ interface WorkflowCanvasProps {
   onDataPreview: (nodeId: string, data: any[]) => void;
 }
 
-export const WorkflowCanvas = ({
-  onNodeSelect,
-  onDataPreview,
-}: WorkflowCanvasProps) => {
+export const WorkflowCanvas = ({ onNodeSelect, onDataPreview }: WorkflowCanvasProps) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
   const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
 
-  // 🔥 Propagate dataset to downstream nodes
   const updateDownstreamNodes = useCallback(
     (sourceId: string, dataset: any) => {
-      setNodes((nds) =>
-        nds.map((node) => {
-          const isDownstream = edges.some(
-            (e) => e.source === sourceId && e.target === node.id
-          );
-
+      setNodes((prev) =>
+        prev.map((node) => {
+          const isDownstream = edges.some((e) => e.source === sourceId && e.target === node.id);
           if (isDownstream) {
             return {
               ...node,
@@ -77,16 +69,15 @@ export const WorkflowCanvas = ({
             };
           }
           return node;
-        })
+        }),
       );
     },
-    [edges]
+    [edges, setNodes],
   );
 
-  // 🔥 Attach callbacks 1 time at mount
   useEffect(() => {
-    setNodes((nds) =>
-      nds.map((node) => {
+    setNodes((prev) =>
+      prev.map((node) => {
         const data = { ...(node.data || {}) };
 
         if (node.type === "input") {
@@ -103,9 +94,7 @@ export const WorkflowCanvas = ({
           };
         }
 
-        if (
-          ["select", "sort", "aggregate", "transform"].includes(node.type)
-        ) {
+        if (node.type === "select" || node.type === "sort" || node.type === "aggregate" || node.type === "transform") {
           data.onProcess = (nodeId: string, output: any) => {
             updateDownstreamNodes(nodeId, output);
             onDataPreview(nodeId, output.rows ?? []);
@@ -113,21 +102,21 @@ export const WorkflowCanvas = ({
         }
 
         return { ...node, data };
-      })
+      }),
     );
   }, [setNodes, updateDownstreamNodes, onDataPreview]);
 
-  // Node changes
   const handleNodesChange = (changes: any) => {
     onNodesChange(changes);
   };
 
   const onConnect = useCallback(
-    (params: Connection) => setEdges((eds) => addEdge(params, eds)),
-    []
+    (params: Connection) => {
+      setEdges((eds) => addEdge(params, eds));
+    },
+    [setEdges],
   );
 
-  // Drag/drop new node
   const onDrop = useCallback(
     (event: React.DragEvent) => {
       event.preventDefault();
@@ -150,7 +139,7 @@ export const WorkflowCanvas = ({
 
       setNodes((nds) => nds.concat(newNode));
     },
-    [reactFlowInstance, setNodes]
+    [reactFlowInstance, setNodes],
   );
 
   const onNodeClick = useCallback(
@@ -158,7 +147,7 @@ export const WorkflowCanvas = ({
       onNodeSelect(node);
       setSelectedNodes([node.id]);
     },
-    [onNodeSelect]
+    [onNodeSelect],
   );
 
   const onSelectionChange = useCallback((params: any) => {
@@ -166,28 +155,17 @@ export const WorkflowCanvas = ({
   }, []);
 
   const handleDeleteSelected = useCallback(() => {
-    setNodes((nds) => nds.filter((n) => !selectedNodes.includes(n.id)));
-    setEdges((eds) =>
-      eds.filter(
-        (e) =>
-          !selectedNodes.includes(e.source) &&
-          !selectedNodes.includes(e.target)
-      )
-    );
+    setNodes((prev) => prev.filter((n) => !selectedNodes.includes(n.id)));
+    setEdges((prev) => prev.filter((e) => !selectedNodes.includes(e.source) && !selectedNodes.includes(e.target)));
     setSelectedNodes([]);
     onNodeSelect(null);
-  }, [selectedNodes]);
+  }, [selectedNodes, setNodes, setEdges, onNodeSelect]);
 
   return (
     <Card className="h-full border-2 relative">
       {selectedNodes.length > 0 && (
         <div className="absolute top-4 right-4 z-10">
-          <Button
-            onClick={handleDeleteSelected}
-            size="sm"
-            variant="destructive"
-            className="shadow-lg"
-          >
+          <Button onClick={handleDeleteSelected} size="sm" variant="destructive" className="shadow-lg">
             <Trash2 className="h-4 w-4 mr-2" />
             Delete ({selectedNodes.length})
           </Button>
@@ -195,7 +173,7 @@ export const WorkflowCanvas = ({
       )}
 
       <ReactFlow
-        nodes={nodes}        {/* ⭐ FIX: NO MORE .map() HERE */}
+        nodes={nodes}
         edges={edges}
         onNodesChange={handleNodesChange}
         onEdgesChange={onEdgesChange}
