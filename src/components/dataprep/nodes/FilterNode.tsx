@@ -54,10 +54,14 @@ export type FilterNodeData = {
       output: FilterDataset;
     },
   ) => void;
+
+  // OPTIONAL: if you don't pass dataset yet, you can pass columns directly:
+  // headers?: string[];
+  // columns?: string[];
+  // availableColumns?: string[];
 };
 
 // ---- helper functions ----
-
 const createDefaultCondition = (column = ""): FilterCondition => ({
   id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
   column,
@@ -180,8 +184,20 @@ const applyFilter = (dataset: FilterDataset, config: FilterConfig): FilterDatase
 export const FilterNode = memo(({ id, data, selected }: NodeProps<FilterNodeData>) => {
   const dataset = data?.dataset;
 
-  const hasDataset = !!dataset && dataset.headers?.length > 0;
-  const headers = dataset?.headers ?? [];
+  // 1) Try columns from dataset.headers
+  const datasetHeaders = dataset?.headers ?? [];
+
+  // 2) Fallback columns from data.headers / data.columns / data.availableColumns
+  const manualHeaders: string[] =
+    ((data as any)?.headers as string[] | undefined) ??
+    ((data as any)?.columns as string[] | undefined) ??
+    ((data as any)?.availableColumns as string[] | undefined) ??
+    [];
+
+  // 3) Final headers used by UI
+  const headers: string[] = datasetHeaders.length > 0 ? datasetHeaders : manualHeaders;
+
+  const hasDataset = !!dataset && datasetHeaders.length > 0;
 
   const [config, setConfig] = useState<FilterConfig>(() => normalizeConfig(data?.config, headers));
   const [filteredRowCount, setFilteredRowCount] = useState<number>(dataset?.rows?.length ?? 0);
@@ -195,7 +211,17 @@ export const FilterNode = memo(({ id, data, selected }: NodeProps<FilterNodeData
 
   // recompute filtered dataset whenever dataset or config changes
   useEffect(() => {
-    if (!hasDataset || !dataset) return;
+    if (!hasDataset || !dataset) {
+      // if no dataset (only manual headers), we can still update message
+      const summary =
+        config.enabled && config.conditions.length
+          ? `${config.conditions.length} condition${
+              config.conditions.length > 1 ? "s" : ""
+            } (${config.logic === "all" ? "Match all" : "Match any"})`
+          : "No filter active";
+      setStatusMessage(summary);
+      return;
+    }
 
     const output = applyFilter(dataset, config);
     setFilteredRowCount(output.rows.length);
@@ -216,7 +242,6 @@ export const FilterNode = memo(({ id, data, selected }: NodeProps<FilterNodeData
   }, [config, dataset, hasDataset, data, id]);
 
   // ---- handlers ----
-
   const handleToggleEnabled = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     const enabled = e.target.checked;
     setConfig((prev) => ({ ...prev, enabled }));
@@ -292,23 +317,34 @@ export const FilterNode = memo(({ id, data, selected }: NodeProps<FilterNodeData
         </label>
       </div>
 
-      {/* No dataset state */}
-      {!hasDataset && (
+      {/* No columns / dataset state */}
+      {!headers.length && (
         <div className="mt-2 text-[10px] text-muted-foreground flex items-start gap-1">
           <AlertCircle className="h-3 w-3 text-yellow-500 mt-[2px]" />
-          <span>Connect an input node with data to enable filtering.</span>
+          <span>
+            No columns available. Make sure you pass either
+            <code className="mx-0.5">data.dataset.headers</code> or
+            <code className="mx-0.5">data.headers</code>.
+          </span>
         </div>
       )}
 
-      {/* Main controls (only when we have data) */}
-      {hasDataset && (
+      {/* No dataset but we do have headers */}
+      {!hasDataset && headers.length > 0 && (
+        <div className="mt-2 text-[10px] text-muted-foreground">
+          Columns loaded, but no data rows yet. Filter config can still be set.
+        </div>
+      )}
+
+      {/* Main controls (only when we have headers) */}
+      {headers.length > 0 && (
         <>
           {/* Summary */}
           <div className="mt-2 text-[9px] text-muted-foreground flex justify-between gap-2">
             <span>
               In: {inputRows} r × {inputCols} c
             </span>
-            <span>Out: {filteredRowCount} r</span>
+            {hasDataset && <span>Out: {filteredRowCount} r</span>}
           </div>
 
           {/* Logic */}
