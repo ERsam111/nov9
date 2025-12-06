@@ -1,328 +1,817 @@
-// Differential Evolution Optimizer
-class DifferentialEvolution {
-  constructor(bounds, populationSize = 50, maxIterations = 100, F = 0.8, CR = 0.9) {
-    this.bounds = bounds;
-    this.populationSize = populationSize;
-    this.maxIterations = maxIterations;
-    this.F = F;
-    this.CR = CR;
-    this.dimensions = bounds.length;
+// Inventory Optimizer - Backend Service (MATCHES LOCAL SIMULATION ENGINE EXACTLY)
+// This replicates the local simulationEngine.ts logic for consistent results
+
+// ================== Group Expansion Helper ==================
+function expandGroupToMembers(name, groupData, groupType) {
+  if (!groupData || groupData.length === 0) return [name];
+  
+  const groupMembers = groupData.filter(
+    (g) => g["Group Name"] === name && g["Group Type"] === groupType && g["Status"] === "Include"
+  );
+  
+  if (groupMembers.length > 0) {
+    return groupMembers.map((g) => g["Member Name"]);
   }
+  return [name];
+}
 
-  optimize(objectiveFn) {
-    let population = this.initializePopulation();
-    let fitness = population.map(ind => objectiveFn(ind));
-    let bestIdx = fitness.indexOf(Math.min(...fitness));
-    let best = { solution: population[bestIdx], fitness: fitness[bestIdx] };
-
-    for (let iter = 0; iter < this.maxIterations; iter++) {
-      for (let i = 0; i < this.populationSize; i++) {
-        const indices = this.selectDistinctIndices(i);
-        const mutant = this.mutate(population, indices);
-        const trial = this.crossover(population[i], mutant);
-        const trialFitness = objectiveFn(trial);
-
-        if (trialFitness < fitness[i]) {
-          population[i] = trial;
-          fitness[i] = trialFitness;
-          if (trialFitness < best.fitness) {
-            best = { solution: trial, fitness: trialFitness };
-          }
-        }
+function expandCustomerOrders(customerOrderData, groupData) {
+  const expandedOrders = [];
+  let orderIdCounter = 1;
+  
+  for (const order of customerOrderData) {
+    if (order["Status"] !== "Include") continue;
+    
+    const customerName = order["Customer Name"];
+    const productName = order["Product Name"];
+    
+    const customerMembers = expandGroupToMembers(customerName, groupData, 'Customer');
+    const productMembers = expandGroupToMembers(productName, groupData, 'Product');
+    
+    for (const cust of customerMembers) {
+      for (const prod of productMembers) {
+        expandedOrders.push({
+          ...order,
+          "Order ID": orderIdCounter++,
+          "Customer Name": cust,
+          "Product Name": prod,
+          "_originalCustomer": customerName,
+          "_originalProduct": productName,
+        });
       }
     }
-
-    return best;
   }
-
-  initializePopulation() {
-    const population = [];
-    for (let i = 0; i < this.populationSize; i++) {
-      const individual = this.bounds.map(([min, max]) => 
-        min + Math.random() * (max - min)
-      );
-      population.push(individual);
-    }
-    return population;
-  }
-
-  selectDistinctIndices(currentIdx) {
-    const indices = [];
-    while (indices.length < 3) {
-      const idx = Math.floor(Math.random() * this.populationSize);
-      if (idx !== currentIdx && !indices.includes(idx)) {
-        indices.push(idx);
-      }
-    }
-    return indices;
-  }
-
-  mutate(population, [a, b, c]) {
-    return population[a].map((val, i) => {
-      const mutated = val + this.F * (population[b][i] - population[c][i]);
-      return Math.max(this.bounds[i][0], Math.min(this.bounds[i][1], mutated));
-    });
-  }
-
-  crossover(target, mutant) {
-    const trial = [];
-    const jRand = Math.floor(Math.random() * this.dimensions);
-    for (let j = 0; j < this.dimensions; j++) {
-      trial.push(Math.random() < this.CR || j === jRand ? mutant[j] : target[j]);
-    }
-    return trial;
-  }
+  
+  return expandedOrders;
 }
 
-// Statistical functions
-function normalCDF(x) {
-  const t = 1 / (1 + 0.2316419 * Math.abs(x));
-  const d = 0.3989423 * Math.exp(-x * x / 2);
-  const prob = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
-  return x > 0 ? 1 - prob : prob;
-}
+// ================== RNG helpers ==================
+function generateDemand(distributionStr) {
+  const numeric = Number(distributionStr);
+  if (!isNaN(numeric)) return numeric;
 
-function normalPPF(p) {
-  if (p <= 0 || p >= 1) throw new Error("p must be between 0 and 1");
-  const a = [-3.969683028665376e+01, 2.209460984245205e+02, -2.759285104469687e+02,
-              1.383577518672690e+02, -3.066479806614716e+01, 2.506628277459239e+00];
-  const b = [-5.447609879822406e+01, 1.615858368580409e+02, -1.556989798598866e+02,
-              6.680131188771972e+01, -1.328068155288572e+01];
-  const c = [-7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e+00,
-             -2.549732539343734e+00, 4.374664141464968e+00, 2.938163982698783e+00];
-  const d = [7.784695709041462e-03, 3.224671290700398e-01, 2.445134137142996e+00,
-             3.754408661907416e+00];
+  const match = distributionStr?.match?.(/(\w+)\(([\d\s,\.]+)\)/);
+  if (!match) return 100;
 
-  const q = p < 0.5 ? p : 1 - p;
-  let num = 0, den = 1;
+  const [, distribution, paramsStr] = match;
+  const params = paramsStr.split(",").map((p) => parseFloat(p.trim()));
 
-  if (q > 0.02425) {
-    const r = q - 0.5;
-    const r2 = r * r;
-    for (let i = 0; i < 6; i++) num += a[i] * Math.pow(r2, i);
-    for (let i = 0; i < 5; i++) den += b[i] * Math.pow(r2, i + 1);
-    return (p < 0.5 ? -1 : 1) * (num / den) * r;
-  } else {
-    const r = Math.sqrt(-Math.log(q));
-    for (let i = 0; i < 6; i++) num += c[i] * Math.pow(r, i);
-    for (let i = 0; i < 4; i++) den += d[i] * Math.pow(r, i + 1);
-    return (p < 0.5 ? -1 : 1) * (num / den);
-  }
-}
-
-function calculateSafetyStock(demandMean, demandStd, leadTimeMean, leadTimeStd, serviceLevel) {
-  const Z = normalPPF(serviceLevel);
-  const demandVariance = demandStd * demandStd;
-  const leadTimeVariance = leadTimeStd * leadTimeStd;
-  const safetyStockVariance = 
-    (leadTimeMean * demandVariance) + (demandMean * demandMean * leadTimeVariance);
-  return Z * Math.sqrt(safetyStockVariance);
-}
-
-// Random number generators
-function generateDemand(mean, std, distribution) {
-  switch (distribution) {
-    case 'normal': {
-      let u = 0, v = 0;
-      while (u === 0) u = Math.random();
-      while (v === 0) v = Math.random();
-      const z = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
-      return Math.max(0, mean + z * std);
+  switch ((distribution || "").toLowerCase()) {
+    case "uniform": {
+      const [min, max] = params;
+      return Math.random() * (max - min) + min;
     }
-    case 'triangular': {
-      const mode = mean;
-      const min = Math.max(0, mean - std * Math.sqrt(6));
-      const max = mean + std * Math.sqrt(6);
-      const u = Math.random();
-      const F = (mode - min) / (max - min);
-      if (u < F) {
-        return min + Math.sqrt(u * (max - min) * (mode - min));
-      } else {
-        return max - Math.sqrt((1 - u) * (max - min) * (max - mode));
-      }
+    case "normal": {
+      const [mean, std] = params;
+      return normalRandom(mean, std);
     }
-    case 'uniform': {
-      const halfRange = std * Math.sqrt(3);
-      return Math.max(0, mean - halfRange + Math.random() * 2 * halfRange);
+    case "exponential": {
+      const [lambda] = params;
+      return -Math.log(1 - Math.random()) / lambda;
     }
-    case 'poisson': {
-      let L = Math.exp(-mean);
-      let k = 0;
-      let p = 1;
-      do {
-        k++;
-        p *= Math.random();
-      } while (p > L);
-      return k - 1;
+    case "poisson": {
+      return poissonRandom(params[0]);
+    }
+    case "constant": {
+      return params[0];
     }
     default:
-      return mean;
+      return 100;
   }
 }
 
-// Simulation function
-function runSimulation(s, S, demandParams, leadTimeParams, costs, numDays, numReplications) {
-  const replications = [];
+function normalRandom(mean, std) {
+  const u1 = Math.random();
+  const u2 = Math.random();
+  const z0 = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+  return z0 * std + mean;
+}
 
-  for (let rep = 0; rep < numReplications; rep++) {
-    let inventory = S;
-    let totalOrderingCost = 0;
-    let totalHoldingCost = 0;
-    let totalShortageCost = 0;
-    let numOrders = 0;
-    let daysOutOfStock = 0;
-    const inventoryLevels = [inventory];
-    const dailyCosts = [];
+function poissonRandom(lambda) {
+  const L = Math.exp(-lambda);
+  let k = 0;
+  let p = 1;
+  do {
+    k++;
+    p *= Math.random();
+  } while (p > L);
+  return k - 1;
+}
 
-    for (let day = 0; day < numDays; day++) {
-      const demand = generateDemand(demandParams.mean, demandParams.std, demandParams.distribution);
-      
-      if (inventory <= s) {
-        const orderQty = S - inventory;
-        totalOrderingCost += costs.ordering;
-        numOrders++;
-        
-        const leadTime = Math.max(1, Math.round(
-          generateDemand(leadTimeParams.mean, leadTimeParams.std, leadTimeParams.distribution)
-        ));
-        
-        if (day + leadTime < numDays) {
-          inventory += orderQty;
-        }
-      }
+// ================== One replication ==================
+function runReplication(input, scenario, repNumber, collectInventory, scenarioDescription) {
+  const simulationDays = 365;
+  const scDesc = scenarioDescription || `${scenario.facilityName} | ${scenario.productName} | s=${scenario.s} | S=${scenario.S}`;
 
-      if (inventory >= demand) {
-        inventory -= demand;
-        totalHoldingCost += inventory * costs.holding;
-      } else {
-        const shortage = demand - inventory;
-        totalShortageCost += shortage * costs.shortage;
-        inventory = 0;
-        daysOutOfStock++;
-      }
+  // ---- Cost lookups ----
+  const warehousing = input.warehousingData?.find(
+    (w) => w["Facility Name"] === scenario.facilityName && w["Product Name"] === scenario.productName
+  );
+  const production = input.productionData?.find(
+    (p) => p["Facility Name"]?.startsWith("S") && p["Product Name"] === scenario.productName
+  );
+  const replenishment = input.replenishmentData?.find(
+    (r) => r["Facility Name"] === scenario.facilityName && r["Product Name"] === scenario.productName
+  );
+  const transportation = input.transportationData?.find(
+    (t) => t["Destination Name"] === scenario.facilityName && t["Product Name"] === scenario.productName
+  );
 
-      inventoryLevels.push(inventory);
-      dailyCosts.push({
-        ordering: day === 0 ? totalOrderingCost : 0,
-        holding: inventory * costs.holding,
-        shortage: inventory === 0 ? (demand - inventory) * costs.shortage : 0
-      });
+  const holdingCostPerUnit = parseFloat(warehousing?.["Stocking Unit Cost"] || "0.3");
+  const productionCost = parseFloat(production?.["Unit Cost"] || "10");
+  const inboundHandling = parseFloat(warehousing?.["Inbound Handling Cost"] || "1");
+  const outboundHandling = parseFloat(warehousing?.["Outbound Handling Cost"] || "1.5");
+  const productionRate = parseFloat(production?.["Production Rate"] || "50");
+  const productionRateTimeUOM = production?.["Rate Time UOM"] || "HR";
+  const productionRatePerDay = productionRateTimeUOM === "HR" ? productionRate * 24 : productionRate;
+  const transportUnitCost = parseFloat(transportation?.["Unit Cost"] || "0.5");
+  const transportFixedCost = parseFloat(transportation?.["Fixed Cost"] || "200");
+  const replenishmentUnitCost = parseFloat(replenishment?.["Unit Cost"] || "0");
+  const transportTimeDistribution = transportation?.["Transport Time Distribution"] || "Constant(2)";
+  const transportTimeUOM = transportation?.["Transport Time Distribution UOM"] || "DAY";
+
+  const convertToDays = (time, uom) => {
+    switch (uom?.toUpperCase()) {
+      case "MIN": return time / (60 * 24);
+      case "HR": return time / 24;
+      default: return time;
     }
+  };
 
-    const totalCost = totalOrderingCost + totalHoldingCost + totalShortageCost;
-    const avgInventory = inventoryLevels.reduce((a, b) => a + b, 0) / inventoryLevels.length;
-    const serviceLevel = ((numDays - daysOutOfStock) / numDays) * 100;
+  // ---- Multi-facility inventory tracking ----
+  const facilityInventory = {};
+  
+  const ensureFacilityProduct = (facName, prodName, defaultS = 100, defaultS_lower = 10) => {
+    const key = `${facName}|${prodName}`;
+    if (facilityInventory[key]) return;
+    
+    const invPolicy = input.inventoryPolicyData?.find(
+      (ip) => ip["Facility Name"] === facName && ip["Product Name"] === prodName
+    );
+    
+    const S_value = invPolicy ? parseFloat(invPolicy["Simulation Policy Value 2"] || String(defaultS)) : defaultS;
+    const s_value = invPolicy ? parseFloat(invPolicy["Simulation Policy Value 1"] || String(defaultS_lower)) : defaultS_lower;
+    const initialInventory = invPolicy?.["Initial Inventory"] !== undefined 
+      ? parseFloat(invPolicy["Initial Inventory"]) 
+      : S_value;
+    
+    facilityInventory[key] = {
+      inventory: initialInventory,
+      s: s_value,
+      S: S_value,
+      facilityName: facName,
+      productName: prodName
+    };
+  };
+  
+  // Initialize from scenario.allFactors
+  if (scenario.allFactors && scenario.allFactors.length > 0) {
+    for (const factor of scenario.allFactors) {
+      const key = `${factor.facilityName}|${factor.productName}`;
+      const invPolicy = input.inventoryPolicyData?.find(
+        (ip) => ip["Facility Name"] === factor.facilityName && ip["Product Name"] === factor.productName
+      );
+      const initialInventory = invPolicy?.["Initial Inventory"] !== undefined 
+        ? parseFloat(invPolicy["Initial Inventory"]) 
+        : factor.S;
+      
+      facilityInventory[key] = {
+        inventory: initialInventory,
+        s: factor.s,
+        S: factor.S,
+        facilityName: factor.facilityName,
+        productName: factor.productName
+      };
+    }
+  } else {
+    const key = `${scenario.facilityName}|${scenario.productName}`;
+    const invPolicy = input.inventoryPolicyData?.find(
+      (ip) => ip["Facility Name"] === scenario.facilityName && ip["Product Name"] === scenario.productName
+    );
+    const initialInventory = invPolicy?.["Initial Inventory"] !== undefined 
+      ? parseFloat(invPolicy["Initial Inventory"]) 
+      : scenario.S;
+    
+    facilityInventory[key] = {
+      inventory: initialInventory,
+      s: scenario.s,
+      S: scenario.S,
+      facilityName: scenario.facilityName,
+      productName: scenario.productName
+    };
+  }
+  
+  // Add from all data sources
+  for (const invPolicy of input.inventoryPolicyData || []) {
+    ensureFacilityProduct(invPolicy["Facility Name"], invPolicy["Product Name"]);
+  }
+  for (const prod of input.productionData || []) {
+    if (prod["Facility Name"] && prod["Product Name"]) {
+      ensureFacilityProduct(prod["Facility Name"], prod["Product Name"], 200, 50);
+    }
+  }
+  for (const trans of input.transportationData || []) {
+    if (trans["Origin Name"] && trans["Product Name"]) {
+      ensureFacilityProduct(trans["Origin Name"], trans["Product Name"], 200, 50);
+    }
+    if (trans["Destination Name"] && trans["Product Name"]) {
+      ensureFacilityProduct(trans["Destination Name"], trans["Product Name"], 100, 20);
+    }
+  }
+  for (const cf of input.customerFulfillmentData || []) {
+    if (cf["Facility Name"] && cf["Product Name"]) {
+      ensureFacilityProduct(cf["Facility Name"], cf["Product Name"], 100, 20);
+    }
+  }
 
-    replications.push({
-      totalCost,
-      orderingCost: totalOrderingCost,
-      holdingCost: totalHoldingCost,
-      shortageCost: totalShortageCost,
-      numOrders,
-      avgInventory,
-      serviceLevel,
-      inventoryLevels,
-      dailyCosts
+  const s = scenario.s;
+  const S = scenario.S;
+  const mainInvPolicy = input.inventoryPolicyData?.find(
+    (ip) => ip["Facility Name"] === scenario.facilityName && ip["Product Name"] === scenario.productName
+  );
+  const mainInitialInventory = mainInvPolicy?.["Initial Inventory"] !== undefined 
+    ? parseFloat(mainInvPolicy["Initial Inventory"]) 
+    : S;
+  
+  let inventory = mainInitialInventory;
+
+  // Expand customer orders
+  const expandedOrders = expandCustomerOrders(input.customerOrderData || [], input.groupData || []);
+  
+  // Build customer order profiles
+  const customerOrderProfiles = [];
+  for (const order of expandedOrders) {
+    const custName = order["Customer Name"];
+    const prodName = order["Product Name"];
+    const demandDist = order["Demand Distribution"] || "Normal(100,20)";
+    const intervalDist = order["Order Interval Distribution"] || "Constant(1)";
+    
+    const fulfillment = input.customerFulfillmentData?.find(
+      (cf) => cf["Customer Name"] === custName && cf["Product Name"] === prodName
+    );
+    const servingFacility = fulfillment?.["Facility Name"] || scenario.facilityName;
+    const serviceWindow = parseFloat(fulfillment?.["Service Window"] || order["Service Window"] || "5");
+    
+    customerOrderProfiles.push({
+      customerName: custName,
+      productName: prodName,
+      demandDistribution: demandDist,
+      orderIntervalDistribution: intervalDist,
+      servingFacility,
+      serviceWindow,
+      nextOrderDay: Math.floor(Math.max(0, generateDemand(intervalDist))),
     });
   }
 
-  return replications;
+  // Simulation state
+  let totalCost = 0;
+  let transportationCost = 0;
+  let productionCostTotal = 0;
+  let handlingCostTotal = 0;
+  let inventoryCostTotal = 0;
+  let replenishmentCostTotal = 0;
+  let totalDemand = 0;
+  let totalFulfilled = 0;
+  let totalOrders = 0;
+  let onTimeOrders = 0;
+  let dailyInventorySum = 0;
+  let totalReplenishmentOrders = 0;
+  let totalReplenishmentUnits = 0;
+  let totalProductionUnits = 0;
+  let totalInboundUnits = 0;
+  let totalOutboundUnits = 0;
+
+  const facilityDailyInventorySum = {};
+  for (const key of Object.keys(facilityInventory)) {
+    facilityDailyInventorySum[key] = 0;
+  }
+
+  const orderLog = [];
+  const inventorySnapshots = [];
+  const productionLog = [];
+  const productFlowLog = [];
+  const tripAggregation = {};
+  const pendingReplenishments = [];
+  let replenishmentCounter = 1;
+  let orderIdCounter = 1;
+
+  for (let day = 0; day < simulationDays; day++) {
+    // Process pending replenishments
+    const arrivals = pendingReplenishments.filter(pr => pr.arrivalDay === day);
+    for (const arrival of arrivals) {
+      if (facilityInventory[arrival.facilityKey]) {
+        facilityInventory[arrival.facilityKey].inventory += arrival.qty;
+        handlingCostTotal += arrival.qty * inboundHandling;
+        totalInboundUnits += arrival.qty;
+        
+        if (arrival.sourceKey && facilityInventory[arrival.sourceKey]) {
+          facilityInventory[arrival.sourceKey].inventory -= arrival.qty;
+        }
+      }
+    }
+    
+    // Remove processed replenishments
+    for (let i = pendingReplenishments.length - 1; i >= 0; i--) {
+      if (pendingReplenishments[i].arrivalDay === day) {
+        pendingReplenishments.splice(i, 1);
+      }
+    }
+
+    // Process customer orders
+    for (const profile of customerOrderProfiles) {
+      if (day === profile.nextOrderDay) {
+        const quantity = Math.max(1, Math.round(generateDemand(profile.demandDistribution)));
+        totalDemand += quantity;
+        totalOrders++;
+        
+        const facKey = `${profile.servingFacility}|${profile.productName}`;
+        const facInv = facilityInventory[facKey];
+        
+        let fulfilledQty = 0;
+        let deliveryDay = null;
+        
+        if (facInv && facInv.inventory >= quantity) {
+          facInv.inventory -= quantity;
+          fulfilledQty = quantity;
+          totalFulfilled += quantity;
+          handlingCostTotal += quantity * outboundHandling;
+          totalOutboundUnits += quantity;
+          
+          const leadTimeRaw = generateDemand(transportTimeDistribution);
+          const leadTimeDays = convertToDays(leadTimeRaw, transportTimeUOM);
+          deliveryDay = day + Math.ceil(leadTimeDays);
+          transportationCost += transportFixedCost + (quantity * transportUnitCost);
+          
+          const waitTime = deliveryDay - day;
+          if (waitTime <= profile.serviceWindow) {
+            onTimeOrders++;
+          }
+        } else if (facInv && facInv.inventory > 0) {
+          fulfilledQty = facInv.inventory;
+          totalFulfilled += fulfilledQty;
+          facInv.inventory = 0;
+          handlingCostTotal += fulfilledQty * outboundHandling;
+          totalOutboundUnits += fulfilledQty;
+          
+          const leadTimeRaw = generateDemand(transportTimeDistribution);
+          const leadTimeDays = convertToDays(leadTimeRaw, transportTimeUOM);
+          deliveryDay = day + Math.ceil(leadTimeDays);
+          transportationCost += transportFixedCost + (fulfilledQty * transportUnitCost);
+        }
+        
+        orderLog.push({
+          orderId: orderIdCounter++,
+          customerName: profile.customerName,
+          productName: profile.productName,
+          quantity: quantity,
+          orderDate: `Day ${day}`,
+          deliveryDate: deliveryDay !== null ? `Day ${deliveryDay}` : null,
+          waitTime: deliveryDay !== null ? deliveryDay - day : -1,
+          onTime: deliveryDay !== null && (deliveryDay - day) <= profile.serviceWindow,
+          scenario: `${profile.servingFacility}-${profile.productName}`,
+          scenarioDescription: scDesc,
+          replication: repNumber || 0,
+        });
+        
+        const nextInterval = Math.max(1, Math.round(generateDemand(profile.orderIntervalDistribution)));
+        profile.nextOrderDay = day + nextInterval;
+      }
+    }
+
+    // Inventory holding costs
+    let mainInventory = 0;
+    for (const key of Object.keys(facilityInventory)) {
+      const facInv = facilityInventory[key];
+      const facWarehousing = input.warehousingData?.find(
+        (w) => w["Facility Name"] === facInv.facilityName && w["Product Name"] === facInv.productName
+      );
+      const facHoldingCost = parseFloat(facWarehousing?.["Stocking Unit Cost"] || "0.3");
+      inventoryCostTotal += facInv.inventory * facHoldingCost;
+      facilityDailyInventorySum[key] += facInv.inventory;
+      
+      if (key === `${scenario.facilityName}|${scenario.productName}`) {
+        mainInventory = facInv.inventory;
+      }
+    }
+    dailyInventorySum += mainInventory;
+
+    // Check replenishment for all tracked facilities
+    for (const key of Object.keys(facilityInventory)) {
+      const facInv = facilityInventory[key];
+      if (facInv.inventory <= facInv.s) {
+        const orderQty = facInv.S - facInv.inventory;
+        replenishmentCostTotal += transportFixedCost;
+        totalReplenishmentOrders++;
+        totalReplenishmentUnits += orderQty;
+        
+        const leadTimeRaw = generateDemand(transportTimeDistribution);
+        const leadTimeDays = Math.max(1, Math.ceil(convertToDays(leadTimeRaw, transportTimeUOM)));
+        const arrivalDay = day + leadTimeDays;
+        
+        // Find source facility
+        const facilityTransportation = input.transportationData?.find(
+          (t) => t["Destination Name"] === facInv.facilityName && t["Product Name"] === facInv.productName
+        );
+        const originFacility = facilityTransportation?.["Origin Name"] || "Supplier1";
+        const sourceKey = `${originFacility}|${facInv.productName}`;
+        
+        pendingReplenishments.push({
+          id: replenishmentCounter++,
+          qty: orderQty,
+          arrivalDay: arrivalDay,
+          orderDay: day,
+          facilityKey: key,
+          sourceKey: sourceKey,
+        });
+        
+        productFlowLog.push({
+          source: originFacility,
+          destination: facInv.facilityName,
+          product: facInv.productName,
+          quantity: orderQty,
+          date: `Day ${day}`,
+          scenario: `${facInv.facilityName}-${facInv.productName}`,
+          scenarioDescription: scDesc,
+          replication: repNumber || 0,
+        });
+        
+        const tripKey = `${originFacility}|${facInv.facilityName}`;
+        const modeName = facilityTransportation?.["Mode Name"] || "Truck";
+        if (!tripAggregation[tripKey]) {
+          tripAggregation[tripKey] = { from: originFacility, to: facInv.facilityName, totalQuantity: 0, vehicleType: modeName };
+        }
+        tripAggregation[tripKey].totalQuantity += orderQty;
+      }
+    }
+
+    // Collect inventory snapshots
+    if (collectInventory) {
+      for (const key of Object.keys(facilityInventory)) {
+        const facInv = facilityInventory[key];
+        inventorySnapshots.push({
+          day,
+          inventory: facInv.inventory,
+          facility: facInv.facilityName,
+          product: facInv.productName,
+          scenario: `${facInv.facilityName}-${facInv.productName}`,
+          scenarioDescription: scDesc,
+          replication: repNumber || 0,
+        });
+      }
+    }
+  }
+
+  const fillRate = totalDemand > 0 ? (totalFulfilled / totalDemand) * 100 : 0;
+  const eltServiceLevel = totalOrders > 0 ? (onTimeOrders / totalOrders) * 100 : 0;
+  totalCost = transportationCost + productionCostTotal + handlingCostTotal + inventoryCostTotal + replenishmentCostTotal;
+
+  const costBreakdown = {
+    transportation: transportationCost,
+    production: productionCostTotal,
+    handling: handlingCostTotal,
+    inventory: inventoryCostTotal,
+    replenishment: replenishmentCostTotal,
+  };
+
+  const distributionType = transportTimeDistribution.split("(")[0] || "Constant";
+  const distributionParams = transportTimeDistribution.match(/\((.*)\)/)?.[1] || "2";
+  
+  const transportationDetails = {
+    fixedCostPerOrder: transportFixedCost,
+    transportUnitCost: transportUnitCost,
+    replenishmentUnitCost: replenishmentUnitCost,
+    totalOrders: totalReplenishmentOrders,
+    totalUnits: totalReplenishmentUnits,
+    distributionType: distributionType,
+    distributionParams: distributionParams,
+  };
+
+  const productionDetails = {
+    unitCost: productionCost,
+    totalUnits: totalProductionUnits,
+  };
+
+  const handlingDetails = {
+    inboundCost: inboundHandling,
+    outboundCost: outboundHandling,
+    inboundUnits: totalInboundUnits,
+    outboundUnits: totalOutboundUnits,
+  };
+
+  const avgInventory = simulationDays > 0 ? dailyInventorySum / simulationDays : 0;
+  
+  const byFacility = [];
+  for (const key of Object.keys(facilityInventory)) {
+    const facInv = facilityInventory[key];
+    const avgFacilityInventory = simulationDays > 0 ? facilityDailyInventorySum[key] / simulationDays : 0;
+    const facWarehousing = input.warehousingData?.find(
+      (w) => w["Facility Name"] === facInv.facilityName && w["Product Name"] === facInv.productName
+    );
+    const facHoldingCost = parseFloat(facWarehousing?.["Stocking Unit Cost"] || "0.3");
+    
+    byFacility.push({
+      facilityName: facInv.facilityName,
+      productName: facInv.productName,
+      holdingCostPerUnit: facHoldingCost,
+      avgInventory: avgFacilityInventory,
+      totalHoldingCost: avgFacilityInventory * facHoldingCost * simulationDays,
+    });
+  }
+  
+  const inventoryDetails = {
+    holdingCostPerUnit: holdingCostPerUnit,
+    avgInventory: avgInventory,
+    days: simulationDays,
+    byFacility: byFacility,
+  };
+
+  // Calculate trips
+  const tripLog = [];
+  for (const tripKey of Object.keys(tripAggregation)) {
+    const tripData = tripAggregation[tripKey];
+    let vehicleCapacity = 1000;
+    const modeConfig = input.transportationData?.find((m) => m["Mode Name"] === tripData.vehicleType);
+    if (modeConfig?.["Vehicle Capacity"]) {
+      vehicleCapacity = parseFloat(modeConfig["Vehicle Capacity"]) || 1000;
+    }
+    const trips = Math.ceil(tripData.totalQuantity / vehicleCapacity);
+    
+    tripLog.push({
+      from: tripData.from,
+      to: tripData.to,
+      vehicleType: tripData.vehicleType,
+      trips: trips,
+      totalQuantity: tripData.totalQuantity,
+      scenario: scDesc,
+      scenarioDescription: scDesc,
+      replication: repNumber || 0,
+    });
+  }
+
+  return { 
+    cost: totalCost, 
+    serviceLevel: fillRate, 
+    eltServiceLevel, 
+    orderLog, 
+    costBreakdown, 
+    transportationDetails, 
+    productionDetails, 
+    handlingDetails, 
+    inventoryDetails, 
+    inventorySnapshots,
+    productionLog,
+    productFlowLog,
+    tripLog
+  };
 }
 
-// Main optimization function - EXACT MATCH TO LOCAL SIMULATION (ITERATION LOGIC)
-export async function optimizeInventory(requestData) {
-  const { tableData, config } = requestData;
+// ================== Scenario Generation (MATCHES LOCAL) ==================
+function generateParameterValues(min, max, step) {
+  const values = [];
+  const steps = Math.round((max - min) / step) + 1;
+  for (let i = 0; i < steps; i++) {
+    const v = min + i * step;
+    if (v <= max) values.push(Math.round(v * 100) / 100);
+  }
+  return values;
+}
+
+function generateScenarios(input) {
+  const scenarios = [];
+  const inputFactors = input.inputFactorsData;
+
+  if (!inputFactors || inputFactors.length === 0) {
+    const dcPolicy = input.inventoryPolicyData?.find((ip) => ip["Facility Name"]?.startsWith("DC"));
+    if (dcPolicy) {
+      scenarios.push({
+        facilityName: dcPolicy["Facility Name"],
+        productName: dcPolicy["Product Name"],
+        s: parseFloat(dcPolicy["Simulation Policy Value 1"] || "150"),
+        S: parseFloat(dcPolicy["Simulation Policy Value 2"] || "600"),
+      });
+    }
+    return scenarios;
+  }
+
+  const factorCombinations = {};
   
-  console.log('Starting inventory optimization...');
+  for (const factor of inputFactors) {
+    const facilityName = factor["Facility Name"];
+    const productName = factor["Product"];
+    const parameterSetupStr = factor["Parameter Setup"];
+    if (!parameterSetupStr || !facilityName || !productName) continue;
+
+    const key = `${facilityName}|${productName}`;
+    
+    let config = [];
+    try {
+      config = JSON.parse(parameterSetupStr);
+    } catch {
+      continue;
+    }
+
+    const sCfg = config.find((p) => p.name === "s");
+    const SCfg = config.find((p) => p.name === "S");
+    if (!sCfg || !SCfg) continue;
+
+    const sVals = generateParameterValues(sCfg.min, sCfg.max, sCfg.step);
+    const SVals = generateParameterValues(SCfg.min, SCfg.max, SCfg.step);
+
+    const combinations = [];
+    for (const s of sVals) {
+      for (const S of SVals) {
+        if (s < S) {
+          combinations.push({ facilityName, productName, s, S });
+        }
+      }
+    }
+    factorCombinations[key] = combinations;
+  }
+
+  const keys = Object.keys(factorCombinations);
+  if (keys.length === 0) return scenarios;
+  
+  // Iterative Cartesian product
+  const cartesianProduct = (arrays) => {
+    if (arrays.length === 0) return [[]];
+    
+    let result = [[]];
+    for (const arr of arrays) {
+      const newResult = [];
+      for (const existing of result) {
+        for (const item of arr) {
+          newResult.push([...existing, item]);
+        }
+      }
+      result = newResult;
+      if (result.length > 10000) {
+        console.warn(`Limiting scenarios to 10000`);
+        break;
+      }
+    }
+    return result;
+  };
+  
+  const allCombinations = cartesianProduct(Object.values(factorCombinations));
+  
+  for (const combo of allCombinations) {
+    const scenario = {};
+    for (const item of combo) {
+      const prefix = `${item.facilityName}_${item.productName}`;
+      scenario[`${prefix}_s`] = item.s;
+      scenario[`${prefix}_S`] = item.S;
+      scenario[`${prefix}_facilityName`] = item.facilityName;
+      scenario[`${prefix}_productName`] = item.productName;
+    }
+    if (combo.length > 0) {
+      scenario.facilityName = combo[0].facilityName;
+      scenario.productName = combo[0].productName;
+      scenario.s = combo[0].s;
+      scenario.S = combo[0].S;
+    }
+    scenario.allFactors = combo;
+    scenarios.push(scenario);
+  }
+  
+  return scenarios;
+}
+
+function calculateStats(values) {
+  if (!values.length) return { min: 0, max: 0, mean: 0, sd: 0 };
+  
+  let min = values[0];
+  let max = values[0];
+  let sum = 0;
+  for (let i = 0; i < values.length; i++) {
+    if (values[i] < min) min = values[i];
+    if (values[i] > max) max = values[i];
+    sum += values[i];
+  }
+  const mean = sum / values.length;
+  
+  let varianceSum = 0;
+  for (let i = 0; i < values.length; i++) {
+    varianceSum += Math.pow(values[i] - mean, 2);
+  }
+  const variance = varianceSum / values.length;
+  
+  return { min, max, mean, sd: Math.sqrt(variance) };
+}
+
+// ================== Main Optimization Function ==================
+export async function optimizeInventory(requestData) {
+  const { input, config } = requestData;
+  
+  console.log('Starting inventory optimization (backend - matches local)...');
   console.log('Received data:', {
-    policyCount: tableData?.policy?.length,
-    demandCount: tableData?.demand?.length,
-    transportCount: tableData?.transport?.length,
-    replications: config?.numReplications
+    customerOrders: input?.customerOrderData?.length,
+    inventoryPolicies: input?.inventoryPolicyData?.length,
+    inputFactors: input?.inputFactorsData?.length,
+    replications: config?.replications
   });
   
   const startTime = Date.now();
   
-  // Get tables
-  const policyTable = tableData.policy || [];
-  const demandTable = tableData.demand || [];
-  const transportTable = tableData.transport || [];
+  const scenarios = generateScenarios(input);
+  const replications = config?.replications || 30;
+  const collectInventory = config?.collectInventory !== false;
   
-  // Extract parameter values from tables
+  console.log(`Generated ${scenarios.length} scenarios, running ${replications} replications each`);
+  
   const scenarioResults = [];
-  
-  for (let i = 0; i < policyTable.length; i++) {
-    console.log(`\n=== Starting policy ${i + 1}/${policyTable.length} ===`);
-    try {
-      const policyRow = policyTable[i];
-      const demandRow = demandTable[i] || {};
-      const transportRow = transportTable[i] || {};
-      
-      const policyId = policyRow['Policy ID'] || `Policy_${i}`;
-      const facilityName = policyRow['Facility Name'] || '';
-      const productName = policyRow['Product Name'] || '';
-      
-      console.log(`Policy ID: ${policyId}`);
-      
-      // Extract parameters
-      const demandParams = {
-        mean: parseFloat(demandRow['Average Daily Demand (units)']) || 100,
-        std: parseFloat(demandRow['Demand Std. Dev.']) || 20,
-        distribution: demandRow['Demand Distribution'] || 'normal'
-      };
-      
-      const leadTimeParams = {
-        mean: parseFloat(transportRow['Lead Time (days)']) || 5,
-        std: parseFloat(transportRow['Lead Time Std. Dev.']) || 1,
-        distribution: transportRow['Lead Time Distribution'] || 'normal'
-      };
-      
-      const costs = {
-        holding: parseFloat(policyRow['Holding Cost ($/unit/day)']) || 1,
-        ordering: parseFloat(policyRow['Ordering Cost ($/order)']) || 100,
-        shortage: parseFloat(policyRow['Shortage Cost ($/unit)']) || 10
-      };
-      
-      // Get s and S values directly from policy table (they come from iteration)
-      const s = parseFloat(policyRow['Reorder Point (s)']) || 0;
-      const S = parseFloat(policyRow['Order-up-to Level (S)']) || 0;
-      
-      console.log(`Demand params:`, demandParams);
-      console.log(`Lead time params:`, leadTimeParams);
-      console.log(`Costs:`, costs);
-      console.log(`Policy: s=${s}, S=${S}`);
-      
-      // Run simulation with these exact s,S values (no optimization)
-      const numReps = config?.numReplications || 100;
-      const results = runSimulation(s, S, demandParams, leadTimeParams, costs, 365, numReps);
-      
-      // Calculate statistics
-      const avgCost = results.reduce((sum, r) => sum + r.totalCost, 0) / results.length;
-      const avgServiceLevel = results.reduce((sum, r) => sum + r.serviceLevel, 0) / results.length;
-      const avgInventory = results.reduce((sum, r) => sum + r.avgInventory, 0) / results.length;
-      const totalOrders = results.reduce((sum, r) => sum + r.numOrders, 0) / results.length;
-      
-      scenarioResults.push({
-        policyId: policyId,
-        policyName: `${facilityName} - ${productName}`,
-        policyIndex: i,
-        reorderPoint: Math.round(s),
-        orderUpToLevel: Math.round(S),
-        expectedCost: Math.round(avgCost),
-        expectedServiceLevel: Math.round(avgServiceLevel * 100 * 10) / 10,
-        avgInventory: Math.round(avgInventory),
-        avgOrders: Math.round(totalOrders),
-        holdingCost: Math.round(avgInventory * costs.holding * 365),
-        orderCost: Math.round(totalOrders * costs.ordering),
-        replications: results
-      });
-      
-      console.log(`  ✓ Completed: s=${s}, S=${S}, Cost=${Math.round(avgCost)}, SL=${Math.round(avgServiceLevel * 100)}%`);
-    } catch (error) {
-      console.error(`\n✗✗✗ ERROR on policy ${i}: ${error.message}`);
-      console.error(`Stack trace:`, error.stack);
-      console.error(`✗✗✗ END ERROR\n`);
+  const allOrderLogs = [];
+  const allInventoryData = [];
+  const allProductionLogs = [];
+  const allProductFlowLogs = [];
+  const allTripLogs = [];
+
+  for (let i = 0; i < scenarios.length; i++) {
+    const sc = scenarios[i];
+    
+    let desc = "";
+    if (sc.allFactors && sc.allFactors.length > 0) {
+      desc = sc.allFactors.map((f) => `${f.facilityName}(${f.productName}): s=${f.s}, S=${f.S}`).join(" | ");
+    } else {
+      desc = `${sc.facilityName} | ${sc.productName} | s=${sc.s} | S=${sc.S}`;
     }
+    
+    const costs = [];
+    const sls = [];
+    const elts = [];
+    const scenarioOrderLogs = [];
+    const costBreakdowns = [];
+    let transportationDetailsForScenario;
+    let productionDetailsForScenario;
+    let handlingDetailsForScenario;
+    let inventoryDetailsForScenario;
+
+    for (let rep = 0; rep < replications; rep++) {
+      const result = runReplication(input, sc, rep + 1, collectInventory && rep < 3, desc);
+      
+      costs.push(result.cost);
+      sls.push(result.serviceLevel);
+      elts.push(result.eltServiceLevel);
+      costBreakdowns.push(result.costBreakdown);
+      
+      if (rep === 0) {
+        transportationDetailsForScenario = result.transportationDetails;
+        productionDetailsForScenario = result.productionDetails;
+        handlingDetailsForScenario = result.handlingDetails;
+        inventoryDetailsForScenario = result.inventoryDetails;
+      }
+
+      for (const log of result.orderLog) {
+        scenarioOrderLogs.push({ ...log, scenarioDescription: desc });
+      }
+      
+      if (rep === 0) {
+        for (const log of result.productionLog) allProductionLogs.push(log);
+        for (const log of result.productFlowLog) allProductFlowLogs.push(log);
+        for (const log of result.tripLog) allTripLogs.push(log);
+      }
+
+      if (collectInventory && rep < 3) {
+        for (const snap of result.inventorySnapshots) allInventoryData.push(snap);
+      }
+    }
+
+    for (const log of scenarioOrderLogs) allOrderLogs.push(log);
+
+    const costStats = calculateStats(costs);
+    const slStats = calculateStats(sls);
+    const eltStats = calculateStats(elts);
+
+    const avgBreakdown = {
+      transportation: costBreakdowns.reduce((s, b) => s + b.transportation, 0) / costBreakdowns.length,
+      production: costBreakdowns.reduce((s, b) => s + b.production, 0) / costBreakdowns.length,
+      handling: costBreakdowns.reduce((s, b) => s + b.handling, 0) / costBreakdowns.length,
+      inventory: costBreakdowns.reduce((s, b) => s + b.inventory, 0) / costBreakdowns.length,
+      replenishment: costBreakdowns.reduce((s, b) => s + b.replenishment, 0) / costBreakdowns.length,
+    };
+
+    scenarioResults.push({
+      srNo: i + 1,
+      scenarioDescription: desc,
+      costMin: Math.round(costStats.min),
+      costMax: Math.round(costStats.max),
+      costMean: Math.round(costStats.mean),
+      costSD: Math.round(costStats.sd),
+      serviceLevelMin: parseFloat(slStats.min.toFixed(2)),
+      serviceLevelMax: parseFloat(slStats.max.toFixed(2)),
+      serviceLevelMean: parseFloat(slStats.mean.toFixed(2)),
+      serviceLevelSD: parseFloat(slStats.sd.toFixed(2)),
+      eltServiceLevelMin: parseFloat(eltStats.min.toFixed(2)),
+      eltServiceLevelMax: parseFloat(eltStats.max.toFixed(2)),
+      eltServiceLevelMean: parseFloat(eltStats.mean.toFixed(2)),
+      eltServiceLevelSD: parseFloat(eltStats.sd.toFixed(2)),
+      costBreakdown: avgBreakdown,
+      transportationDetails: transportationDetailsForScenario,
+      productionDetails: productionDetailsForScenario,
+      handlingDetails: handlingDetailsForScenario,
+      inventoryDetails: inventoryDetailsForScenario,
+    });
+    
+    console.log(`Completed scenario ${i + 1}/${scenarios.length}: ${desc.substring(0, 50)}...`);
   }
   
   const endTime = Date.now();
@@ -330,7 +819,12 @@ export async function optimizeInventory(requestData) {
   
   return {
     success: true,
-    optimizedPolicies: scenarioResults,
+    scenarioResults,
+    orderLogs: allOrderLogs,
+    inventoryData: allInventoryData,
+    productionLogs: allProductionLogs,
+    productFlowLogs: allProductFlowLogs,
+    tripLogs: allTripLogs,
     executionTime: endTime - startTime
   };
 }
